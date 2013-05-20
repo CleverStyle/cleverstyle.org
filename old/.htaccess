@@ -1,0 +1,9 @@
+AddDefaultCharset utf-8
+Options -All +FollowSymLinks
+IndexIgnore *.php *.pl *.cgi *.htaccess *.htpasswd
+
+RewriteEngine On
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ ./index.php

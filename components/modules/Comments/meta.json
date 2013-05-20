@@ -1,0 +1,24 @@
+{
+	"package"		: "Comments",
+	"category"		: "modules",
+	"version"		: "0.003",
+	"description"	: "Adds comments functionality to other modules",
+	"author"		: "Nazar Mokrynskyi",
+	"website"		: "cleverstyle.org/cms",
+	"license"		: "MIT License",
+	"db_support"	: [
+		"MySQLi"
+	],
+	"provide"		: [
+		"comments"
+	],
+	"multilingual"	: [
+		"interface",
+		"content"
+	],
+	"languages"		: [
+		"English",
+		"Русский",
+		"Українська"
+	]
+}

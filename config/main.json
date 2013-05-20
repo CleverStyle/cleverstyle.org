@@ -1,0 +1,35 @@
+{
+//Domain of main mirror
+	"domain"			: "demo.cleverstyle.org",
+//Base timezone
+	"timezone"			: "Europe/Kiev",
+//Settings of main DB
+	"db_host"			: "localhost",
+	"db_type"			: "MySQLi",
+	"db_name"			: "cleverstyle.org",
+	"db_user"			: "cleverstyle.org",
+	"db_password"		: "RUMuZtHn2XtRj7Zn",
+	"db_prefix"			: "6e836_",
+	"db_charset"		: "utf8",
+//Settings of main Storage
+	"storage_type"		: "Local",
+	"storage_url"		: "",
+	"storage_host"		: "localhost",
+	"storage_user"		: "",
+	"storage_password"	: "",
+//Base language
+	"language"			: "English",
+//Cache engine
+	"cache_engine"		: "Memcached",
+//Cache size in MB for FileSystem storage engine
+	"cache_size"		: "100",
+//Settings of Memcached cache engine
+	"memcache_host"		: "127.0.0.1",
+	"memcache_port"		: "11211",
+//Will be truncated to 56 symbols
+	"key"				: "8416aae0638965e485ccb284031e34170b4f5cc2ba2c7a3430ea2995",
+//Will be truncated to 8 symbols
+	"iv"				: "6b1b85e6",
+//Any length
+	"public_key"		: "1354d97e5f46ac83f459b2ba0a2d9f7d002a65e08d410671458c19bd39bad6f9a8756b6b6d809251dac7048a7e665e45d5cc6f8f813484da71eb5cb45b9258c9"
+}

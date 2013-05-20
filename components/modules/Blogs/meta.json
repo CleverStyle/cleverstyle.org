@@ -1,0 +1,24 @@
+{
+	"package"		: "Blogs",
+	"category"		: "modules",
+	"version"		: "0.034",
+	"description"	: "Adds blogging functionality. Comments module is required for comments functionality.",
+	"author"		: "Nazar Mokrynskyi",
+	"website"		: "cleverstyle.org/cms",
+	"license"		: "MIT License",
+	"db_support"	: [
+		"MySQLi"
+	],
+	"provide"		: [
+		"blogs"
+	],
+	"multilingual"	: [
+		"interface",
+		"content"
+	],
+	"languages"		: [
+		"English",
+		"Русский",
+		"Українська"
+	]
+}
