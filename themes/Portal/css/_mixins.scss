@@ -12,11 +12,31 @@
 	-moz-box-sizing    : $mode;
 	-webkit-box-sizing : $mode;
 }
+//Cross-browser box-shadow
+@mixin box-shadow($params) {
+	box-shadow         : $params;
+	-moz-box-shadow    : $params;
+}
 //Cross-browser transition
 @mixin transition($params) {
 	transition         : $params;
 	-moz-transition    : $params;
 	-webkit-transition : $params;
+}
+//Cross-browser transform
+@mixin transform($action, $origin : '') {
+	-webkit-transform : $action;
+	-moz-transform    : $action;
+	-ms-transform     : $action;
+	-o-transform      : $action;
+	transform         : $action;
+	@if $origin {
+		-webkit-transform-origin : $origin;
+		-moz-transform-origin    : $origin;
+		-ms-transform-origin     : $origin;
+		-o-transform-origin      : $origin;
+		transform-origin         : $origin;
+	}
 }
 //Alignment mixin
 @mixin cs-align($side) {

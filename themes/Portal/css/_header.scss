@@ -9,94 +9,73 @@
 @import "config";
 @import "mixins";
 
-//Header active zone
-.cs-header-zone {
-	height   : 2.5em;
-	position : fixed;
-	top      : 0;
-	width    : 100%;
-}
 //Menu
 .cs-header-main-menu,
-.cs-header-main-submenu,
-.cs-header-menu-more {
-	font-size   : 40px;
-	height      : 40px;
-	left        : 0;
-	line-height : 32px;
-	margin      : 0;
-	padding     : 5px 0 0 5px;
-	position    : fixed;
-	text-align  : left;
-	top         : 0;
-	z-index     : 3;
-	a {
-		border-bottom : none;
-		cursor        : pointer;
-		@include transition(all 0.3s linear);
-	}
+.cs-header-main-menu,
+.cs-header-main-submenu  {
+	padding-bottom: .2rem;
+}
+.cs-header-main-menu {
+	font-size : 4rem;
+	line-height    : 4rem;
 }
 .cs-header-main-submenu {
-	font-size   : 24px;
-	line-height : 20px;
-	top         : 40px;
+	font-size : 2.4rem;
+	line-height    : 2.4rem;
+	z-index   : 2;
 }
 .cs-header-menu-more {
-	font-size    : 14px;
-	line-height  : 20px;
-	padding-left : 10px;
-	right        : 27em;
-	top          : 70px;
+	font-size : 1.4rem;
+	line-height    : 1.4rem;
 }
 //User block container
 .cs-header-user {
-	border-radius : .6em;
-	height        : 9em;
-	margin        : .5em;
+	border-radius : .6rem;
+	height        : 4.5rem;
+	margin        : .5rem;
 	position      : fixed;
 	right         : 0;
 	top           : 0;
-	width         : 25em;
-	z-index       : 3;
+	width         : 25rem;
 }
 .cs-header-avatar {
 	background-size : 100%;
-	border-radius   : .5em;
+	border-radius   : .5rem;
 	float           : left;
-	height          : 7.5em;
-	margin          : .75em;
+	height          : 7.5rem;
+	margin          : .75rem;
 	position        : fixed;
-	width           : 7.5em;
+	width           : 7.5rem;
 	vertical-align  : top;
 }
 .cs-header-user-info {
 	float    : right;
-	height   : 7.5em;
-	margin   : 1em .75em .75em 9em;
+	height   : 7.5rem;
+	margin   : 1rem .75rem .75rem 9rem;
 	position : fixed;
-	width    : 15.5em;
+	width    : 15.5rem;
 
 	[type=text],
 	[type=password] {
 		background : #ddd;
-		border     : #fff solid .1em;
+		border     : #fff solid .1rem;
 		color      : $base-color;
 		float      : left;
-		margin     : 0 0 .5em 0;
-		padding    : .3em;
-		width      : 14.75em;
+		margin     : 0 0 .5rem 0;
+		padding    : .3rem;
+		width      : 14.75rem;
 	}
 
 	.actions {
-		margin : .5em 0;
+		margin : .5rem 0;
 	}
 }
 //Login form
 .cs-header-login-slide {
-	margin-top : .5em;
+	margin-top : .5rem;
 }
 .cs-header-login-form {
-	height   : 6.5em;
+	height   : 6.5rem;
 	position : relative;
 }
 .cs-header-login-process {
@@ -121,7 +100,7 @@
 
 	left         : auto;
 	margin-right : 16px !important;
-	right        : 1em;
+	right        : 1rem;
 }
 .cs-header-restore-password-process {
 	@extend .cs-header-login-process;

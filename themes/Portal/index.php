@@ -18,25 +18,40 @@
 <!--header_info-->
 		</div>
 	</div>
-	<div class="cs-header-green"></div>
-	<div class="cs-header-black"></div>
 </header>
-<div id="body">
-	<aside id="left_blocks">
+<div id="cs-body">
+<?php
+global $Page;
+if ($Page->Left) {
+?>	<aside id="cs-left-blocks">
 <!--left_blocks-->
 	</aside>
-	<aside id="right_blocks">
+<?php
+} else {
+	$Page->css(
+		'#cs-top-blocks, #cs-bottom-blocks, #cs-main-content {margin-left:0}',
+		'code'
+	);
+}
+if ($Page->Right) {
+?>
+	<aside id="cs-right-blocks">
 <!--right_blocks-->
 	</aside>
-	<aside id="top_blocks">
+<?php
+} else {
+	$Page->css(
+		'#cs-top-blocks, #cs-bottom-blocks, #cs-main-content {margin-right:0}',
+		'code'
+	);
+}
+?>	<aside id="cs-top-blocks">
 <!--top_blocks-->
 	</aside>
-	<div id="main_content">
-		<div>
+	<div id="cs-main-content">
 <!--content-->
-		</div>
 	</div>
-	<aside id="bottom_blocks">
+	<aside id="cs-bottom-blocks">
 <!--bottom_blocks-->
 	</aside>
 </div>

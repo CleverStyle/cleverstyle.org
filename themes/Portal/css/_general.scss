@@ -36,13 +36,13 @@ button,
 
 	[type=number],
 	[type=range] {
-		width : 7.5em;
+		width : 7.5rem;
 	}
 	[type=text],
 	[type=password],
-	[type=email],
+	[type=remail],
 	[type=tel] {
-		width : 20.5em;
+		width : 20.5rem;
 	}
 }
 
@@ -50,21 +50,19 @@ button,
 	&,
 	&:hover,
 	&:focus {
-		border         : solid .2em;
-		border-radius  : .3em;
-		border-spacing : 0;
-		padding        : .3em;
+		border-radius: .1rem;
+		padding        : .3rem;
 	}
 }
 
 .cs-button-compact > span {
 	font-size: 12px;
-	padding : .2em .3em !important;
+	padding : .2rem .3rem !important;
 }
 
 .cs-state-messages {
-	padding : .5em;
-	margin  : .2em 0;
+	padding : .5rem;
+	margin  : .2rem 0;
 }
 
 .cs-dialog {

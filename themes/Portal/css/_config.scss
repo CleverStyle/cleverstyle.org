@@ -6,9 +6,18 @@
  * @license		MIT License, see license.txt
  */
 
-$base-color			: #111;
-$base-font-size		: 12px;
-$base-font-family	: Tahoma, Verdana, sans-serif;
-$code-font-family	: "DejaVu Sans Mono", "Monaco", "Courier New", monospace;
-$left-column		: 15%;
-$right-column		: 15%;
+$base-color					: #eeeeee;
+$base-background-color		: #111;
+$side-background-color		: lighten($base-background-color, 20%);
+$base-font-size				: 10px;
+$base-font-family			: Tahoma, Verdana, sans-serif;
+$code-font-family			: "DejaVu Sans Mono", "Monaco", "Courier New", monospace;
+$left-column				: 15%;
+$left-column-bar			: 5rem;
+$right-column				: 15%;
+$right-column-bar			: 5rem;
+
+$menu-color					: #fff;
+$selected-menu-color		: #ddd;
+$menumore-color				: #6ebc00;
+$form-element-color	: lighten($base-background-color, 30%);

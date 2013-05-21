@@ -1,0 +1,74 @@
+/**
+ * @package		CleverStyle CMS
+ * @subpackage	CleverStyle theme
+ * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
+ * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @license		MIT License, see license.txt
+ */
+
+@import "../../../css/config";
+@import "../../../css/mixins";
+
+body {
+	background-color : $base-background-color;
+	color : $base-color;
+	> {
+		header {
+			background : $side-background-color;
+		}
+	}
+}
+#cs-left-blocks,
+#cs-right-blocks {
+	background-color : $base-background-color;
+}
+
+a {
+	color : $base-color;
+}
+
+.cs-form-element {
+	&,
+	&:hover,
+	&:focus {
+		color        : $base-color;
+		background   : $form-element-color;
+	}
+}
+
+.cs-header-user {
+	background-color : transparentize($base-background-color, .5);
+	border           : 1px solid transparentize($base-background-color, .6);
+}
+.cs-header-avatar {
+	background-color : rgba(0, 0, 0, 0.15);
+	border           : 1px solid rgba(0, 0, 0, 0.6);
+	color            : #fff;
+	text-shadow      : 0 0 20px $base-background-color;
+}
+.cs-header-main-menu,
+.cs-header-main-menu > a,
+.cs-header-main-submenu > a {
+	color : $menu-color;
+}
+.cs-header-main-menu > a {
+	text-shadow : 0 0 7px transparentize($base-color, .5);
+}
+.cs-header-main-menu > a:hover,
+.cs-header-main-submenu > a:hover,
+.cs-header-main-submenu > a.active {
+	color       : $base-color;
+	text-shadow : 0 0 5px transparentize($base-background-color, .7);
+}
+.cs-header-menu-more {
+	color : $menumore-color;
+}
+.cs-header-menu-more > a {
+	/*border-top : 2px solid $menumore-color;*/
+	color      : $menumore-color;
+}
+.cs-header-menu-more > a:hover,
+.cs-header-menu-more > a.active {
+	border-top-color : $selected-menu-color;
+	color            : $selected-menu-color;
+}

@@ -9,41 +9,46 @@
 @import "config";
 @import "mixins";
 
-//Whole body
-body {
-	color   : $base-color;
+html {
 	font       : {
 		family : $base-font-family;
 		size   : $base-font-size;
 	}
-	margin  : 0;
-	padding : 0;
-	width   : 100%;
-	>    {
+}
+//Whole body
+body {
+	font-size : 1.2rem;
+	margin    : 0;
+	padding   : 0;
+	position : absolute;
+	width     : 100%;
+	>     {
 		header {
-			width      : 100%;
-			text-align : center;
-			margin     : 0;
+			@include box-sizing(border-box);
+
+			height  : 10.6rem;
+			padding : .5rem;
+			width   : 100%;
 		}
 		footer {
-			@extend header;
+			height     : 5rem;
+			text-align : center;
+
 			div {
 				&:first-child {
-					padding : .5em .5em 0;
+					padding : .5rem .5rem 0;
 				}
 				&:last-child {
-					padding : 0 .5em .5em;
+					padding : 0 .5rem .5rem;
 				}
 			}
 		}
 	}
 }
+
 //Inner body with content
-#body {
-	border-radius : 10px;
+#cs-body {
 	@include box-sizing(border-box);
-	margin        : 145px 7px 7px;
-	padding       : 5px 0;
 
 	&:after {
 		content : '';
@@ -52,43 +57,38 @@ body {
 	}
 }
 //Left and right blocks
-#left_blocks {
+#cs-left-blocks {
 	@include box-sizing(border-box);
-	float          : left;
-	padding        : 0 5px;
+
+	bottom: 5rem;
+	left: 0;
+	padding        : 1rem;
+	position : absolute;
+	top: 10.6rem;
 	vertical-align : top;
 	width          : $left-column;
 }
-#right_blocks {
-	@extend #left_blocks;
+#cs-right-blocks {
+	@extend #cs-left-blocks;
 
-	float : right;
+	left: auto;
+	right: 0;
 	width : $right-column;
 }
 //Top, bottom blocks
-#top_blocks,
-#bottom_blocks {
+#cs-top-blocks,
+#cs-bottom-blocks {
 	@include box-sizing(border-box);
+
 	margin-left  : $left-column;
 	margin-right : $right-column;
+	padding        : 1rem;
 }
 
-#main_content {
-	@extend #top_blocks;
+#cs-main-content {
+	@extend #cs-top-blocks;
 
-	border-radius  : 7px;
-	margin-top     : 3px;
-	padding        : 10px;
 	vertical-align : top;
-
-	> div {
-		@include box-sizing(border-box);
-		border-radius : 5px;
-		float         : left;
-		padding       : 10px;
-		height        : 100%;
-		width         : 100%;
-	}
 
 	&:after {
 		content : '';

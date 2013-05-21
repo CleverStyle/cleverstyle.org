@@ -20,9 +20,10 @@ input,
 textarea,
 select {
 	font       : {
-		size   : $base-font-size;
+		size   : 1.2rem;
 		family : $base-font-family;
 	}
+	border : none;
 	outline : none;
 }
 
