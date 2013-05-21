@@ -32,7 +32,11 @@ a {
 	&:hover,
 	&:focus {
 		color        : $base-color;
-		background   : $form-element-color;
+		background   : $form-element-background-color;
+	}
+	&:hover,
+	&:focus {
+		color        : $form-element-color;
 	}
 }
 
