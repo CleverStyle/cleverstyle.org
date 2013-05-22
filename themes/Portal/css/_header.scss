@@ -12,31 +12,33 @@
 //Menu
 .cs-header-main-menu,
 .cs-header-main-menu,
-.cs-header-main-submenu  {
-	padding-bottom: .2rem;
+.cs-header-main-submenu {
+	padding-bottom : .2rem;
 }
 .cs-header-main-menu {
-	font-size : 4rem;
-	line-height    : 4rem;
+	font-size   : 4rem;
+	line-height : 4rem;
 }
 .cs-header-main-submenu {
-	font-size : 2.4rem;
-	line-height    : 2.4rem;
-	z-index   : 2;
+	font-size   : 2.4rem;
+	line-height : 2.4rem;
+	z-index     : 2;
 }
 .cs-header-menu-more {
-	font-size : 1.4rem;
-	line-height    : 1.4rem;
+	font-size   : 1.4rem;
+	line-height : 1.4rem;
 }
 //User block container
 .cs-header-user {
+	@include box-sizing(border-box);
+
 	border-radius : .6rem;
 	height        : 9rem;
-	margin        : .5rem;
+	margin        : 1rem 1rem 0 0;
 	position      : fixed;
 	right         : 0;
 	top           : 0;
-	width         : 25rem;
+	width         : 33rem;
 }
 .cs-header-avatar {
 	background-size : 100%;
@@ -51,19 +53,24 @@
 .cs-header-user-info {
 	float    : right;
 	height   : 7.5rem;
-	margin   : 1rem .75rem .75rem 9rem;
+	margin   : .75rem .75rem .75rem 9rem;
 	position : fixed;
-	width    : 15.5rem;
+	width    : 23.25rem;
 
 	[type=text],
 	[type=password] {
-		background : #ddd;
-		border     : #fff solid .1rem;
+		background : $form-element-background-color;
 		color      : $base-color;
 		float      : left;
 		margin     : 0 0 .5rem 0;
 		padding    : .3rem;
-		width      : 14.75rem;
+		width      : 22.55rem;
+
+		&:hover,
+		&:focus {
+			background : $form-element-background-color_;
+			color      : $form-element-color;
+		}
 	}
 
 	.actions {
@@ -75,7 +82,7 @@
 	margin-top : .5rem;
 }
 .cs-header-login-form {
-	height   : 6.5rem;
+	height   : 7.5rem;
 	position : relative;
 }
 .cs-header-login-process {

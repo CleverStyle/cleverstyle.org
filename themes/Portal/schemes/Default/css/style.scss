@@ -11,9 +11,9 @@
 
 body {
 	background-color : $base-background-color;
-	color : $base-color;
-	> {
-		header {
+	color            : $base-color;
+	>  {
+		footer {
 			background : $side-background-color;
 		}
 	}
@@ -28,26 +28,22 @@ a {
 }
 
 .cs-form-element {
-	&,
+	background : $form-element-background-color;
+	color      : $base-color;
+
 	&:hover,
 	&:focus {
-		color        : $base-color;
-		background   : $form-element-background-color;
-	}
-	&:hover,
-	&:focus {
-		color        : $form-element-color;
+		background : $form-element-background-color_;
+		color      : $form-element-color;
 	}
 }
 
 .cs-header-user {
-	background-color : transparentize($base-background-color, .5);
-	border           : 1px solid transparentize($base-background-color, .6);
+	background-color : lighten($base-background-color, 10%);
 }
 .cs-header-avatar {
-	background-color : rgba(0, 0, 0, 0.15);
-	border           : 1px solid rgba(0, 0, 0, 0.6);
-	color            : #fff;
+	background-color : lighten($base-background-color, 30%);
+	color            : $base-color;
 	text-shadow      : 0 0 20px $base-background-color;
 }
 .cs-header-main-menu,
@@ -68,8 +64,7 @@ a {
 	color : $menumore-color;
 }
 .cs-header-menu-more > a {
-	/*border-top : 2px solid $menumore-color;*/
-	color      : $menumore-color;
+	color : $menumore-color;
 }
 .cs-header-menu-more > a:hover,
 .cs-header-menu-more > a.active {
