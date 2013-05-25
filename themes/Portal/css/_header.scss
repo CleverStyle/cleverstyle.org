@@ -9,24 +9,20 @@
 @import "config";
 @import "mixins";
 
-//Menu
-.cs-header-main-menu,
-.cs-header-main-menu,
-.cs-header-main-submenu {
-	padding-bottom : .2rem;
-}
 .cs-header-main-menu {
 	font-size   : 4rem;
 	line-height : 4rem;
-}
-.cs-header-main-submenu {
-	font-size   : 2.4rem;
-	line-height : 2.4rem;
-	z-index     : 2;
-}
-.cs-header-menu-more {
-	font-size   : 1.4rem;
-	line-height : 1.4rem;
+
+	> a {
+		@include transition(padding .3s, color .3s);
+
+		display       : block;
+		border-bottom : none;
+	}
+
+	&:hover a:hover {
+		padding-left : 1rem;
+	}
 }
 //User block container
 .cs-header-user {
@@ -38,7 +34,7 @@
 	position      : fixed;
 	right         : 0;
 	top           : 0;
-	width         : 33rem;
+	width         : $right-column;
 }
 .cs-header-avatar {
 	background-size : 100%;
@@ -55,7 +51,7 @@
 	height   : 7.5rem;
 	margin   : .75rem .75rem .75rem 9rem;
 	position : fixed;
-	width    : 23.25rem;
+	width    : $right-column - 9.75rem;
 
 	[type=text],
 	[type=password] {
@@ -64,7 +60,7 @@
 		float      : left;
 		margin     : 0 0 .5rem 0;
 		padding    : .3rem;
-		width      : 22.55rem;
+		width      : $right-column - 10.45rem;
 
 		&:hover,
 		&:focus {

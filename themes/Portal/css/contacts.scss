@@ -1,14 +1,19 @@
 /**
  * @package		CleverStyle CMS
- * @subpackage	CleverStyle theme
+ * @subpackage	Portal theme
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
  * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
+@import "mixins";
 
-@import "config";
-@import "general";
-@import "layout";
-@import "header";
-@import "profile";
-@import "admin";
+#cs-contacts-section {
+	img {
+		float  : left;
+		margin : 0 .5rem .5rem 0;
+	}
+
+	h1 {
+		margin : 0;
+	}
+}

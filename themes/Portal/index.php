@@ -7,27 +7,16 @@
 <!--header_info-->
 	</div>
 </div>
-<div id="cs-body">
 <?php
 global $Page;
-if ($Page->Left) {
-?>	<aside id="cs-left-blocks">
-<!--left_blocks-->
-	</aside>
-<?php
-} else {
-	$Page->css(
-		'#cs-top-blocks, #cs-bottom-blocks, #cs-main-content {margin-left:0}',
-		'code'
-	);
-}
 ?>
-	<aside id="cs-right-blocks">
-		<nav class="cs-header-main-menu">
-			<!--main-menu-->
-		</nav>
+<aside id="cs-right-blocks">
+	<nav class="cs-header-main-menu">
+		<!--main-menu-->
+	</nav>
 <!--right_blocks-->
-	</aside>
+</aside>
+<div id="cs-body">
 	<aside id="cs-top-blocks">
 <!--top_blocks-->
 	</aside>

@@ -12,11 +12,6 @@
 body {
 	background-color : $base-background-color;
 	color            : $base-color;
-	>  {
-		footer {
-			background : $side-background-color;
-		}
-	}
 }
 #cs-left-blocks,
 #cs-right-blocks {
@@ -25,6 +20,27 @@ body {
 
 a {
 	color : $base-color;
+	border-bottom : .1em dotted $base-color;
+
+	&:hover {
+		border-bottom-color : $link-hover-color;
+		color : $link-hover-color;
+	}
+
+	&[class] {
+		border-bottom : none;
+	}
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+	a {
+		border-bottom-width: .08em;
+	}
 }
 
 .cs-form-element {
@@ -38,36 +54,8 @@ a {
 	}
 }
 
-.cs-header-user {
-	background-color : lighten($base-background-color, 10%);
-}
 .cs-header-avatar {
 	background-color : lighten($base-background-color, 30%);
 	color            : $base-color;
 	text-shadow      : 0 0 20px $base-background-color;
-}
-.cs-header-main-menu,
-.cs-header-main-menu > a,
-.cs-header-main-submenu > a {
-	color : $menu-color;
-}
-.cs-header-main-menu > a {
-	text-shadow : 0 0 7px transparentize($base-color, .5);
-}
-.cs-header-main-menu > a:hover,
-.cs-header-main-submenu > a:hover,
-.cs-header-main-submenu > a.active {
-	color       : $base-color;
-	text-shadow : 0 0 5px transparentize($base-background-color, .7);
-}
-.cs-header-menu-more {
-	color : $menumore-color;
-}
-.cs-header-menu-more > a {
-	color : $menumore-color;
-}
-.cs-header-menu-more > a:hover,
-.cs-header-menu-more > a.active {
-	border-top-color : $selected-menu-color;
-	color            : $selected-menu-color;
 }

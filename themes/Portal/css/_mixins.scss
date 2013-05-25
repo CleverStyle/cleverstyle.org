@@ -18,7 +18,7 @@
 	-moz-box-shadow    : $params;
 }
 //Cross-browser transition
-@mixin transition($params) {
+@mixin transition($params...) {
 	transition         : $params;
 	-moz-transition    : $params;
 	-webkit-transition : $params;

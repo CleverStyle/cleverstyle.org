@@ -1,0 +1,38 @@
+/**
+ * @package		CleverStyle CMS
+ * @subpackage	Portal theme
+ * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
+ * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @license		MIT License, see license.txt
+ */
+@import "mixins";
+
+.cs-blogs-post-latest {
+	article {
+		@include box-sizing(border-box);
+
+		display        : inline-block;
+		float: left;
+		padding        : 1rem;
+		vertical-align : top;
+
+		p {
+			text-align     : justify;
+		}
+	}
+}
+@media (max-width: 66.6rem * 3) {
+	.cs-blogs-post-latest article {
+		width: 33.33%;
+	}
+}
+@media (max-width: 125rem) {
+	.cs-blogs-post-latest article {
+		width: 50%;
+	}
+}
+@media (max-width: 75rem) {
+	.cs-blogs-post-latest article {
+		width: 100%;
+	}
+}

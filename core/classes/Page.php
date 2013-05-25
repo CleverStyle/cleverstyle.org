@@ -269,6 +269,17 @@ class Page {
 		if ($this->js[1]) {
 			$this->js[1]		= h::script($this->js[1]);
 		}
+		if (file_exists(THEMES.'/'.$this->theme.'/'.$this->color_scheme.'/'.'img/favicon.png')) {
+			$favicon	= 'themes/'.$this->theme.'/'.$this->color_scheme.'/img/favicon.png';
+		} elseif (file_exists(THEMES.'/'.$this->theme.'/'.$this->color_scheme.'/img/favicon.ico')) {
+			$favicon	= 'themes/'.$this->theme.'/'.$this->color_scheme.'/img/favicon.ico';
+		} elseif (file_exists(THEMES.'/'.$this->theme.'/img/favicon.png')) {
+			$favicon	= 'themes/'.$this->theme.'/img/favicon.png';
+		} elseif (file_exists(THEMES.'/'.$this->theme.'/img/favicon.ico')) {
+			$favicon	= 'themes/'.$this->theme.'/img/favicon.ico';
+		} else {
+			$favicon	= 'includes/img/favicon.ico';
+		}
 		$this->Head			=	h::title($this->Title).
 			h::meta(
 				[
@@ -292,18 +303,14 @@ class Page {
 				] : false
 			).
 			h::base(is_object($Config) ? [
-				'href' => $Config->base_url()
+				'href' => $Config->base_url().'/'
 			] : false).
 			$this->Head.
 			h::link(
 				[
 					[
 						'rel'		=> 'shortcut icon',
-						'href'		=> file_exists(THEMES.'/'.$this->theme.'/'.$this->color_scheme.'/'.'img/favicon.ico') ?
-										'themes/'.$this->theme.'/'.$this->color_scheme.'/img/favicon.ico' :
-										file_exists(THEMES.'/'.$this->theme.'/img/favicon.ico') ?
-										'themes/'.$this->theme.'/img/favicon.ico' :
-										'includes/img/favicon.ico'
+						'href'		=> $favicon
 					]
 				],
 				$this->link ?: false

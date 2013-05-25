@@ -8,18 +8,14 @@
 
 $base-color						: #eeeeee;
 $base-background-color			: #111;
-$side-background-color			: lighten($base-background-color, 20%);
 $base-font-size					: 10px;
-$base-font-family				: Tahoma, Verdana, sans-serif;
+$base-font-family				: "Open Sans", "Open Sans Embedded", Tahoma, Verdana, sans-serif;
+$heading-font-family			: "Open Sans Light", "Open Sans Embedded", Tahoma, Verdana, sans-serif;
 $code-font-family				: "DejaVu Sans Mono", "Monaco", "Courier New", monospace;
-$left-column					: 35rem;
-$left-column-bar				: 5rem;
-$right-column					: 35rem;
-$right-column-bar				: 5rem;
+$right-column					: 31rem;
+$footer-height					: 10rem;
 
-$menu-color						: #fff;
-$selected-menu-color			: #ddd;
-$menumore-color					: #6ebc00;
 $form-element-background-color	: lighten($base-background-color, 50%);
 $form-element-background-color_	: lighten($base-background-color, 20%);
-$form-element-color				: #6EBC00;
+$form-element-color				: #6ebc00;
+$link-hover-color				: #6ebc00;

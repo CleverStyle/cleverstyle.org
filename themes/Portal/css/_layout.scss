@@ -14,15 +14,17 @@ html {
 		family : $base-font-family;
 		size   : $base-font-size;
 	}
+	height : 100%;
 }
 //Whole body
 body {
-	font-size : 1.2rem;
+	font-size : 1.5rem;
+	height    : 100%;
 	margin    : 0;
 	padding   : 0;
 	position  : absolute;
 	width     : 100%;
-	>       {
+	>           {
 		header {
 			@include box-sizing(border-box);
 
@@ -31,7 +33,8 @@ body {
 			width   : 100%;
 		}
 		footer {
-			height     : 3rem;
+			height     : $footer-height;
+			margin-top : -$footer-height;
 			text-align : center;
 
 			div {
@@ -50,43 +53,42 @@ body {
 #cs-body {
 	@include box-sizing(border-box);
 
+	margin-right   : $right-column;
+	min-height     : 100%;
+	padding-bottom : $footer-height;
+
 	&:after {
 		content : '';
 		clear   : both;
 		display : block;
 	}
 }
-//Left and right blocks
-#cs-left-blocks {
-	@include box-sizing(border-box);
-
-	float          : left;
-	padding        : 1rem;
-	top            : 10.6rem;
-	vertical-align : top;
-	width          : $left-column;
-}
+//Right blocks
 #cs-right-blocks {
 	@extend #cs-left-blocks;
 
-	float      : right;
-	margin-top : 10.6rem;
-	width      : $right-column;
+	position : fixed;
+	right    : 0;
+	top      : 10.6rem;
+	width    : $right-column;
+
+	.cs-counters {
+		padding-top : 2rem;
+		text-align  : center;
+	}
 }
 //Top, bottom blocks
 #cs-top-blocks,
 #cs-bottom-blocks {
 	@include box-sizing(border-box);
 
-	margin-left  : $left-column;
-	margin-right : $right-column;
-	padding      : 1rem;
+	padding : 1rem;
 }
 
 #cs-main-content {
 	@extend #cs-top-blocks;
 
-	vertical-align : top;
+	font-size : 1.3em;
 
 	&:after {
 		content : '';
