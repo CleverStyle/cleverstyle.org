@@ -13,9 +13,8 @@ body {
 	background-color : $base-background-color;
 	color            : $base-color;
 }
-#cs-left-blocks,
-#cs-right-blocks {
-	background-color : $base-background-color;
+#cs-main-content {
+	border-right: .1rem solid #555555;
 }
 
 a {

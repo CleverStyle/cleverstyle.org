@@ -22,7 +22,7 @@
 			}
 		}
 		> img {
-			width : 45rem;
+			width : 40rem;
 		}
 	}
 	article {
@@ -32,15 +32,11 @@
 		float: left;
 		padding        : 1rem;
 		vertical-align : top;
+		width: 33.33%;
 
 		p {
 			text-align     : justify;
 		}
-	}
-}
-@media (max-width: 66.6rem * 3) {
-	#cs-home-section article {
-		width: 33.33%;
 	}
 }
 @media (max-width: 125rem) {
@@ -48,7 +44,7 @@
 		width: 50%;
 	}
 }
-@media (max-width: 75rem) {
+@media (max-width: 80rem) {
 	#cs-home-section article {
 		width: 100%;
 	}

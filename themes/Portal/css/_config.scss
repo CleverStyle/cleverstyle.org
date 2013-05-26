@@ -6,14 +6,14 @@
  * @license		MIT License, see license.txt
  */
 
-$base-color						: #eeeeee;
+$base-color						: #c6c6c6;
 $base-background-color			: #111;
 $base-font-size					: 10px;
 $base-font-family				: "Open Sans", "Open Sans Embedded", Tahoma, Verdana, sans-serif;
 $heading-font-family			: "Open Sans Light", "Open Sans Embedded", Tahoma, Verdana, sans-serif;
 $code-font-family				: "DejaVu Sans Mono", "Monaco", "Courier New", monospace;
-$right-column					: 31rem;
-$footer-height					: 10rem;
+$right-column					: 33rem;
+$footer-height					: 6rem;
 
 $form-element-background-color	: lighten($base-background-color, 50%);
 $form-element-background-color_	: lighten($base-background-color, 20%);
