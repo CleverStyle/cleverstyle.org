@@ -16,11 +16,12 @@
 	> a {
 		@include transition(padding .3s, color .3s);
 
+		padding       : .1em 0;
 		display       : block;
 		border-bottom : none;
 	}
 
-	&:hover a:hover {
+	&:hover > a:hover {
 		padding-left : 1rem;
 	}
 }

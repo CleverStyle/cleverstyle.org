@@ -812,7 +812,7 @@ function post_request ($host, $path, $data) {
 	if(!is_resource($socket)) {
 		return false;
 	}
-	$data = http_build_query($data, null, null, PHP_QUERY_RFC3986);
+	$data = http_build_query($data);
 	fwrite(
 		$socket,
 		"POST $path HTTP/1.1\r\n".
@@ -820,6 +820,7 @@ function post_request ($host, $path, $data) {
 		"Content-Type: application/x-www-form-urlencoded\r\n".
 		"Content-length:".strlen($data)."\r\n".
 		"Accept:*/*\r\n".
+		"Connection: Close\r\n".
 		"User-agent: CleverStyle CMS\r\n\r\n".
 		$data."\r\n\r\n"
 	);

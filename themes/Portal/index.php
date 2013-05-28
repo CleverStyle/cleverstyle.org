@@ -1,5 +1,4 @@
 <!doctype html>
-<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
 <!--pre_Html--><!--head--><!--pre_Body--><!--debug_info-->
 <div class="cs-header-user">
 	<div class="cs-header-avatar" style="background-image:<!--user_avatar_image-->;"></div>
@@ -8,12 +7,14 @@
 	</div>
 </div>
 <?php
-global $Page;
+global $Config;
 ?>
 <aside id="cs-right-blocks">
 	<nav class="cs-header-main-menu">
 		<!--main-menu-->
 	</nav>
+	<div>
+	</div>
 <!--right_blocks-->
 </aside>
 <div id="cs-body">

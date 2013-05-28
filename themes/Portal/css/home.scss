@@ -5,12 +5,14 @@
  * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
+@import "config";
 @import "mixins";
 
 #cs-home-section {
 	header {
-		height     : 100%;
-		text-align : center;
+		height         : 100%;
+		padding-bottom : 3rem;
+		text-align     : center;
 
 		> * {
 			display        : inline-block;
@@ -29,23 +31,33 @@
 		@include box-sizing(border-box);
 
 		display        : inline-block;
-		float: left;
+		float          : left;
 		padding        : 1rem;
 		vertical-align : top;
-		width: 33.33%;
+		width          : 33.33%;
+
+		&:before {
+			content    : '';
+			display    : block;
+			border-top : 1rem solid $home-article-border-color;
+		}
 
 		p {
-			text-align     : justify;
+			text-align : justify;
 		}
 	}
 }
 @media (max-width: 125rem) {
 	#cs-home-section article {
-		width: 50%;
+		width : 50%;
+
+		&:last-child {
+			width : 100%;
+		}
 	}
 }
 @media (max-width: 80rem) {
 	#cs-home-section article {
-		width: 100%;
+		width : 100%;
 	}
 }

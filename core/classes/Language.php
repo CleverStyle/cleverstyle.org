@@ -206,7 +206,7 @@ class Language {
 		if (FIXED_LANGUAGE && $changed_once) {
 			return false;
 		}
-		$changed_once	= true;
+		$changed_once	= true;;
 		if (empty($language)) {
 			return false;
 		}

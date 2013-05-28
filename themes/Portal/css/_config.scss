@@ -14,8 +14,10 @@ $heading-font-family			: "Open Sans Light", "Open Sans Embedded", Tahoma, Verdan
 $code-font-family				: "DejaVu Sans Mono", "Monaco", "Courier New", monospace;
 $right-column					: 33rem;
 $footer-height					: 6rem;
+$side-border-color				: #555555;
 
 $form-element-background-color	: lighten($base-background-color, 50%);
 $form-element-background-color_	: lighten($base-background-color, 20%);
 $form-element-color				: #6ebc00;
 $link-hover-color				: #6ebc00;
+$home-article-border-color		: darken(#6ebc00, 10%);

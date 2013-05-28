@@ -13,17 +13,27 @@ body {
 	background-color : $base-background-color;
 	color            : $base-color;
 }
+
+.header-title {
+	border-bottom : .1rem solid $side-border-color;
+	margin        : 0;
+	padding       : .2em 0;
+	a {
+		border-bottom : none;
+	}
+}
+
 #cs-main-content {
-	border-right: .1rem solid #555555;
+	border-right : .1rem solid $side-border-color;
 }
 
 a {
-	color : $base-color;
+	color         : $base-color;
 	border-bottom : .1em dotted $base-color;
 
 	&:hover {
 		border-bottom-color : $link-hover-color;
-		color : $link-hover-color;
+		color               : $link-hover-color;
 	}
 
 	&[class] {
@@ -38,7 +48,7 @@ h4,
 h5,
 h6 {
 	a {
-		border-bottom-width: .08em;
+		border-bottom-width : .08em;
 	}
 }
 
