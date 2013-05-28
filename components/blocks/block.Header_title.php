@@ -7,5 +7,5 @@
  * @license		MIT License, see license.txt
  */
 if (MODULE != 'Home' && !ADMIN) {
-	echo h::{'h1.header-title a[href=http://cleverstyle.org]'}('CleverStyle');
+	echo h::{'h1.header-title a[href=http://cleverstyle.org][title=CleverStyle]'}('CleverStyle');
 }
