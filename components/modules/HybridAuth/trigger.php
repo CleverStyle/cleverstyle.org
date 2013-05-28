@@ -23,7 +23,7 @@ $Core->register_trigger(
 			!$User->bot()
 		)) {
 			return;
-		}//var_dump($Config->module('HybridAuth')->active());die;
+		}
 		$providers		= $Config->module('HybridAuth')->providers;
 		foreach ($providers as $provider => $pdata) {
 			if (!$pdata['enabled']) {
