@@ -31,7 +31,7 @@ $Core->register_trigger(
 			}
 		}
 		unset($provider, $pdata);
-		if (!count($providers)) {
+		if (!$providers || !count($providers)) {
 			return;
 		}
 		if (!$Config->core['cache_compress_js_css']) {
