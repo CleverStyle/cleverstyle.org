@@ -11,5 +11,5 @@ $base_url	= $Config->base_url();
 if (!preg_match('/\/(en|ru|uk)$/', $base_url)) {
 	$base_url	.= '/'.$L->clang;
 }
-$Page->canonical_url("$base_url/CMS");
+$Page->canonical_url("$base_url/cms");
 $Index->content(file_get_contents(__DIR__.'/index_'.$L->clang.'.html'));
