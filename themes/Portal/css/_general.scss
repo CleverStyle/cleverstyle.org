@@ -86,6 +86,8 @@ code {
 }
 
 a {
+	@include transition(color .3s, border .3s);
+
 	text-decoration : none;
 }
 
