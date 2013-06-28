@@ -140,25 +140,24 @@ class Config {
 	 * @return bool
 	 */
 	protected function check_ip ($ips) {
-		if (is_array($ips) && !empty($ips)) {
-			$REMOTE_ADDR			= $_SERVER['REMOTE_ADDR'];
-			$HTTP_X_FORWARDED_FOR	= isset($_SERVER['HTTP_X_FORWARDED_FOR']) ? $_SERVER['HTTP_X_FORWARDED_FOR'] : false;
-			$HTTP_CLIENT_IP			= isset($_SERVER['HTTP_CLIENT_IP']) ? $_SERVER['HTTP_CLIENT_IP'] : false;
-			if (!empty($ips)) {
-				foreach ($ips as $ip) {
-					if (!empty($ip)) {
-						$char = mb_substr($ip, 0, 1);
-						if ($char != mb_substr($ip, -1)) {
-							$ip = '/'.$ip.'/';
-						}
-						if (
-							preg_match($REMOTE_ADDR, $ip) ||
-							($HTTP_X_FORWARDED_FOR && preg_match($HTTP_X_FORWARDED_FOR, $ip)) ||
-							($HTTP_CLIENT_IP && preg_match($HTTP_CLIENT_IP, $ip))
-						) {
-							return true;
-						}
-					}
+		if (!is_array($ips) || empty($ips)) {
+			return false;
+		}
+		$REMOTE_ADDR			= preg_replace('/[^a-f0-9\.:]/i', '', $_SERVER['REMOTE_ADDR']);
+		$HTTP_X_FORWARDED_FOR	= isset($_SERVER['HTTP_X_FORWARDED_FOR']) ? preg_replace('/[^a-f0-9\.:]/i', '', $_SERVER['HTTP_X_FORWARDED_FOR']) : false;
+		$HTTP_CLIENT_IP			= isset($_SERVER['HTTP_CLIENT_IP']) ? preg_replace('/[^a-f0-9\.:]/i', '', $_SERVER['HTTP_CLIENT_IP']) : false;
+		foreach ($ips as $ip) {
+			if (!empty($ip)) {
+				$char = mb_substr($ip, 0, 1);
+				if ($char != mb_substr($ip, -1)) {
+					$ip = '/'.$ip.'/';
+				}
+				if (
+					_preg_match($ip, $REMOTE_ADDR) ||
+					($HTTP_X_FORWARDED_FOR && _preg_match($ip, $HTTP_X_FORWARDED_FOR)) ||
+					($HTTP_CLIENT_IP && _preg_match($ip, $HTTP_CLIENT_IP))
+				) {
+					return true;
 				}
 			}
 		}
@@ -250,7 +249,7 @@ class Config {
 		$r										= &$this->routing;
 		$rc										= &$this->route;
 		$rc										= $this->server['raw_relative_address'];
-		if (isset($_SERVER['HTTP_REFERER'])) {
+		if (isset($_SERVER['HTTP_REFERER']) && strpos($_SERVER['HTTP_REFERER'], '://') !== false) {
 			$ref				= &$this->server['referer'];
 			$referer			= explode('://', $ref['url'] = $_SERVER['HTTP_REFERER']);
 			$referer[1]			= explode('/', $referer[1]);
@@ -283,10 +282,13 @@ class Config {
 				'rc'	=> &$rc
 			]
 		);
+		if (strpos('api/', $rc) === 0) {
+			$rc	= explode('?', $rc, 2)[0];
+		}
 		if (!empty($r['in'])) {
 			errors_off();
 			foreach ($r['in'] as $i => $search) {
-				$rc = preg_replace($search, $r['out'], $rc) ?: str_replace($search, $r['out'][$i], $rc);
+				$rc = _preg_replace($search, $r['out'], $rc) ?: str_replace($search, $r['out'][$i], $rc);
 			}
 			errors_on();
 			unset($i, $search);
