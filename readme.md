@@ -1,5 +1,4 @@
-This is complete source code of cleverstyle.org website.
-=
+### This is complete source code of cleverstyle.org website.
 
 Open Source means Open Source.
 
