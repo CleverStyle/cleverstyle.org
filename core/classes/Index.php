@@ -22,6 +22,8 @@ use			h;
  *  	'hide'	=> &$hide					//Reference to hide property, if set this to true (false by default) - menu element will not be displayed
  *  ]
  *
+ *  System/Index/construct
+ *
  *  System/Index/preload
  *
  *  System/Index/postload
@@ -64,7 +66,7 @@ class Index {
 	 * Detecting module folder including of admin/api request type, including prepare file, including of plugins
 	 */
 	function __construct () {
-		global $Config, $User, $Index;
+		global $Config, $User, $Index, $Core;
 		/**
 		 * If site is closed, user is not admin, and it is not request for log in
 		 */
@@ -119,6 +121,7 @@ class Index {
 			return;
 		}
 		unset($admin_path, $api_path);
+		$Core->run_trigger('System/Index/construct');
 		/**
 		 * Plugins processing
 		 */

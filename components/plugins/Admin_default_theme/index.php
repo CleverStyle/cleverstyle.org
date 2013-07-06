@@ -11,7 +11,7 @@ $Core->register_trigger(
 	'System/Page/pre_display',
 	function () {
 		global $Page, $Config;
-		if (in_array(basename(__DIR__), $Config->components['plugins']) && ADMIN) {
+		if (ADMIN && in_array('Admin_default_theme', $Config->components['plugins'])) {
 			$Page->set_theme('CleverStyle');
 			$Page->set_color_scheme('Green');
 		}
