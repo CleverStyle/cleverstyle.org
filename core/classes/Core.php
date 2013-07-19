@@ -10,47 +10,30 @@ use			Closure,
 			h;
 /**
  * Core class.
- * Provides loading of base system configuration, creating of global objects, encryption, API requests sending, and triggers processing.
+ * Provides loading of base system configuration, encryption, API requests sending
  */
 class Core {
-	public	$Loaded				= [],			//Array with list of loaded objects, and information about amount of used memory and creation time
-			$destroy_priority	= [				//Order of global objects destroying
-				'Page',
-				'User',
-				'Config',
-				'Key',
-				'db',
-				'L',
-				'Text',
-				'Cache',
-				'Storage',
-				'Error'
-			];
-	protected	$init				= false,	//For prohibition of re-initialization
-				$constructed		= false,	//Is object constructed
-				$config				= [],
-				$List				= [],
-				$iv,
-				$td,
-				$key,
-				$encrypt_support	= false,
-				$triggers			= [];
+	use Singleton;
+
+	public				$Loaded				= [];
+	protected			$constructed		= false,	//Is object constructed
+						$config				= [],
+						$List				= [],
+						$iv,
+						$td,
+						$key,
+						$encrypt_support	= false;
 	/**
 	 * Loading of base system configuration, creating of missing directories
 	 */
-	function __construct() {
-		if ($this->init) {
-			return;
-		}
-		global $Core;
-		$Core	= $this;
-		$this->init	= true;
+	protected function construct () {
 		if (!file_exists(CONFIG.'/main.json')) {
 			code_header(404);
 			$this->__finish();
 		}
 		$this->config		= _json_decode_nocomments(file_get_contents(CONFIG.'/main.json'));
 		_include_once(CONFIG.'/main.php', false);
+		defined('DEBUG') || define('DEBUG', false);
 		define('DOMAIN', $this->config['domain']);
 		date_default_timezone_set($this->config['timezone']);
 		if (!is_dir(STORAGE)) {
@@ -66,7 +49,7 @@ class Core {
 				CACHE.'/.gitignore',
 				"#do not commit cache\n".
 				"/*\n".
-				"!/.gitignore".
+				"!/.gitignore\n".
 				"!/.htaccess"
 			);
 		}
@@ -81,7 +64,7 @@ class Core {
 				PCACHE.'/.gitignore',
 				"#do not commit public cache\n".
 				"/*\n".
-				"!/.gitignore".
+				"!/.gitignore\n".
 				"!/.htaccess"
 			);
 		}
@@ -91,7 +74,7 @@ class Core {
 				PCACHE.'/.gitignore',
 				"#do not commit logs\n".
 				"/*\n".
-				"!/.gitignore".
+				"!/.gitignore\n".
 				"!/.htaccess"
 			);
 		}
@@ -105,7 +88,7 @@ class Core {
 				TEMP.'/.gitignore',
 				"#do not commit temp files\n".
 				"/*\n".
-				"!/.gitignore".
+				"!/.gitignore\n".
 				"!/.htaccess"
 			);
 		}
@@ -159,6 +142,8 @@ class Core {
 		$this->set($item, $value);
 	}
 	/**
+	 * @deprecated
+	 *
 	 * Creating of global object on the base of class
 	 *
 	 * @param array|string|string[]	$class			Class name, on the base of which object will be created. May be string of class name,
@@ -212,24 +197,6 @@ class Core {
 			}
 		}
 		return true;
-	}
-	/**
-	 * Destroying of global object
-	 *
-	 * @param string|string[]     $object	Name of global object to be destroyed, or array of names
-	 */
-	function destroy ($object) {
-		if (is_array($object)) {
-			foreach ($object as $o) {
-				$this->destroy($o);
-			}
-		} else {
-			global $$object;
-			unset($this->List[$object]);
-			method_exists($$object, '__finish') && $$object->__finish();
-			$$object = null;
-			unset($GLOBALS[$object]);
-		}
 	}
 	/**
 	 * Encryption of data
@@ -308,7 +275,7 @@ class Core {
 	 * @return array	Array <i>[mirror_url => result]</b> in case of successful connection, <i>false</b> on failure
 	 */
 	function api_request ($path, $data = '') {
-		global $Config;
+		$Config	= Config::instance(true) ? Config::instance() : null;
 		$result	= [];
 		if (is_object($Config) && $Config->server['mirrors']['count'] > 1) {
 			foreach ($Config->server['mirrors']['http'] as $domain) {
@@ -333,15 +300,15 @@ class Core {
 	 * @return bool|string		Result or <i>false</i> at error
 	 */
 	protected function send ($url, $data) {
-		global $Key, $Config;
-		if (!(is_object($Key) && is_object($Config))) {
+		if (!Config::instance(true)) {
 			return false;
 		}
+		$Key				= Key::instance();
 		$protocol			= 'http';
 		if (mb_strpos($url, '://') !== false) {
 			list($protocol,	$url) = explode('://', $url);
 		}
-		$database			= $Config->module('System')->db('keys');
+		$database			= Config::instance()->module('System')->db('keys');
 		$key				= $Key->generate($database);
 		$url				= $url.'/'.$key;
 		$Key->add(
@@ -378,6 +345,8 @@ class Core {
 		return $return[1];
 	}
 	/**
+	 * @deprecated
+	 *
 	 * Registration of triggers for actions
 	 *
 	 * @param string	$trigger	For example <i>admin/System/components/plugins/disable</i>
@@ -386,16 +355,11 @@ class Core {
 	 * @return bool
 	 */
 	function register_trigger ($trigger, $closure) {
-		if (!is_string($trigger) || !($closure instanceof Closure)) {
-			return false;
-		}
-		if (!isset($this->triggers[$trigger])) {
-			$this->triggers[$trigger]	= [];
-		}
-		$this->triggers[$trigger][]	= $closure;
-		return true;
+		return (bool)Trigger::instance()->register($trigger, $closure);
 	}
 	/**
+	 * @deprecated
+	 *
 	 * Running triggers for some actions
 	 *
 	 * @param string	$trigger	For example <i>admin/System/components/plugins/disable</i>
@@ -404,78 +368,17 @@ class Core {
 	 * @return bool
 	 */
 	function run_trigger ($trigger, $data = null) {
-		static $triggers_initialized = false;
-		if (!is_string($trigger)) {
-			return true;
-		}
-		if (!$triggers_initialized) {
-			global $Config;
-			$modules = array_keys($Config->components['modules']);
-			foreach ($modules as $module) {
-				_include_once(MODULES.'/'.$module.'/trigger.php', false);
-			}
-			unset($modules, $module);
-			$plugins = get_files_list(PLUGINS, false, 'd');
-			if (!empty($plugins)) {
-				foreach ($plugins as $plugin) {
-					_include_once(PLUGINS.'/'.$plugin.'/trigger.php', false);
-				}
-			}
-			unset($plugins, $plugin);
-			$triggers_initialized = true;
-		}
-		if (!isset($this->triggers[$trigger]) || empty($this->triggers[$trigger])) {
-			return true;
-		}
-		$return	= true;
-		/**
-		 * @var Closure[] $this->triggers
-		 */
-		foreach ($this->triggers[$trigger] as $closure) {
-			if ($data === null) {
-				$return = $return && ($closure() === false ? false : true);
-			} else {
-				$return = $return && ($closure($data) === false ? false : true);
-			}
-		}
-		return $return;
+		return (bool)Trigger::instance()->run($trigger, $data);
 	}
 	/**
-	 * Cloning restriction
-	 *
-	 * @final
-	 */
-	function __clone () {}
-	/**
-	 * Destroying of global objects, cleaning.<br>
 	 * Disabling encryption.<br>
 	 * Correct termination.
 	 */
-	function __finish () {
-		if (isset($this->List['Index'])) {
-			$this->destroy('Index');
-		}
-		foreach ($this->List as $class) {
-			if (!in_array($class, $this->destroy_priority)) {
-				$this->destroy($class);
-			}
-		}
-		foreach ($this->destroy_priority as $class) {
-			if (isset($this->List[$class])) {
-				$this->destroy($class);
-			}
-		}
+	function __destruct () {
 		if (is_resource($this->td)) {
 			mcrypt_module_close($this->td);
 			unset($this->key, $this->iv, $this->td);
 		}
 		exit;
 	}
-}
-/**
- * For IDE
- */
-if (false) {
-	global $Core;
-	$Core = new Core;
 }

@@ -8,13 +8,23 @@
  * @license		MIT License, see license.txt
  */
 namespace	cs\modules\System;
-use			h;
+use			h,
+			cs\Config,
+			cs\Core,
+			cs\Language,
+			cs\Page,
+			cs\Text;
 function set_core_ml_text ($item, $text) {
-	global $Config, $Text;
-	return $Text->set($Config->module('System')->db('texts'), 'System/Config/core', $item, $text);
+	return Text::instance()->set(
+		Config::instance()->module('System')->db('texts'),
+		'System/Config/core',
+		$item,
+		$text
+	);
 }
 function core_input ($item, $type = 'text', $info_item = null, $disabled = false, $min = false, $max = false, $post_text = '') {
-	global $Config, $L;
+	$Config	= Config::instance();
+	$L		= Language::instance();
 	if ($type != 'radio') {
 		switch ($item) {
 			default:
@@ -40,7 +50,6 @@ function core_input ($item, $type = 'text', $info_item = null, $disabled = false
 			$post_text
 		];
 	} else {
-		global $L;
 		return [
 			$info_item !== false ? h::info($info_item ?: $item) : $L->$item,
 			h::input([
@@ -54,10 +63,9 @@ function core_input ($item, $type = 'text', $info_item = null, $disabled = false
 	}
 }
 function core_textarea ($item, $editor = null, $info_item = null) {
-	global $Config;
 	switch ($item) {
 		default:
-			$content	= $Config->core[$item];
+			$content	= Config::instance()->core[$item];
 			break;
 		case 'closed_text':
 		case 'footer_text':
@@ -77,14 +85,13 @@ function core_textarea ($item, $editor = null, $info_item = null) {
 	];
 }
 function core_select ($items_array, $item, $id = null, $info_item = null, $multiple = false, $size = 5) {
-	global $Config;
 	return [
 		h::info($info_item ?: $item),
 		h::select(
 			$items_array,
 			[
 				'name'		=> "core[$item]".($multiple ? '[]' : ''),
-				'selected'	=> $Config->core[$item],
+				'selected'	=> Config::instance()->core[$item],
 				'size'		=> $size,
 				'id'		=> $id ?: false,
 				$multiple ? 'multiple' : false
@@ -112,24 +119,37 @@ function dep_normal ($dependence_structure) {
 	}
 	return $return;
 }
-function check_dependencies ($name, $type = 'module', $dir = false) {
+/**
+ * Check dependencies for new component (during installation/updating/enabling)
+ *
+ * @param string		$name	Name of new component
+ * @param string		$type	Type of new component module|plugin
+ * @param null|string	$dir	Path to new component (if null - component should be found among installed)
+ * @param string		$mode	Mode of checking for modules install|update|enable
+ *
+ * @return bool
+ */
+function check_dependencies ($name, $type, $dir = null, $mode = 'enable') {
 	if (!$dir) {
 		switch ($type) {
 			case 'module':
-				$dir	= MODULES.'/'.$name;
+				$dir	= MODULES."/$name";
 			break;
 			case 'plugin':
-				$dir	= PLUGINS.'/'.$name;
+				$dir	= PLUGINS."/$name";
 			break;
 			default:
 				return false;
 		}
 	}
-	if (!file_exists($dir.'/meta.json')) {
+	if (!file_exists("$dir/meta.json")) {
 		return true;
 	}
-	$meta		= _json_decode(file_get_contents($dir.'/meta.json'));
-	global $Config, $Page, $L, $Core;
+	$meta		= _json_decode(file_get_contents("$dir/meta.json"));
+	$Config		= Config::instance();
+	$Core		= Core::instance();
+	$L			= Language::instance();
+	$Page		= Page::instance();
 	if (isset($meta['db_support']) && !empty($meta['db_support'])) {
 		$return		= false;
 		if (in_array($Core->db_type, $meta['db_support'])) {
@@ -170,6 +190,7 @@ function check_dependencies ($name, $type = 'module', $dir = false) {
 					break;
 				}
 			}
+			unset($storage);
 		}
 		if (!$return_s) {
 			$Page->warning(
@@ -185,7 +206,7 @@ function check_dependencies ($name, $type = 'module', $dir = false) {
 			);
 		}
 		$return = $return && $return_s;
-		unset($storage, $return_s);
+		unset($return_s);
 	}
 	$provide	= [];
 	$require	= [];
@@ -203,17 +224,36 @@ function check_dependencies ($name, $type = 'module', $dir = false) {
 	/**
 	 * Checking for compatibility with modules
 	 */
+	$return_m	= true;
 	foreach ($Config->components['modules'] as $module => $module_data) {
+		/**
+		 * If module uninstalled, disabled (in enable check mode), module name is the same as checked or meta.json file absent
+		 * Then skip this module
+		 */
+		$module_meta	= _json_decode(file_get_contents(MODULES."/$module/meta.json"));
 		if (
 			$module_data['active'] == -1 ||
+			($mode == 'enable' && $module_data['active'] == 0) ||
 			(
 				$module == $name && $type == 'module'
 			) ||
-			!file_exists(MODULES.'/'.$module.'/meta.json')
+			!file_exists(MODULES."/$module/meta.json")
 		) {
+			/**
+			 * If module updates, check update possibility from current version
+			 */
+			if (
+				$module == $name && $type == 'module' && $mode == 'update' &&
+				isset($meta['update_from']) && version_compare($meta['update_from_version'], $module_meta['version'], '>')
+			) {
+				if ($return_m) {
+					$Page->warning($L->dependencies_not_satisfied);
+				}
+				$Page->warning($L->module_cant_be_updated_from_version_to_supported_only($module, $module_meta['version'], $meta['version'], $meta['update_from_version']));
+				return false;
+			}
 			continue;
 		}
-		$module_meta	= _json_decode(file_get_contents(MODULES.'/'.$module.'/meta.json'));
 		/**
 		 * If some module already provides the same functionality
 		 */
@@ -224,10 +264,10 @@ function check_dependencies ($name, $type = 'module', $dir = false) {
 			!empty($module_meta['provide']) &&
 			$intersect = array_intersect($provide, $module_meta['provide'])
 		) {
-			if ($return) {
+			if ($return_m) {
 				$Page->warning($L->dependencies_not_satisfied);
 			}
-			$return	= false;
+			$return_m	= false;
 			$Page->warning(
 				$L->module_already_provides_functionality(
 					$module,
@@ -249,10 +289,10 @@ function check_dependencies ($name, $type = 'module', $dir = false) {
 			) {
 				unset($require[$module_meta['package']]);
 			} else {
-				if ($return) {
+				if ($return_m) {
 					$Page->warning($L->dependencies_not_satisfied);
 				}
-				$return	= false;
+				$return_m	= false;
 				$Page->warning(
 					$L->unsatisfactory_version_of_the_module_package(
 						$module_meta['package'],
@@ -274,10 +314,10 @@ function check_dependencies ($name, $type = 'module', $dir = false) {
 					$conflict[$module_meta['package']][1]
 				)
 			) {
-				if ($return) {
+				if ($return_m) {
 					$Page->warning($L->dependencies_not_satisfied);
 				}
-				$return	= false;
+				$return_m	= false;
 				$Page->warning(
 					$L->conflict_module_package(
 						$module_meta['package'],
@@ -294,20 +334,22 @@ function check_dependencies ($name, $type = 'module', $dir = false) {
 			}
 		}
 	}
-	unset($module, $module_data, $module_meta);
+	$return		= $return && $return_m;
+	unset($return_m, $module, $module_data, $module_meta);
 	/**
 	 * Checking for compatibility with plugins
 	 */
+	$return_p	= true;
 	foreach ($Config->components['plugins'] as $plugin) {
 		if (
 			(
 				$plugin == $name && $type == 'plugin'
 			) ||
-			!file_exists(PLUGINS.'/'.$plugin.'/meta.json')
+			!file_exists(PLUGINS."/$plugin/meta.json")
 		) {
 			continue;
 		}
-		$plugin_meta	= _json_decode(file_get_contents(PLUGINS.'/'.$plugin.'/meta.json'));
+		$plugin_meta	= _json_decode(file_get_contents(PLUGINS."/$plugin/meta.json"));
 		/**
 		 * If some plugin already provides the same functionality
 		 */
@@ -318,10 +360,10 @@ function check_dependencies ($name, $type = 'module', $dir = false) {
 			!empty($plugin_meta['provide']) &&
 			$intersect = array_intersect($provide, $plugin_meta['provide'])
 		) {
-			if ($return) {
+			if ($return_p) {
 				$Page->warning($L->dependencies_not_satisfied);
 			}
-			$return	= false;
+			$return_p	= false;
 			$Page->warning(
 				$L->plugin_already_provides_functionality(
 					$plugin,
@@ -343,10 +385,10 @@ function check_dependencies ($name, $type = 'module', $dir = false) {
 			) {
 				unset($require[$plugin_meta['package']]);
 			} else {
-				if ($return) {
+				if ($return_p) {
 					$Page->warning($L->dependencies_not_satisfied);
 				}
-				$return	= false;
+				$return_p	= false;
 				$Page->warning(
 					$L->unsatisfactory_version_of_the_plugin_package(
 						$plugin_meta['package'],
@@ -368,10 +410,10 @@ function check_dependencies ($name, $type = 'module', $dir = false) {
 					$conflict[$plugin_meta['package']][1]
 				)
 			) {
-				if ($return) {
+				if ($return_p) {
 					$Page->warning($L->dependencies_not_satisfied);
 				}
-				$return	= false;
+				$return_p	= false;
 				$Page->warning(
 					$L->conflict_plugin_package(
 						$plugin_meta['package'],
@@ -388,99 +430,118 @@ function check_dependencies ($name, $type = 'module', $dir = false) {
 			}
 		}
 	}
-	unset($plugin, $plugin_meta, $provide, $conflict);
+	$return		= $return && $return_p;
+	unset($return_p, $plugin, $plugin_meta, $provide, $conflict);
 	/**
 	 * If some required packages missing
 	 */
+	$return_r	= true;
 	if (!empty($require)) {
 		foreach ($require as $package => $details) {
-			if ($return) {
+			if ($return_r) {
 				$Page->warning($L->dependencies_not_satisfied);
 			}
-			$return					= false;
+			$return_r	= false;
 			$Page->warning(
-				$L->package_not_found(
-					$package.' '.$details[1].' '.$details[0]
-				)
+				$L->package_not_found("$package $details[1] $details[0]")
 			);
 		}
 	}
-	return $return;
+	return $return && $return_r;
 }
-function check_backward_dependencies ($name, $type = 'module') {
+/**
+ * Check backward dependencies (during uninstalling/disabling)
+ *
+ * @param string	$name	Component name
+ * @param string	$type	Component type module|plugin
+ * @param string	$mode	Mode of checking for modules uninstall|disable
+ *
+ * @return bool
+ */
+function check_backward_dependencies ($name, $type = 'module', $mode = 'disable') {
 	switch ($type) {
 		case 'module':
-			$dir	= MODULES.'/'.$name;
+			$dir	= MODULES."/$name";
 			break;
 		case 'plugin':
-			$dir	= PLUGINS.'/'.$name;
+			$dir	= PLUGINS."/$name";
 			break;
 		default:
 			return false;
 	}
-	if (!file_exists($dir.'/meta.json')) {
+	if (!file_exists("$dir/meta.json")) {
 		return true;
 	}
-	$meta		= _json_decode(file_get_contents($dir.'/meta.json'));
+	$meta		= _json_decode(file_get_contents("$dir/meta.json"));
 	$meta		= [
 		'package'	=> $meta['package'],
 		'version'	=> $meta['version']
 	];
 	$return		= true;
+	$Config		= Config::instance();
+	$L			= Language::instance();
+	$Page		= Page::instance();
 	/**
 	 * Checking for backward dependencies of modules
 	 */
-	global $Config, $Page, $L;
+	$return_m	= true;
 	foreach ($Config->components['modules'] as $module => $module_data) {
+		/**
+		 * If module uninstalled, disabled (in disable check mode), module name is the same as checked or meta.json file absent
+		 * Then skip this module
+		 */
 		if (
 			$module_data['active'] == -1 ||
+			($mode == 'disable' && $module_data['active'] == 0) ||
 			(
 				$module == $name && $type == 'module'
 			) ||
-			!file_exists(MODULES.'/'.$module.'/meta.json')
+			!file_exists(MODULES."/$module/meta.json")
 		) {
 			continue;
 		}
-		$module_require	= _json_decode(file_get_contents(MODULES.'/'.$module.'/meta.json'));
+		$module_require	= _json_decode(file_get_contents(MODULES."/$module/meta.json"));
 		if (!isset($module_require['require'])) {
 			continue;
 		}
 		$module_require	= dep_normal($module_require['require']);
 		if (isset($module_require[$meta['package']])) {
-			if ($return) {
+			if ($return_m) {
 				$Page->warning($L->dependencies_not_satisfied);
 			}
-			$return	= false;
+			$return_m	= false;
 			$Page->warning($L->this_package_is_used_by_module($module));
 		}
 	}
-	unset($module, $module_data, $module_require);
+	$return		= $return && $return_m;
+	unset($return_m, $module, $module_data, $module_require);
 	/**
 	 * Checking for backward dependencies of plugins
 	 */
+	$return_p	= true;
 	foreach ($Config->components['plugins'] as $plugin) {
 		if (
 			(
 				$plugin == $name && $type == 'plugin'
 			) ||
-			!file_exists(PLUGINS.'/'.$plugin.'/meta.json')
+			!file_exists(PLUGINS."/$plugin/meta.json")
 		) {
 			continue;
 		}
-		$plugin_require	= _json_decode(file_get_contents(PLUGINS.'/'.$plugin.'/meta.json'));
+		$plugin_require	= _json_decode(file_get_contents(PLUGINS."/$plugin/meta.json"));
 		if (!isset($plugin_require['require'])) {
 			continue;
 		}
 		$plugin_require	= dep_normal($plugin_require['require']);
 		if (isset($plugin_require[$meta['package']])) {
-			if ($return) {
+			if ($return_p) {
 				$Page->warning($L->dependencies_not_satisfied);
 			}
-			$return	= false;
+			$return_p	= false;
 			$Page->warning($L->this_package_is_used_by_plugin($plugin));
 		}
 	}
-	return $return;
+	return $return && $return_p;
 }
 /**
  * @param array[]	$rows

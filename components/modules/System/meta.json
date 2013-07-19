@@ -1,7 +1,7 @@
 {
 	"package"		: "System",
 	"category"		: "modules",
-	"version"		: "0.276",
+	"version"		: "0.285",
 	"description"	: "Base system module of CleverStyle CMS",
 	"author"		: "Nazar Mokrynskyi",
 	"website"		: "cleverstyle.org/cms",
@@ -9,9 +9,7 @@
 	"db_support"	: [
 		"MySQLi"
 	],
-	"provide"		: [
-		"system"
-	],
+	"provide"		: "system",
 	"multilingual"	: [
 		"interface",
 		"content"

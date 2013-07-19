@@ -5,7 +5,8 @@
  * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
-namespace cs\DB;
+namespace	cs\DB;
+use			cs\DB;
 abstract class _Abstract {
 				/**
 				 * Is connection established
@@ -132,23 +133,21 @@ abstract class _Abstract {
 		if(!$query) {
 			return true;
 		}
-		global $db;
 		$this->query['time']		= microtime(true);
 		$this->query['text']		= empty($params) ? $query : vsprintf($query, $params);
-		if (defined('DEBUG') && DEBUG) {
+		if (DEBUG) {
 			$this->queries['text'][]	= $this->query['text'];
 		}
 		$result						= $this->q_internal($this->query['text']);
 		$this->query['time']		= round(microtime(true) - $this->query['time'], 6);
 		$this->time					+= $this->query['time'];
-		if (defined('DEBUG') && DEBUG) {
+		if (DEBUG) {
 			$this->queries['time'][]	= $this->query['time'];
 		}
 		++$this->queries['num'];
-		if (is_object($db)) {
-			$db->time		+= $this->query['time'];
-			++$db->queries;
-		}
+		$db							= DB::instance();
+		$db->time					+= $this->query['time'];
+		++$db->queries;
 		return $result;
 	}
 	/**
@@ -263,7 +262,7 @@ abstract class _Abstract {
 	 *
 	 * @return array|bool|string
 	 */
-	function qf ($query = '', $single_column = false, $array = false, $indexed = false) {
+	function qf ($query, $single_column = false, $array = false, $indexed = false) {
 		list($query, $params)	= $this->q_prepare($query);
 		if (!$query) {
 			return false;
@@ -281,7 +280,7 @@ abstract class _Abstract {
 	 *
 	 * @return array|bool|string
 	 */
-	function qfa ($query = '', $single_column = false, $indexed = false) {
+	function qfa ($query, $single_column = false, $indexed = false) {
 		list($query, $params)	= $this->q_prepare($query);
 		if (!$query) {
 			return false;
@@ -299,7 +298,7 @@ abstract class _Abstract {
 	 *
 	 * @return array|bool
 	 */
-	function qfs ($query = '', $array = false, $indexed = false) {
+	function qfs ($query, $array = false, $indexed = false) {
 		list($query, $params)	= $this->q_prepare($query);
 		if (!$query) {
 			return false;
@@ -316,7 +315,7 @@ abstract class _Abstract {
 	 *
 	 * @return array|bool
 	 */
-	function qfas ($query = '', $indexed = false) {
+	function qfas ($query, $indexed = false) {
 		list($query, $params)	= $this->q_prepare($query);
 		if (!$query) {
 			return false;
