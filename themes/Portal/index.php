@@ -11,7 +11,7 @@ global $Config;
 ?>
 <aside id="cs-right-blocks">
 	<nav class="cs-header-main-menu">
-		<!--main-menu-->
+<!--main-menu-->
 	</nav>
 	<div>
 	</div>
