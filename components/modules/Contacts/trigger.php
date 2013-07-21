@@ -6,22 +6,19 @@
  * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
-global $Core;
-$Core->register_trigger(
+namespace	cs;
+Trigger::instance()->register(
 	'System/Index/mainmenu',
 	function ($data) {
-		global $L;
 		if ($data['path'] == 'Contacts') {
-			$data['path']	= path($L->Contacts);
+			$data['path']	= path(Language::instance()->Contacts);
 		}
 	}
-);
-$Core->register_trigger(
+)->register(
 	'System/Config/routing_replace',
 	function ($data) {
-		global $L, $Config;
 		$rc		= explode('/', $data['rc']);
-		if ((!$Config->module('Contacts')->active() && substr($data['rc'], 0, 5) != 'admin') || $rc[0] != $L->Contacts) {
+		if ((!Config::instance()->module('Contacts')->active() && substr($data['rc'], 0, 5) != 'admin') || $rc[0] != Language::instance()->Contacts) {
 			return;
 		}
 		$rc[0]		= 'Contacts';

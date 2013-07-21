@@ -6,9 +6,6 @@
 <!--header_info-->
 	</div>
 </div>
-<?php
-global $Config;
-?>
 <aside id="cs-right-blocks">
 	<nav class="cs-header-main-menu">
 <!--main-menu-->

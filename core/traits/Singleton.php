@@ -7,10 +7,11 @@
  */
 namespace	cs;
 /**
- * Trait Singleton
+ * Singleton trait
+ *
+ * Provides Singleton pattern realization
  */
 trait Singleton {
-	protected static	$instance	= null;
 	final protected function __construct () {}
 	protected function construct () {}
 	/**
@@ -21,44 +22,24 @@ trait Singleton {
 	 * @return bool|$this
 	 */
 	static function instance ($check = false) {
+		static $instance;
 		if (defined('STOP')) {
 			return new False_class;
 		}
 		if ($check) {
-			return (bool)self::$instance;
+			return isset($instance);
 		}
-		/**
-		 * Transition compatibility fix
-		 */
-		if (!self::$instance) {
-			$class	= explode('\\', __CLASS__);
-			$class	= array_pop($class);
-			switch ($class) {
-				case 'Language':
-					global $L;
-					$L = self::$instance	= new self;
-					break;
-				case 'DB':
-					global $db;
-					$db = self::$instance	= new self;
-					break;
-				default:
-					global $$class;
-					$$class = self::$instance	= new self;
-			}
-			self::$instance->construct();
-		}
-		if (self::$instance) {
-			return self::$instance;
+		if (isset($instance)) {
+			return $instance;
 		}
 		if (substr(__CLASS__, 0, 2) == 'cs' && class_exists('cs\\custom'.substr(__CLASS__, 2), false)) {
-			self::$instance	= 'cs\\custom'.substr(__CLASS__, 2);
-			self::$instance	= new self::$instance;
+			$instance	= 'cs\\custom'.substr(__CLASS__, 2);
+			$instance	= new $instance;
 		} else {
-			self::$instance	= new self;
+			$instance	= new self;
 		}
-		self::$instance->construct();
-		return self::$instance;
+		$instance->construct();
+		return $instance;
 	}
 	final protected function __clone () {}
 	final protected function __wakeup() {}

@@ -73,23 +73,13 @@ function errors_off () {
  * Enabling of page interface
  */
 function interface_on () {
-	if (Page::instance(true)) {
-		Page::instance()->interface	= true;
-	} else {
-		global $interface;
-		$interface					= true;
-	}
+	Page::instance()->interface	= true;
 }
 /**
  * Disabling of page interface
  */
 function interface_off () {
-	if (Page::instance(true)) {
-		Page::instance()->interface	= false;
-	} else {
-		global $interface;
-		$interface					= false;
-	}
+	Page::instance()->interface	= false;
 }
 /**
  * Get file url by it's destination in file system
@@ -394,9 +384,9 @@ function check_php () {
 function check_mcrypt ($mode = 0) {
 	static $mcrypt_data;
 	if (!isset($mcrypt_data)) {
-		ob_start();
-		@phpinfo(INFO_MODULES);
-		$mcrypt_version = ob_get_clean();
+		$mcrypt_version = ob_wrapper(function () {
+			phpinfo(INFO_MODULES);
+		});
 		preg_match(
 			'#mcrypt support.*?(enabled|disabled)(.|\n)*?Version.?</td><td class="v">(.*?)[\n]?</td></tr>#',
 			$mcrypt_version,
@@ -470,9 +460,9 @@ function display_errors () {
  * @return string
  */
 function server_api () {
-	ob_start();
-	phpinfo(INFO_GENERAL);
-	$tmp = ob_get_clean();
+	$tmp = ob_wrapper(function () {
+		phpinfo(INFO_GENERAL);
+	});
 	preg_match('/Server API <\/td><td class="v">(.*?) <\/td><\/tr>/', $tmp, $tmp);
 	if ($tmp[1]) {
 		return $tmp[1];
