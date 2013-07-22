@@ -1,7 +1,7 @@
 <?php
 /**
  * @package		CleverStyle CMS
- * @version		0.290
+ * @version		0.294
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
  * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
