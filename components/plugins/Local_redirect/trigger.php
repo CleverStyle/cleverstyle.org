@@ -14,7 +14,7 @@ Trigger::instance()->register(
 			return;
 		}
 		if (!in_array(substr($_SERVER['REQUEST_URI'], 1, 2), ['en', 'ru', 'uk'])) {
-			header('Location: /'.Language::instance()->clang.'/'.trim($_SERVER['REQUEST_URI'], '/'), true, 301);
+			header('Location: /'.trim(Language::instance()->clang.'/'.trim($_SERVER['REQUEST_URI'], '/'), '/'), true, 301);
 		}
 	}
 );
