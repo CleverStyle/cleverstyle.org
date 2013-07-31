@@ -33,23 +33,23 @@ spl_autoload_register(function ($class) {
 		'namespace'	=> count($class) > 1 ? implode('/', array_slice($class, 0, -1)) : '',
 		'name'		=> array_pop($class)
 	];
-	_require_once(CLASSES.'/'.$class['namespace'].'/'.$class['name'].'.php', false) ||
-	_require_once(TRAITS.'/'.$class['namespace'].'/'.$class['name'].'.php', false) ||
-	_require_once(ENGINES.'/'.$class['namespace'].'/'.$class['name'].'.php', false) ||
+	_require_once(CLASSES."/$class[namespace]/$class[name].php", false) ||
+	_require_once(TRAITS."/$class[namespace]/$class[name].php", false) ||
+	_require_once(ENGINES."/$class[namespace]/$class[name].php", false) ||
 	(
-		$class['namespace'] == "modules/$class[name]" && _require_once(MODULES.'/'.$class['name'].'/'.$class['name'].'.php', false)
+		mb_strpos($class['namespace'], "modules/") === 0 && _require_once(MODULES."/../$class[namespace]/$class[name].php", false)
 	) ||
 	(
-		$class['namespace'] == "plugins/$class[name]" && _require_once(PLUGINS.'/'.$class['name'].'/'.$class['name'].'.php', false)
+		mb_strpos($class['namespace'], "plugins/") === 0 && _require_once(PLUGINS."/../$class[namespace]/$class[name].php", false)
 	);
 });
 /**
  * Correct termination from any place of engine
  */
 function __finish () {
-	Index::instance(true) && Index::instance()->__finish();
-	Page::instance(true) && Page::instance()->__finish();
-	User::instance(true) && User::instance()->__finish();
+	Index::instance()->__finish();
+	Page::instance()->__finish();
+	User::instance()->__finish();
 	exit;
 }
 /**
@@ -90,11 +90,13 @@ function interface_off () {
  * @return bool|string
  */
 function url_by_source ($source) {
+	$Config	= Config::instance(true);
+	if (!$Config) {
+		return false;
+	}
 	$source = realpath($source);
-	if (mb_strpos($source, DIR.'/') === 0) {
-		if (Config::instance(true)) {
-			return str_replace(DIR, Config::instance()->base_url(), $source);
-		}
+	if (mb_strpos($source, DIR) === 0) {
+		return $Config->base_url().mb_substr($source, mb_strlen(DIR));
 	}
 	return false;
 }
@@ -106,12 +108,12 @@ function url_by_source ($source) {
  * @return bool|string
  */
 function source_by_url ($url) {
-	if (!Config::instance(true)) {
+	$Config	= Config::instance(true);
+	if (!$Config) {
 		return false;
 	}
-	$Config	= Config::instance();
 	if (mb_strpos($url, $Config->base_url()) === 0) {
-		return str_replace($Config->base_url(), DIR, $url);
+		return DIR.mb_substr($url, mb_strlen($Config->base_url()));
 	}
 	return false;
 }
@@ -215,8 +217,8 @@ function format_filesize ($size, $round = false) {
  */
 function _setcookie ($name, $value, $expire = 0, $httponly = false, $api = false) {
 	static $path, $domain, $prefix, $secure;
-	$Config					= Config::instance(true) ? Config::instance() : null;
-	if (!isset($prefix) && Config::instance(true)) {
+	$Config					= Config::instance(true);
+	if (!isset($prefix) && $Config) {
 		$prefix		= $Config->core['cookie_prefix'];
 		$secure		= $Config->server['protocol'] == 'https';
 		if (
@@ -237,7 +239,7 @@ function _setcookie ($name, $value, $expire = 0, $httponly = false, $api = false
 		$prefix	= '';
 	}
 	$_COOKIE[$prefix.$name] = $value;
-	if (!$api && is_object($Config) && isset($Config->core['cookie_sync']) && $Config->core['cookie_sync']) {
+	if (!$api && $Config->core['cookie_sync']) {
 		$data = [
 			'name'		=> $name,
 			'value'		=> $value,
@@ -312,8 +314,8 @@ function _setcookie ($name, $value, $expire = 0, $httponly = false, $api = false
 function _getcookie ($name) {
 	static $prefix;
 	if (!isset($prefix)) {
-		$Config	= Config::instance(true) ? Config::instance() : null;
-		$prefix	= is_object($Config) && $Config->core['cookie_prefix'] ? $Config->core['cookie_prefix'].'_' : '';
+		$Config	= Config::instance(true);
+		$prefix	= $Config->core['cookie_prefix'] ? $Config->core['cookie_prefix'].'_' : '';
 	}
 	return isset($_COOKIE[$prefix.$name]) ? $_COOKIE[$prefix.$name] : false;
 }
@@ -323,7 +325,11 @@ function _getcookie ($name) {
  * @return array
  */
 function get_timezones_list () {
-	if (!class_exists('\\cs\\Cache', false) || !Cache::instance(true) || ($timezones = Cache::instance()->timezones) === false) {
+	if (
+		!class_exists('\\cs\\Cache', false) ||
+		!($Cache = Cache::instance(true)) ||
+		($timezones = $Cache->timezones) === false
+	) {
 		$tzs = timezone_identifiers_list();
 		$timezones_ = $timezones = [];
 		foreach ($tzs as $tz) {
@@ -345,8 +351,8 @@ function get_timezones_list () {
 			$timezones[$tz['key']] = $tz['value'];
 		}
 		unset($timezones_, $tz);
-		if (class_exists('\\cs\\Cache', false) && Cache::instance(true)) {
-			Cache::instance()->timezones = $timezones;
+		if (class_exists('\\cs\\Cache', false) && isset($Cache) && $Cache) {
+			$Cache->timezones = $timezones;
 		}
 	}
 	return $timezones;
@@ -364,15 +370,6 @@ function check_db () {
 	}
 	preg_match('/[\.0-9]+/', DB::instance()->server(), $db_version);
 	return (bool)version_compare($db_version[0], $$db_type, '>=');
-}
-/**
- * Check PHP version
- *
- * @return bool	If version unsatisfactory - returns <b>false</b>
- */
-function check_php () {
-	global $PHP;
-	return (bool)version_compare(PHP_VERSION, $PHP, '>=');
 }
 /**
  * Check existence and version of mcrypt
@@ -393,9 +390,9 @@ function check_mcrypt ($mode = 0) {
 			$mcrypt_version,
 			$mcrypt_version
 		);
-		$mcrypt_data[0] = $mcrypt_version[1] == 'enabled' ? trim($mcrypt_version[3]) : false;
+		$mcrypt_data[0] = isset($mcrypt_version[1]) && $mcrypt_version[1] == 'enabled' ? trim($mcrypt_version[3]) : false;
 		global $mcrypt;
-		$mcrypt_data[1] = $mcrypt_data[0] ? (bool)version_compare($mcrypt_data[0], $mcrypt, '>=') : false;
+		$mcrypt_data[1] = isset($mcrypt_version[0]) && $mcrypt_data[0] ? (bool)version_compare($mcrypt_data[0], $mcrypt, '>=') : false;
 	}
 	return $mcrypt_data[$mode];
 }
@@ -479,8 +476,8 @@ function server_api () {
  * @return bool|string
  */
 function get_core_ml_text ($item) {
-	$Config	= Config::instance(true) ? Config::instance() : null;
-	if (!is_object($Config)) {
+	$Config	= Config::instance(true);
+	if (!$Config) {
 		return false;
 	}
 	return Text::instance()->process($Config->module('System')->db('texts'), $Config->core[$item], true, true);

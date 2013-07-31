@@ -10,6 +10,8 @@ use			h;
 /**
  * Core class.
  * Provides loading of base system configuration, encryption, API requests sending
+ *
+ * @method static \cs\Core instance($check = false)
  */
 class Core {
 	use Singleton;
@@ -26,7 +28,7 @@ class Core {
 	protected function construct () {
 		if (!file_exists(CONFIG.'/main.json')) {
 			code_header(404);
-			$this->__finish();
+			__finish();
 		}
 		$this->config		= _json_decode_nocomments(file_get_contents(CONFIG.'/main.json'));
 		_include_once(CONFIG.'/main.php', false);
@@ -215,9 +217,9 @@ class Core {
 	 * @return array	Array <i>[mirror_url => result]</b> in case of successful connection, <i>false</b> on failure
 	 */
 	function api_request ($path, $data = '') {
-		$Config	= Config::instance(true) ? Config::instance() : null;
+		$Config	= Config::instance(true);
 		$result	= [];
-		if (is_object($Config) && $Config->server['mirrors']['count'] > 1) {
+		if ($Config && $Config->server['mirrors']['count'] > 1) {
 			foreach ($Config->server['mirrors']['http'] as $domain) {
 				if (!($domain == $Config->server['host'] && $Config->server['protocol'] == 'http')) {
 					$result['http://'.$domain] = $this->send('http://'.$domain.'/api/'.$path, $data);

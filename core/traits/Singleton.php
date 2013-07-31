@@ -17,17 +17,17 @@ trait Singleton {
 	/**
 	 * Get instance of class
 	 *
-	 * @param bool			$check	If true - checks, if instance was already created
+	 * @param bool			$check	If true - checks, if instance was already created, if not - instance of cs\False_class will be returned
 	 *
-	 * @return bool|$this
+	 * @return False_class|static
 	 */
 	static function instance ($check = false) {
 		static $instance;
 		if (defined('STOP')) {
-			return new False_class;
+			return False_class::instance();
 		}
 		if ($check) {
-			return isset($instance);
+			return isset($instance) ? $instance : False_class::instance();
 		}
 		if (isset($instance)) {
 			return $instance;
@@ -36,7 +36,7 @@ trait Singleton {
 			$instance	= 'cs\\custom'.substr(__CLASS__, 2);
 			$instance	= new $instance;
 		} else {
-			$instance	= new self;
+			$instance	= new static;
 		}
 		$instance->construct();
 		return $instance;

@@ -6,13 +6,10 @@
  * @license		MIT License, see license.txt
  */
 namespace	cs;
-require CORE.'/upf.php';							//Inclusion of UPF
-require CORE.'/functions.php';						//Inclusion of general system functions
-_require_once(DIR.'/vendor/autoload.php', false);	//Inclusion of composer's autoloader.php if exists
-
-global $timeload, $loader_init_memory;
-
-$timeload['start']			= MICROTIME;
+require			CORE.'/upf.php';					//Inclusion of Useful PHP Functions
+require			CORE.'/functions.php';				//Inclusion of general system functions
+require_once	CORE.'/vendor/autoload.php';		//Inclusion of composer's autoloader.php with system dependencies
+_require_once(DIR.'/vendor/autoload.php', false);	//Inclusion of composer's autoloader.php with user's dependencies
 
 error_reporting(E_ALL);
 
@@ -20,9 +17,8 @@ header('Content-Type: text/html; charset=utf-8');
 header('Vary: Content-Language,User-Agent,Cookie');
 mb_internal_encoding('utf-8');
 header('Connection: close');
-
 /**
- * Setting of basic constants with paths to system directories
+ * Defining of basic constants with paths to system directories
  */
 /**
  * Directory for configuration
@@ -96,7 +92,6 @@ define('PCACHE',	DIR.'/storage/pcache');
  * Themes dir
  */
 define('THEMES',	DIR.'/themes');
-
 /**
  * Load information about minimal needed Software versions
  */
@@ -105,13 +100,10 @@ require_once CORE.'/required_verions.php';
  * Including of custom user file
  */
 _include_once(DIR.'/custom.php', false);
-
-$timeload['loader_init']	= microtime(true);
-$loader_init_memory			= memory_get_usage();CONFIG;
 /**
- * System starting
+ * System running
  */
-Core::instance();
+Core::instance()->instance();
 Language::instance();
 defined('CS_ERROR_HANDLER') && CS_ERROR_HANDLER && Error::instance();
 Index::instance()->__finish();

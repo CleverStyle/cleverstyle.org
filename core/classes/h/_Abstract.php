@@ -113,12 +113,12 @@ abstract class _Abstract {
 		if (isset($data['href'])) {
 			$data['href']		= str_replace(' ', '%20', $data['href']);
 			if ($tag != 'a') {
-				$data['href']		= self::prepare_url($data['href']);
-			} elseif (substr($data['href'], 0, 1) == '#') {
-				$Config	= Config::instance(true) ? Config::instance() : null;
-				if (is_object($Config)) {
-					$data['href']	= $Config->base_url().'/'.$Config->server['raw_relative_address'].$data['href'];
-				}
+				$data['href']	= self::prepare_url($data['href']);
+			} elseif (
+				substr($data['href'], 0, 1) == '#' &&
+				$Config = Config::instance(true)
+			) {
+				$data['href']	= $Config->base_url().'/'.$Config->server['raw_relative_address'].$data['href'];
 			}
 		}
 		if (isset($data['action'])) {
@@ -171,8 +171,7 @@ abstract class _Abstract {
 	 */
 	static function prepare_url ($url, $absolute = false) {
 		if (substr($url, 0, 1) == '#') {
-			$Config	= Config::instance(true) ? Config::instance() : null;
-			if (is_object($Config)) {
+			if ($Config = Config::instance(true)) {
 				return $Config->base_url().'/'.$Config->server['raw_relative_address'].$url;
 			}
 		} elseif (
@@ -181,8 +180,11 @@ abstract class _Abstract {
 			substr($url, 0, 7) != 'http://' &&
 			substr($url, 0, 8) != 'https://'
 		) {
-			if ($absolute && Config::instance(true)) {
-				return Config::instance()->base_url()."/$url";
+			if (
+				$absolute &&
+				$Config = Config::instance(true)
+			) {
+				return $Config->base_url()."/$url";
 			}
 			return "/$url";
 		}
@@ -200,10 +202,10 @@ abstract class _Abstract {
 	 * @return bool|string
 	 */
 	protected static function wrap ($in = '', $data = [], $tag = 'div') {
-		$data	= self::array_merge(is_array($in) ? $in : ['in' => $in], is_array($data) ? $data : [], ['tag' => $tag]);
-		$in		= $add = '';
-		$tag	= 'div';
-		$level	= 1;
+		$data		= self::array_merge(is_array($in) ? $in : ['in' => $in], is_array($data) ? $data : [], ['tag' => $tag]);
+		$in			= $add = '';
+		$tag		= 'div';
+		$level		= 1;
 		if (isset($data['data-title']) && $data['data-title']) {
 			$data['data-title'] = filter($data['data-title']);
 			if (isset($data['class'])) {
@@ -221,20 +223,30 @@ abstract class _Abstract {
 			}
 		}
 		if (isset($data['level'])) {
-			$level = $data['level'];
+			$level	= $data['level'];
 			unset($data['level']);
 		}
 		if (!self::data_prepare($data, $in, $tag, $add)) {
 			return false;
 		}
-		$html	=	'<'.$tag.$add.'>'.
-					($level ? "\n" : '').
-					self::level(
-						$in || $in === 0 || $in === '0' ? $in.($level ? "\n" : '') : ($in === false ? '' : ($level ? "&nbsp;\n" : '')),
-					$level).
-					'</'.$tag.'>'.
-					($level ? "\n" : '');
-		return $html;
+		if (!(
+			$in ||
+			$in === 0 ||
+			$in === '0'
+		)) {
+			$in		= $in === false || !$level ? '' : '&nbsp;';
+		}
+		if (
+			$in &&
+			(
+				strpos($in, "\n") !== false ||
+				strpos($in, "<") !== false
+			) &&
+			$level
+		) {
+			$in		= $level ? self::level("\n$in\n", $level) : "\n$in\n";
+;		}
+		return "<$tag$add>$in</$tag>".($level ? "\n" : '');
 	}
 	/**
 	 * Wrapper for unpaired tags rendering
@@ -246,8 +258,8 @@ abstract class _Abstract {
 	 * @return bool|string
 	 */
 	protected static function u_wrap ($data = []) {
-		$in = $add = '';
-		$tag = 'input';
+		$in		= $add		= '';
+		$tag	= 'input';
 		if (!self::data_prepare($data, $in, $tag, $add, $label)) {
 			return false;
 		}
@@ -255,21 +267,21 @@ abstract class _Abstract {
 			$data_title = $data['data-title'];
 			unset($data['data-title']);
 		}
+		$add	.= XHTML_TAGS_STYLE ? ' /' : '';
 		if (isset($data['type']) && $data['type'] == 'checkbox' && $label) {
-			$html	= '<'.$tag.$add.(XHTML_TAGS_STYLE ? ' /' : '').'>'.self::label(
-				$in,
-				[
-					'for'	=> $data['id']
-				]
-			)."\n";
 			$html	= self::span(
-				$html,
+				"<$tag$add>".self::label(
+					$in,
+					[
+						'for'	=> $data['id']
+					]
+				)."\n",
 				[
 					'data-title' => isset($data_title) ? $data_title : false
 				]
 			);
 		} else {
-			$html	= '<'.$tag.$add.(XHTML_TAGS_STYLE ? ' /' : '').'>'.$in."\n";
+			$html	= "<$tag$add>$in\n";
 			$html	= isset($data_title) ? self::label(
 				$html,
 				[
@@ -304,9 +316,13 @@ abstract class _Abstract {
 		if (!isset($data['method'])) {
 			$data['method']	= 'post';
 		}
-		if (strtolower($data['method']) == 'post' && class_exists('\\cs\\User', false) && User::instance(true)) {
+		if (
+			strtolower($data['method']) == 'post' &&
+			class_exists('\\cs\\User', false) &&
+			$User = User::instance(true)
+		) {
 			$in_ = self::{'input[type=hidden][name=session]'}([
-				'value'	=> User::instance()->get_session()
+				'value'	=> $User->get_session()
 			]);
 			if (!is_array($in)) {
 				$in			.= $in_;
@@ -746,7 +762,7 @@ abstract class _Abstract {
 			return self::__callStatic(__FUNCTION__, [$in, $data]);
 		}
 		$L		= Language::instance();
-		if (Config::instance(true) && Config::instance()->core['show_tooltips']) {
+		if (Config::instance(true)->core['show_tooltips']) {
 			return self::span($L->$in, array_merge(['data-title' => $L->{$in.'_info'}], $data));
 		} else {
 			return self::span($L->$in, $data);
@@ -824,7 +840,7 @@ abstract class _Abstract {
 		if ($space_position === false) {
 			return false;
 		}
-		$next_space		= mb_strpos($in, ' ', $space_position);
+		$next_space		= mb_strpos($in, ' ', $space_position + 1);
 		$attr_close		= mb_strpos($in, ']', $space_position);
 		if (
 			$next_space === false ||

@@ -15,6 +15,8 @@ use			h;
  *  ['key'	=> &$key]		//Reference to the key, that will be appended to all css and js files, can be changed to reflect JavaScript and CSS changes
  *  System/Page/external_login_list
  *  ['list'	=> &$list]		//Reference to the list of external login systems
+ *
+ * @method static \cs\Page instance($check = false)
  */
 class Page {
 	use	Singleton;
@@ -191,9 +193,7 @@ class Page {
 					!(
 						is_object($Config) && $Config->core['site_mode']
 					) &&
-					!(
-						User::instance(true) && User::instance()->admin()
-					) &&
+					!User::instance(true)->admin() &&
 					code_header(503) &&
 					!(
 						_include_once(THEMES.'/'.$this->theme.'/closed.php', false) || _include_once(THEMES.'/'.$this->theme.'/closed.html', false)
@@ -216,7 +216,7 @@ class Page {
 	 * @return Page
 	 */
 	protected function prepare () {
-		$Config				= Config::instance(true) ? Config::instance() : null;
+		$Config				= Config::instance(true);
 		/**
 		 * Loading of template
 		 * Loading of CSS and JavaScript
@@ -233,7 +233,7 @@ class Page {
 				$this->Title[$i] = trim($v);
 			}
 		}
-		if (is_object($Config)) {
+		if ($Config) {
 			$this->Title = $Config->core['title_reverse'] ? array_reverse($this->Title) : $this->Title;
 			$this->Title = implode($Config->core['title_delimiter'], $this->Title);
 		} else {
@@ -295,7 +295,7 @@ class Page {
 					'content'		=> 'noindex,nofollow'
 				] : false
 			).
-			h::base(is_object($Config) ? [
+			h::base($Config ? [
 				'href' => $Config->base_url().'/'
 			] : false).
 			$this->Head.
@@ -696,13 +696,13 @@ class Page {
 	 * @return Page
 	 */
 	protected function get_includes () {
-		if (!Config::instance(true)) {
+		if (!($Config = Config::instance(true))) {
 			return $this;
 		}
 		/**
 		 * If CSS and JavaScript compression enabled
 		 */
-		if (Config::instance()->core['cache_compress_js_css']) {
+		if ($Config->core['cache_compress_js_css']) {
 			/**
 			 * Current cache checking
 			 */
@@ -760,30 +760,87 @@ class Page {
 	/**
 	 * Getting of JavaScript and CSS files list to be included
 	 *
-	 * @param bool	$for_cache
+	 * @param bool $absolute    If <i>true</i> - absolute paths to files will be returned
 	 *
 	 * @return Page
 	 */
-	protected function get_includes_list ($for_cache = false) {
-		$theme_folder	= THEMES.'/'.$this->theme;
-		$scheme_folder	= $theme_folder.'/schemes/'.$this->color_scheme;
-		$theme_pfolder	= 'themes/'.$this->theme;
-		$scheme_pfolder	= $theme_pfolder.'/schemes/'.$this->color_scheme;
+	protected function get_includes_list ($absolute = false) {
+		$theme_dir		= THEMES."/$this->theme";
+		$scheme_dir		= "$theme_dir/schemes/$this->color_scheme";
+		$theme_pdir		= 'themes/'.$this->theme;
+		$scheme_pdir	= "$theme_pdir/schemes/$this->color_scheme";
+		/**
+		 * Get includes of system and theme + color scheme
+		 */
 		$this->includes = [
 			'css' => array_merge(
-				(array)get_files_list(CSS,						'/(.*)\.css$/i',	'f', $for_cache ? true : 'includes/css',			true, false, '!include'),
-				(array)get_files_list($theme_folder.'/css',		'/(.*)\.css$/i',	'f', $for_cache ? true : $theme_pfolder.'/css',		true, false, '!include'),
-				(array)get_files_list($scheme_folder.'/css',	'/(.*)\.css$/i',	'f', $for_cache ? true : $scheme_pfolder.'/css',	true, false, '!include')
+				get_files_list(CSS,					'/(.*)\.css$/i',	'f', $absolute ? true : 'includes/css',			true, false, '!include') ?: [],
+				get_files_list($theme_dir.'/css',	'/(.*)\.css$/i',	'f', $absolute ? true : $theme_pdir.'/css',		true, false, '!include') ?: [],
+				get_files_list($scheme_dir.'/css',	'/(.*)\.css$/i',	'f', $absolute ? true : $scheme_pdir.'/css',	true, false, '!include') ?: []
 			),
 			'js' => array_merge(
-				(array)get_files_list(JS,						'/(.*)\.js$/i',		'f', $for_cache ? true : 'includes/js',				true, false, '!include'),
-				(array)get_files_list($theme_folder.'/js',		'/(.*)\.js$/i',		'f', $for_cache ? true : $theme_pfolder.'/js',		true, false, '!include'),
-				(array)get_files_list($scheme_folder.'/js',		'/(.*)\.js$/i',		'f', $for_cache ? true : $scheme_pfolder.'/js',		true, false, '!include')
+				get_files_list(JS,					'/(.*)\.js$/i',		'f', $absolute ? true : 'includes/js',			true, false, '!include') ?: [],
+				get_files_list($theme_dir.'/js',	'/(.*)\.js$/i',		'f', $absolute ? true : $theme_pdir.'/js',		true, false, '!include') ?: [],
+				get_files_list($scheme_dir.'/js',	'/(.*)\.js$/i',		'f', $absolute ? true : $scheme_pdir.'/js',		true, false, '!include') ?: []
 			)
 		];
-		unset($theme_folder, $scheme_folder, $theme_pfolder, $scheme_pfolder);
+		unset($theme_dir, $scheme_dir, $theme_pdir, $scheme_pdir);
 		sort($this->includes['css']);
 		sort($this->includes['js']);
+		$Config			= Config::instance();
+		foreach ($Config->components['modules'] as $module => $mdata) {
+			if (!$mdata['active'] == '1') {
+				continue;
+			}
+			$css	= get_files_list(
+				MODULES."/$module/includes/css",
+				'/(.*)\.css$/i',
+				'f',
+				$absolute ? true : "components/modules/$module/includes/css",
+				true,
+				false,
+				'!include'
+			) ?: [];
+			sort($css);
+			$this->includes['css']	= array_merge($this->includes['css'], $css);
+			$js		= get_files_list(
+				MODULES."/$module/includes/js",
+				'/(.*)\.js/i',
+				'f',
+				$absolute ? true : "components/modules/$module/includes/js",
+				true,
+				false,
+				'!include'
+			) ?: [];
+			sort($js);
+			$this->includes['js']	= array_merge($this->includes['js'], $js);
+		}
+		unset($module, $mdata, $css, $js);
+		foreach ($Config->components['plugins'] as $plugin) {
+			$css	= get_files_list(
+				PLUGINS."/$plugin/includes/css",
+				'/(.*)\.css$/i',
+				'f',
+				$absolute ? true : "components/plugins/$plugin/includes/css",
+				true,
+				false,
+				'!include'
+			) ?: [];
+			sort($css);
+			$this->includes['css']	= array_merge($this->includes['css'], $css);
+			$js		= get_files_list(
+				PLUGINS."/$plugin/includes/js",
+				'/(.*)\.js/i',
+				'f',
+				$absolute ? true : "components/plugins/$plugin/includes/js",
+				true,
+				false,
+				'!include'
+			) ?: [];
+			sort($js);
+			$this->includes['js']	= array_merge($this->includes['js'], $js);
+		}
+		unset($plugin, $css, $js);
 		return $this;
 	}
 	/**
@@ -817,7 +874,7 @@ class Page {
 				}
 			}
 			if ($extension == 'js') {
-				$temp_cache	.= 'var L='.Language::instance()->get_json().';';
+				$temp_cache	= "window.L=".Language::instance()->get_json().";$temp_cache";
 			}
 			file_put_contents(PCACHE.'/'.$this->pcache_basename.$extension, gzencode($temp_cache, 9), LOCK_EX | FILE_BINARY);
 			$key .= md5($temp_cache);
@@ -899,7 +956,8 @@ class Page {
 				if ($format == 'css') {
 					$this->css_includes_processing($content, realpath($link));
 				}
-				return str_replace($match[count($match) - 1], 'data:'.$mime_type.';charset=utf-8;base64,'.base64_encode($content), $match[0]);
+				$content	= base64_encode($content);
+				return str_replace($match[count($match) - 1], "data:$mime_type;charset=utf-8;base64,$content", $match[0]);
 			},
 			$data
 		);
@@ -915,8 +973,12 @@ class Page {
 		$db				= class_exists('cs\\DB', false) ? DB::instance() : null;
 		$this->Footer	.= h::div(
 			get_core_ml_text('footer_text') ?: false,
-			Config::instance()->core['show_footer_info'] ?
-				Language::instance()->page_footer_info('<!--generate time-->', $db ? $db->queries : 0, format_time(round($db ? $db->time : 0, 5)), '<!--peak memory usage-->') : false,
+			Config::instance()->core['show_footer_info'] ? Language::instance()->page_footer_info(
+				'<!--generate time-->',
+				$db ? $db->queries : 0,
+				format_time(round($db ? $db->time : 0, 5)),
+				'<!--peak memory usage-->'
+			) : false,
 			base64_decode(
 				'wqkgUG93ZXJlZCBieSA8YSB0YXJnZXQ9Il9ibGFuayIgaHJlZj0iaHR0cDovL2NsZXZlcnN0eW'.
 				'xlLm9yZy9jbXMiIHRpdGxlPSJDbGV2ZXJTdHlsZSBDTVMiPkNsZXZlclN0eWxlIENNUzwvYT4='
@@ -1082,8 +1144,8 @@ class Page {
 					 ($error_text ?: ERROR_CODE);
 			}
 			$this->Content	= ob_get_clean();
-			__finish();
 		}
+		__finish();
 	}
 	/**
 	 * Substitutes header information about user, login/registration forms, etc.
@@ -1092,8 +1154,8 @@ class Page {
 	 */
 	protected function get_header_info () {
 		$L		= Language::instance();
-		$User	= User::instance(true) ? User::instance() : null;
-		if (is_object ($User) && $User->user()) {
+		$User	= User::instance(true);
+		if ($User->user()) {
 			if ($User->avatar) {
 				$this->user_avatar_image = 'url('.h::prepare_url($User->avatar, true).')';
 			} else {
@@ -1149,7 +1211,9 @@ class Page {
 			h::{'div.cs-header-restore-password-form'}(
 				h::{'input.cs-noui.cs-header-restore-password-email[tabindex=1]'}(
 					[
-						'placeholder'	=> $L->login_or_email
+						'placeholder'		=> $L->login_or_email,
+						'autocapitalize'	=> 'off',
+						'autocorrect'		=> 'off'
 					]
 				).
 				h::{'button.cs-header-restore-password-process.cs-button-compact[tabindex=2]'}(
@@ -1167,9 +1231,11 @@ class Page {
 				]
 			).
 			h::{'div.cs-header-registration-form'}(
-				h::{'input.cs-noui.cs-header-registration-email[tabindex=1]'}(
+				h::{'input.cs-noui.cs-header-registration-email[type=email][tabindex=1]'}(
 					[
-						'placeholder'	=> $L->email
+						'placeholder'		=> $L->email,
+						'autocapitalize'	=> 'off',
+						'autocorrect'		=> 'off'
 					]
 				).
 				h::{'button.cs-header-registration-process.cs-button-compact[tabindex=2]'}(
@@ -1188,7 +1254,9 @@ class Page {
 			).
 			h::{'div.cs-header-login-form'}(
 				h::{'input.cs-noui.cs-header-login-email[tabindex=1]'}([
-					'placeholder'	=> $L->login_or_email
+					'placeholder'		=> $L->login_or_email,
+					'autocapitalize'	=> 'off',
+					'autocorrect'		=> 'off'
 				]).
 				h::{'input.cs-noui.cs-header-user-password[type=password][tabindex=2]'}([
 					'placeholder'	=> $L->password
@@ -1233,9 +1301,8 @@ class Page {
 			 */
 			echo $this->process_replacing($this->Content);
 		} else {
-			global $timeload;
 			Trigger::instance()->run('System/Page/pre_display');
-			class_exists('\\cs\\Error', false) && Error::instance(true) && Error::instance()->display();
+			class_exists('\\cs\\Error', false) && Error::instance(true)->display();
 			/**
 			 * Processing of template, substituting of content, preparing for the output
 			 */
@@ -1248,19 +1315,20 @@ class Page {
 			 * Detection of compression
 			 */
 			$ob					= false;
-			$Config				= Config::instance(true) ? Config::instance() : null;
-			if (is_object($Config) && !zlib_compression() && $Config->core['gzip_compression']) {
+			$Config				= Config::instance(true);
+			if ($Config && !zlib_compression() && $Config->core['gzip_compression']) {
 				ob_start('ob_gzhandler');
 				$ob = true;
 			}
-			$timeload['end']	= microtime(true);
 			/**
 			 * Getting of debug information
 			 */
 			if (
-				User::instance(true) && (
-					User::instance()->admin() || (
-						$Config->can_be_admin && $Config->core['ip_admin_list_only']
+				(
+					User::instance(true)->admin() ||
+					(
+						$Config->can_be_admin &&
+						$Config->core['ip_admin_list_only']
 					)
 				) && DEBUG
 			) {
@@ -1284,10 +1352,10 @@ class Page {
 						),
 						$this->level['debug_info']
 					) : '',
-					format_time(round($timeload['end'] - $timeload['start'], 5)),
-					format_filesize(memory_get_peak_usage(), 5)
+					format_time(round(microtime(true) - MICROTIME, 5)),
+					format_filesize(memory_get_usage(), 5).h::{'sup[level=0]'}(format_filesize(memory_get_peak_usage(), 5))
 				],
-				$this->Html
+				rtrim($this->Html)
 			);
 			if ($ob) {
 				ob_end_flush();

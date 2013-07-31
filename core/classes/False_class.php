@@ -5,15 +5,31 @@
  * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
-namespace cs;
+namespace	cs;
+use			ArrayAccess,
+			SimpleXMLElement;
 /**
  * False_class is used for chained calling, when some method may return false.
  *
  * Usage of class is simple, just return his instance instead of real boolean <i>false</i>.
- * On every call of any method or getting of any property instance of the same class will be returned.
- * Also object may be converted to string '0' because of __toString() method.
+ * On every call of any method or getting of any property or getting any element of array instance of the this class will be returned.
+ * Access to anything of this class instance will be casted to boolean <i>false</i>
+ *
+ * Inherits SimpleXMLElement in order to be casted from object to boolean as <i>false</i>
  */
-class False_class {
+class False_class extends SimpleXMLElement implements ArrayAccess {
+	/**
+	 * Use this method to obtain correct instance
+	 *
+	 * @return False_class
+	 */
+	static function instance () {
+		static $instance;
+		if (!isset($instance)) {
+			$instance	= new self('<?xml version=\'1.0\'?><cs></cs>');
+		}
+		return $instance;
+	}
 	/**
 	 * Getting any property
 	 *
@@ -41,4 +57,24 @@ class False_class {
 	function __toString () {
 		return '0';
 	}
+	/**
+	 * If item exists
+	 */
+	function offsetExists ($offset) {
+		return false;
+	}
+	/**
+	 * Get item
+	 */
+	function offsetGet ($offset) {
+		return $this;
+	}
+	/**
+	 * Set item
+	 */
+	public function offsetSet ($offset, $value) {}
+	/**
+	 * Delete item
+	 */
+	public function offsetUnset ($offset) {}
 }
