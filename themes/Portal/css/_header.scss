@@ -5,7 +5,6 @@
  * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
-
 @import "config";
 @import "mixins";
 
@@ -31,10 +30,7 @@
 
 	border-radius : .6rem;
 	height        : 9rem;
-	margin        : 1rem 1rem 0 0;
-	position      : fixed;
-	right         : 0;
-	top           : 0;
+	margin-top    : 1rem;
 	width         : $right-column;
 }
 .cs-header-avatar {
@@ -42,7 +38,7 @@
 	border-radius   : .5rem;
 	float           : left;
 	height          : 7.5rem;
-	margin          : .75rem;
+	margin          : .75rem .75rem .75rem 0;
 	position        : fixed;
 	width           : 7.5rem;
 	vertical-align  : top;
@@ -55,6 +51,7 @@
 	width    : $right-column - 9.75rem;
 
 	[type=text],
+	[type=email],
 	[type=password] {
 		background : $form-element-background-color;
 		color      : $base-color;

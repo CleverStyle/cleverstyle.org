@@ -1,12 +1,12 @@
 <!doctype html>
 <!--pre_Html--><!--head--><!--pre_Body--><!--debug_info-->
+<aside id="cs-right-blocks">
 <div class="cs-header-user">
 	<div class="cs-header-avatar" style="background-image:<!--user_avatar_image-->;"></div>
 	<div class="cs-header-user-info">
 <!--header_info-->
 	</div>
 </div>
-<aside id="cs-right-blocks">
 	<nav class="cs-header-main-menu">
 <!--main-menu-->
 	</nav>
