@@ -180,7 +180,7 @@ class Config {
 		if ($core_url[0] == $this->server['protocol']) {
 			foreach ($core_url[1] as $url) {
 				if (mb_strpos($this->server['raw_relative_address'], $url) === 0) {
-					$this->server['base_url']	= $this->server['protocol'].'://'.$url;
+					$this->server['base_url']	= $this->server['protocol']."://$url";
 					$current_mirror				= $url;
 					break;
 				}
@@ -202,7 +202,7 @@ class Config {
 				if ($mirror_url[0] == $this->server['protocol']) {
 					foreach ($mirror_url[1] as $url) {
 						if (mb_strpos($this->server['raw_relative_address'], $url) === 0) {
-							$this->server['base_url']		= $this->server['protocol'].'://'.$url;
+							$this->server['base_url']		= $this->server['protocol']."://$url";
 							$current_mirror					= $url;
 							$this->server['mirror_index']	= $i;
 							break 2;
@@ -267,12 +267,11 @@ class Config {
 		if (mb_strpos($rc, 'redirect/') === 0) {
 			if ($this->server['referer']['local']) {
 				header('Location: '.substr($rc, 9));
-				__finish();
 			} else {
 				define('ERROR_CODE', 404);
 				Page::instance()->error();
-				__finish();
 			}
+			exit;
 		}
 		/**
 		 * Routing replacing
@@ -283,7 +282,7 @@ class Config {
 				'rc'	=> &$rc
 			]
 		);
-		if ($rc && strpos('api/', $rc) === 0) {
+		if ($rc && strpos($rc, 'api/') === 0) {
 			$rc	= explode('?', $rc, 2)[0];
 		}
 		if (!empty($r['in'])) {
@@ -336,21 +335,27 @@ class Config {
 		/**
 		 * Module detection
 		 */
-		if (
-			isset($rc[0]) &&
-			in_array(
-				mb_strtolower($rc[0]),
-				_mb_strtolower(array_keys($this->components['modules']))
-			) &&
-			(
-				ADMIN || $this->components['modules'][$rc[0]]['active'] == 1
-			)
-		) {
-			if (!defined('MODULE')) {
-				define('MODULE', array_shift($rc));
+		$modules								= array_keys(array_filter(
+			$this->components['modules'],
+			function ($module_data) {
+			   return ADMIN || $module_data['active'] == 1;
 			}
-		} else {
-			if (!defined('MODULE')) {
+		));
+		$modules								= array_combine(
+			array_map(
+				function ($module) use ($L) {
+					return path($L->get($module));
+				},
+				$modules
+			),
+			$modules
+		);
+		if (!defined('MODULE')) {
+			if (isset($rc[0]) && in_array($rc[0], array_values($modules))) {
+				define('MODULE', array_shift($rc));
+			} elseif (isset($rc[0]) && isset($modules[$rc[0]])) {
+				define('MODULE', $modules[array_shift($rc)]);
+			} else {
 				define('MODULE', ADMIN || API || isset($rc[0]) ? 'System' : $this->core['default_module']);
 				if (!ADMIN && !API && !isset($rc[1])) {
 					define('HOME', true);
@@ -379,7 +384,7 @@ class Config {
 		$this->core['color_schemes']	= [];
 		foreach ($this->core['themes'] as $theme) {
 			$this->core['color_schemes'][$theme]	= [];
-			$this->core['color_schemes'][$theme]	= get_files_list(THEMES.'/'.$theme.'/schemes', false, 'd') ?: [];
+			$this->core['color_schemes'][$theme]	= get_files_list(THEMES."/$theme/schemes", false, 'd') ?: [];
 			asort($this->core['color_schemes'][$theme]);
 		}
 		if ($themes != $this->core['themes'] || $color_schemes != $this->core['color_schemes']) {
@@ -465,9 +470,10 @@ class Config {
 		}
 		Cache::instance()->config	= $config;
 		$L							= Language::instance();
-		$L->change($this->core['language']);
-		if (User::instance(true)) {
+		if (User::instance(true) && $this->core['multilingual']) {
 			$L->change(User::instance()->language);
+		} else {
+			$L->change($this->core['language']);
 		}
 		$this->init();
 		return true;

@@ -32,9 +32,9 @@ class Page {
 				$Head				= '',
 				$pre_Body			= '',
 					$Header			= '',
-						$mainmenu			= '',
-						$mainsubmenu		= '',
-						$menumore			= '',
+						$main_menu			= '',
+						$main_sub_menu		= '',
+						$main_menu_more		= '',
 					$Left			= '',
 					$Top			= '',
 					$Right			= '',
@@ -46,9 +46,9 @@ class Page {
 					'Head'				=> 0,	//of values into template
 					'pre_Body'			=> 0,
 					'Header'			=> 2,
-					'mainmenu'			=> 2,
-					'mainsubmenu'		=> 2,
-					'menumore'			=> 2,
+					'main_menu'			=> 2,
+					'main_sub_menu'		=> 2,
+					'main_menu_more'	=> 2,
 					'header_info'		=> 3,
 					'debug_info'		=> 1,
 					'Left'				=> 2,
@@ -262,14 +262,14 @@ class Page {
 		if ($this->js[1]) {
 			$this->js[1]		= h::script($this->js[1]);
 		}
-		if (file_exists(THEMES.'/'.$this->theme.'/'.$this->color_scheme.'/'.'img/favicon.png')) {
-			$favicon	= 'themes/'.$this->theme.'/'.$this->color_scheme.'/img/favicon.png';
-		} elseif (file_exists(THEMES.'/'.$this->theme.'/'.$this->color_scheme.'/img/favicon.ico')) {
-			$favicon	= 'themes/'.$this->theme.'/'.$this->color_scheme.'/img/favicon.ico';
-		} elseif (file_exists(THEMES.'/'.$this->theme.'/img/favicon.png')) {
-			$favicon	= 'themes/'.$this->theme.'/img/favicon.png';
-		} elseif (file_exists(THEMES.'/'.$this->theme.'/img/favicon.ico')) {
-			$favicon	= 'themes/'.$this->theme.'/img/favicon.ico';
+		if (file_exists(THEMES."/$this->theme/$this->color_scheme/img/favicon.png")) {
+			$favicon	= "themes/$this->theme/$this->color_scheme/img/favicon.png";
+		} elseif (file_exists(THEMES."/$this->theme/$this->color_scheme/img/favicon.ico")) {
+			$favicon	= "themes/$this->theme/$this->color_scheme/img/favicon.ico";
+		} elseif (file_exists(THEMES."/$this->theme/img/favicon.png")) {
+			$favicon	= "themes/$this->theme/img/favicon.png";
+		} elseif (file_exists(THEMES."/$this->theme/img/favicon.ico")) {
+			$favicon	= "themes/$this->theme/img/favicon.ico";
 		} else {
 			$favicon	= 'favicon.ico';
 		}
@@ -326,6 +326,34 @@ class Page {
 		 */
 		$this->get_footer();
 		/**
+		 * Menu generation
+		 */
+		$Index				= Index::instance();
+		if ($Index->main_menu) {
+			$this->main_menu	= h::{'li| a'}($Index->main_menu);
+		}
+		if ($Index->main_sub_menu) {
+			$this->main_sub_menu	= '';
+			foreach ($Index->main_sub_menu as $item) {
+				if (isset($item[1], $item[1]['class']) && $item[1]['class'] == 'uk-active') {
+					if ($Index->main_menu_more) {
+						$item[0]				.= ' '.h::icon('caret-down');
+					}
+					$item[1]['class']		= trim(str_replace('uk-active', '', $item[1]['class']));
+					$this->main_sub_menu	.= h::{'li.uk-active[data-uk-dropdown=]'}(
+						h::a($item).
+						(
+							$Index->main_menu_more ? h::{'div.uk-dropdown.uk-dropdown-small ul.uk-nav.uk-nav-dropdown li| a'}($Index->main_menu_more) : ''
+						)
+					);
+				} else {
+					$this->main_sub_menu	.= h::{'li a'}($item);
+				}
+			}
+		} elseif ($Index->main_menu_more) {
+			$this->main_menu	= h::{'li| a'}($Index->main_menu_more);
+		}
+		/**
 		 * Substitution of information into template
 		 */
 		$this->Html			= str_replace(
@@ -335,9 +363,9 @@ class Page {
 				'<!--pre_Body-->',
 				'<!--header-->',
 				'<!--main-menu-->',
-				'<!--main-submenu-->',
-				'<!--menu-more-->',
-				'<!--user_avatar_image-->',
+				'<!--main-sub-menu-->',
+				'<!--main-menu-more-->',
+				'<!--user-avatar-image-->',
 				'<!--header_info-->',
 				'<!--left_blocks-->',
 				'<!--top_blocks-->',
@@ -353,9 +381,9 @@ class Page {
 				h::level($this->Head, $this->level['Head']),
 				h::level($this->pre_Body, $this->level['pre_Body']),
 				h::level($this->Header, $this->level['Header']),
-				h::level($this->mainmenu, $this->level['mainmenu']),
-				h::level($this->mainsubmenu, $this->level['mainsubmenu']),
-				h::level($this->menumore, $this->level['menumore']),
+				h::level($this->main_menu, $this->level['main_menu']),
+				h::level($this->main_sub_menu, $this->level['main_sub_menu']),
+				h::level($this->main_menu_more, $this->level['main_menu_more']),
 				$this->user_avatar_image,
 				h::level($this->header_info, $this->level['header_info']),
 				h::level($this->Left, $this->level['Left']),
@@ -767,21 +795,21 @@ class Page {
 	protected function get_includes_list ($absolute = false) {
 		$theme_dir		= THEMES."/$this->theme";
 		$scheme_dir		= "$theme_dir/schemes/$this->color_scheme";
-		$theme_pdir		= 'themes/'.$this->theme;
+		$theme_pdir		= "themes/$this->theme";
 		$scheme_pdir	= "$theme_pdir/schemes/$this->color_scheme";
 		/**
 		 * Get includes of system and theme + color scheme
 		 */
 		$this->includes = [
 			'css' => array_merge(
-				get_files_list(CSS,					'/(.*)\.css$/i',	'f', $absolute ? true : 'includes/css',			true, false, '!include') ?: [],
-				get_files_list($theme_dir.'/css',	'/(.*)\.css$/i',	'f', $absolute ? true : $theme_pdir.'/css',		true, false, '!include') ?: [],
-				get_files_list($scheme_dir.'/css',	'/(.*)\.css$/i',	'f', $absolute ? true : $scheme_pdir.'/css',	true, false, '!include') ?: []
+				get_files_list(CSS,					'/(.*)\.css$/i',	'f', $absolute ? true : 'includes/css',		true, false, '!include') ?: [],
+				get_files_list("$theme_dir/css",	'/(.*)\.css$/i',	'f', $absolute ? true : "$theme_pdir/css",	true, false, '!include') ?: [],
+				get_files_list("$scheme_dir/css",	'/(.*)\.css$/i',	'f', $absolute ? true : "$scheme_pdir/css",	true, false, '!include') ?: []
 			),
 			'js' => array_merge(
-				get_files_list(JS,					'/(.*)\.js$/i',		'f', $absolute ? true : 'includes/js',			true, false, '!include') ?: [],
-				get_files_list($theme_dir.'/js',	'/(.*)\.js$/i',		'f', $absolute ? true : $theme_pdir.'/js',		true, false, '!include') ?: [],
-				get_files_list($scheme_dir.'/js',	'/(.*)\.js$/i',		'f', $absolute ? true : $scheme_pdir.'/js',		true, false, '!include') ?: []
+				get_files_list(JS,					'/(.*)\.js$/i',		'f', $absolute ? true : 'includes/js',		true, false, '!include') ?: [],
+				get_files_list("$theme_dir/js",		'/(.*)\.js$/i',		'f', $absolute ? true : "$theme_pdir/js",	true, false, '!include') ?: [],
+				get_files_list("$scheme_dir/js",	'/(.*)\.js$/i',		'f', $absolute ? true : "$scheme_pdir/js",	true, false, '!include') ?: []
 			)
 		];
 		unset($theme_dir, $scheme_dir, $theme_pdir, $scheme_pdir);
@@ -869,6 +897,9 @@ class Page {
 						 */
 						$this->css_includes_processing($current_cache, $file);
 					}
+					if ($extension == 'js') {
+						$current_cache .= ';';
+					}
 					$temp_cache .= $current_cache;
 					unset($current_cache);
 				}
@@ -876,7 +907,7 @@ class Page {
 			if ($extension == 'js') {
 				$temp_cache	= "window.L=".Language::instance()->get_json().";$temp_cache";
 			}
-			file_put_contents(PCACHE.'/'.$this->pcache_basename.$extension, gzencode($temp_cache, 9), LOCK_EX | FILE_BINARY);
+			file_put_contents(PCACHE."/$this->pcache_basename$extension", gzencode($temp_cache, 9), LOCK_EX | FILE_BINARY);
 			$key .= md5($temp_cache);
 		}
 		file_put_contents(PCACHE.'/pcache_key', mb_substr(md5($key), 0, 5), LOCK_EX | FILE_BINARY);
@@ -995,18 +1026,13 @@ class Page {
 		$Config				= Config::instance();
 		$db					= DB::instance();
 		$L					= Language::instance();
-		$debug_tabs			= '';
+		$debug_tabs			= [];
 		$debug_tabs_content	= '';
 		/**
 		 * DB queries
 		 */
 		if ($Config->core['show_db_queries']) {
-			$debug_tabs[]		= [
-				$L->db_queries,
-				[
-					'href'	=> '#debug_db_queries_tab'
-				]
-			];
+			$debug_tabs[]		= $L->db_queries;
 			$tmp				= '';
 			foreach ($db->get_connections_list() as $name => $database) {
 				$queries	= $database->queries();
@@ -1024,13 +1050,13 @@ class Page {
 						h::br(2).
 						'#'.h::i(format_time(round($queries['time'][$i], 5))),
 						[
-							'class' => ($queries['time'][$i] > .1 ? 'ui-state-highlight ' : '').'cs-debug-code'
+							'class' => ($queries['time'][$i] > .1 ? 'uk-alert-danger ' : '').'uk-alert'
 						]
 					);
 				}
 			}
 			unset($error, $name, $database, $i, $text);
-			$debug_tabs_content	.= h::{'div#debug_db_queries_tab'}(
+			$debug_tabs_content	.= h::div(
 				h::p(
 					$L->debug_db_total($db->queries, format_time(round($db->time, 5))),
 					$L->failed_connections.': '.h::b(implode(', ', $db->get_connections_list(false)) ?: $L->no),
@@ -1046,32 +1072,18 @@ class Page {
 		 * Cookies
 		 */
 		if ($Config->core['show_cookies']) {
-			$debug_tabs[]		= [
-				$L->cookies,
-				[
-					'href'	=> '#debug_cookies_tab'
-				]
-			];
+			$debug_tabs[]		= $L->cookies;
 			$tmp				= [h::td($L->key.':', ['style' => 'width: 20%;']).h::td($L->value)];
 			foreach ($_COOKIE as $i => $v) {
 				$tmp[]	= h::td($i.':', ['style' => 'width: 20%;']).h::td(xap($v));
 			}
 			unset($i, $v);
-			$debug_tabs_content	.= h::{'div#debug_cookies_tab'}(
-				h::{'table.cs-padding-left'}(
-					h::tr($tmp),
-					[
-						'style' => 'width: 100%'
-					]
-				)
-			);
+			$debug_tabs_content	.= h::{'table.cs-padding-left tr'}($tmp);
 			unset($tmp);
 		}
 		$this->debug_info = $this->process_replacing(
-			h::{'div#debug_window_tabs'}(
-				h::{'ul li| a'}($debug_tabs).
-				$debug_tabs_content
-			)
+			h::{'ul.cs-tabs li'}($debug_tabs).
+			h::div($debug_tabs_content)
 		);
 		return $this;
 	}
@@ -1083,7 +1095,7 @@ class Page {
 	 * @return Page
 	 */
 	function notice ($notice_text) {
-		$this->Top .= h::{'div.ui-state-highlight.ui-corner-all.ui-priority-primary.cs-center.cs-state-messages'}(
+		$this->Top .= h::{'div.uk-alert.uk-alert-success.uk-lead.cs-center'}(
 			$notice_text
 		);
 		return $this;
@@ -1096,7 +1108,7 @@ class Page {
 	 * @return Page
 	 */
 	function warning ($warning_text) {
-		$this->Top .= h::{'div.ui-state-error.ui-corner-all.ui-priority-primary.cs-center.cs-state-messages'}(
+		$this->Top .= h::{'div.uk-alert.uk-alert-danger.cs-center'}(
 			$warning_text
 		);
 		return $this;
@@ -1119,7 +1131,7 @@ class Page {
 		if (!API && ERROR_CODE == 403 && _getcookie('logout')) {
 			header('Location: '.Config::instance()->base_url(), true, 302);
 			$this->Content	= '';
-			__finish();
+			exit;
 		}
 		interface_off();
 		$error_text	= code_header(ERROR_CODE);
@@ -1136,8 +1148,8 @@ class Page {
 		} else {
 			ob_start();
 			if (
-				!_include_once(THEMES.'/'.$this->theme.'/error.html', false) &&
-				!_include_once(THEMES.'/'.$this->theme.'/error.php', false)
+				!_include_once(THEMES."/$this->theme/error.html", false) &&
+				!_include_once(THEMES."/$this->theme/error.php", false)
 			) {
 				echo "<!doctype html>\n".
 					h::title($error_text ?: ERROR_CODE).
@@ -1145,7 +1157,7 @@ class Page {
 			}
 			$this->Content	= ob_get_clean();
 		}
-		__finish();
+		exit;
 	}
 	/**
 	 * Substitutes header information about user, login/registration forms, etc.
@@ -1155,36 +1167,40 @@ class Page {
 	protected function get_header_info () {
 		$L		= Language::instance();
 		$User	= User::instance(true);
+		if ($User->avatar) {
+			$this->user_avatar_image = h::prepare_url($User->avatar, true);
+		} else {
+			$this->user_avatar_image = '/includes/img/guest.gif';
+		}
 		if ($User->user()) {
-			if ($User->avatar) {
-				$this->user_avatar_image = 'url('.h::prepare_url($User->avatar, true).')';
-			} else {
-				$this->user_avatar_image = 'url(/includes/img/guest.gif)';
-			}
-			$this->header_info = h::b($L->hello.', '.$User->username().'!').
-			h::{'icon.cs-header-logout-process'}(
-				'power',
-				[
-					'style'			=> 'cursor: pointer;',
-					'data-title'	=> $L->log_out
-				]
-			).
-			h::{'p.actions'}(
-				h::a(
-					$L->profile,
-					[
-						'href'	=> path($L->profile).'/'.$User->login
-					]
+			$this->header_info = h::{'div.cs-header-user-block'}(
+				h::b(
+					"$L->hello, ".$User->username().'! '.
+					h::{'icon.cs-header-logout-process'}(
+						'power-off',
+						[
+							'style'			=> 'cursor: pointer;',
+							'data-title'	=> $L->log_out
+						]
+					)
 				).
-				'|'.
-				h::a(
-					$L->settings,
-					[
-						'href'	=> path($L->profile).'/'.path($L->settings)
-					]
-				)
-			).
-			$this->header_info;
+				h::div(
+					h::a(
+						$L->profile,
+						[
+							'href'	=> path($L->profile)."/$User->login"
+						]
+					).
+					' | '.
+					h::a(
+						$L->settings,
+						[
+							'href'	=> path($L->profile).'/'.path($L->settings)
+						]
+					)
+				).
+				$this->header_info
+			);
 			Trigger::instance()->run('System/Page/get_header_info');
 		} else {
 			$external_systems_list		= '';
@@ -1194,34 +1210,32 @@ class Page {
 					'list'	=> &$external_systems_list
 				]
 			);
-			$this->user_avatar_image	= 'url(/includes/img/guest.gif)';
-			$this->header_info			= h::{'div.cs-header-anonym-form'}(
-				h::b($L->hello.', '.$L->guest.'!').
-				h::br().
-				h::{'button.cs-header-login-slide.cs-button-compact'}(
-					h::icon('check').$L->log_in
-				).
-				h::{'button.cs-header-registration-slide.cs-button-compact'}(
-					h::icon('pencil').$L->registration,
-					[
-						 'data-title'	=> $L->quick_registration_form
-					]
+			$this->header_info			= h::{'div.cs-header-guest-form'}(
+				h::b("$L->hello, $L->guest!").
+				h::div(
+					h::{'button.cs-header-login-slide.cs-button-compact'}(
+						h::icon('signin').$L->log_in
+					).
+					h::{'button.cs-header-registration-slide.cs-button-compact'}(
+						h::icon('pencil').$L->registration,
+						[
+							'data-title'	=> $L->quick_registration_form
+						]
+					)
 				)
 			).
 			h::{'div.cs-header-restore-password-form'}(
-				h::{'input.cs-noui.cs-header-restore-password-email[tabindex=1]'}(
-					[
-						'placeholder'		=> $L->login_or_email,
-						'autocapitalize'	=> 'off',
-						'autocorrect'		=> 'off'
-					]
-				).
+				h::{'input.cs-no-ui.cs-header-restore-password-email[tabindex=1]'}([
+					'placeholder'		=> $L->login_or_email,
+					'autocapitalize'	=> 'off',
+					'autocorrect'		=> 'off'
+				]).
+				h::br().
 				h::{'button.cs-header-restore-password-process.cs-button-compact[tabindex=2]'}(
-					h::icon('help').$L->restore_password
+					h::icon('question').$L->restore_password
 				).
-				h::div().
 				h::{'button.cs-button-compact.cs-header-back[tabindex=3]'}(
-					h::icon('carat-1-s'),
+					h::icon('chevron-down'),
 					[
 						'data-title'	=> $L->back
 					]
@@ -1231,19 +1245,17 @@ class Page {
 				]
 			).
 			h::{'div.cs-header-registration-form'}(
-				h::{'input.cs-noui.cs-header-registration-email[type=email][tabindex=1]'}(
-					[
-						'placeholder'		=> $L->email,
-						'autocapitalize'	=> 'off',
-						'autocorrect'		=> 'off'
-					]
-				).
+				h::{'input.cs-no-ui.cs-header-registration-email[type=email][tabindex=1]'}([
+					'placeholder'		=> $L->email,
+					'autocapitalize'	=> 'off',
+					'autocorrect'		=> 'off'
+				]).
+				h::br().
 				h::{'button.cs-header-registration-process.cs-button-compact[tabindex=2]'}(
 					h::icon('pencil').$L->registration
 				).
-				h::div().
 				h::{'button.cs-button-compact.cs-header-back[tabindex=4]'}(
-					h::icon('carat-1-s'),
+					h::icon('chevron-down'),
 					[
 						'data-title'	=> $L->back
 					]
@@ -1253,23 +1265,24 @@ class Page {
 				]
 			).
 			h::{'div.cs-header-login-form'}(
-				h::{'input.cs-noui.cs-header-login-email[tabindex=1]'}([
+				h::{'input.cs-no-ui.cs-header-login-email[tabindex=1]'}([
 					'placeholder'		=> $L->login_or_email,
 					'autocapitalize'	=> 'off',
 					'autocorrect'		=> 'off'
 				]).
-				h::{'input.cs-noui.cs-header-user-password[type=password][tabindex=2]'}([
+				h::{'input.cs-no-ui.cs-header-user-password[type=password][tabindex=2]'}([
 					'placeholder'	=> $L->password
 				]).
-				h::{'button.cs-header-login-process.cs-button-compact[tabindex=3]'}(h::icon('check').$L->log_in).
+				h::br().
+				h::{'button.cs-header-login-process.cs-button-compact[tabindex=3]'}(h::icon('signin').$L->log_in).
 				h::{'button.cs-button-compact.cs-header-back[tabindex=5]'}(
-					h::icon('carat-1-s'),
+					h::icon('chevron-down'),
 					[
 						'data-title'	=> $L->back
 					]
 				).
 				h::{'button.cs-button-compact.cs-header-restore-password-slide[tabindex=4]'}(
-					h::icon('help'),
+					h::icon('question'),
 					[
 						'data-title'	=> $L->restore_password
 					]
@@ -1342,12 +1355,11 @@ class Page {
 				],
 				[
 					$this->debug_info ? h::level(
-						h::{'div#debug'}(
+						h::{'div#cs-debug.cs-dialog div'}(
 							h::level($this->debug_info),
 							[
-								'data-dialog'	=> '{"autoOpen": false, "height": "400", "hide": "puff", "show": "scale", "width": "700"}',
 								'title'			=> Language::instance()->debug,
-								'style'			=> 'display: none;'
+								'style'			=> 'margin-left: -45%; width: 90%;'
 							]
 						),
 						$this->level['debug_info']

@@ -17,7 +17,7 @@ $Config	= Config::instance();
 $L		= Language::instance();
 $sa		= $Config->core['simple_admin_mode'];
 Index::instance()->content(
-	h::{'table.cs-fullwidth-table.cs-left-even.cs-right-odd tr| td'}(
+	h::{'table.cs-table-borderless.cs-left-even.cs-right-odd tr| td'}(
 		core_input('gzip_compression', 'radio', null, zlib_compression()),
 		core_input('cache_compress_js_css', 'radio'),
 		core_input('put_js_after_body', 'radio'),
@@ -31,13 +31,13 @@ Index::instance()->content(
 			h::button(
 				$L->clean_settings_cache,
 				Cache::instance()->cache_state() ? [
-					'onMouseDown'	=> "admin_cache('#clean_cache', '{$Config->base_url()}/api/System/admin/cache/clean_cache');"
+					'onMouseDown'	=> "cs.admin_cache('#clean_cache', '{$Config->base_url()}/api/System/admin/cache/clean_cache');"
 				] : ['disabled']
 			),
 			h::button(
 				$L->clean_scripts_styles_cache,
 				$Config->core['cache_compress_js_css'] ? [
-					'onMouseDown'	=> "admin_cache('#clean_pcache', '{$Config->base_url()}/api/System/admin/cache/clean_pcache');"
+					'onMouseDown'	=> "cs.admin_cache('#clean_pcache', '{$Config->base_url()}/api/System/admin/cache/clean_pcache');"
 				] : ['disabled']
 			)
 		]

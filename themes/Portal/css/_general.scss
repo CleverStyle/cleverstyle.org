@@ -65,6 +65,11 @@ button,
 	margin  : .2rem 0;
 }
 
+.cs-table-borderless {
+	margin : 0 auto;
+	width  : 100%;
+}
+
 .cs-dialog {
 	display : none;
 }
@@ -88,7 +93,9 @@ code {
 a {
 	@include transition(color .3s, border .3s);
 
-	text-decoration : none;
+	&:hover {
+		text-decoration : none;
+	}
 }
 
 input,

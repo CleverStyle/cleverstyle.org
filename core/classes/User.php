@@ -43,8 +43,8 @@
  *
  *  System/User/get_contacts
  *  [
- * 		'id'		=> <i>user_id</i>,
- * 		'contacts'	=> <i>&$contacts</i>	//Array of user id
+ *  	'id'		=> <i>user_id</i>,
+ *  	'contacts'	=> <i>&$contacts</i>	//Array of user id
  *  ]
  *
  *  System/User/del_session/before
@@ -263,7 +263,9 @@ class User extends Accessor {
 			if ($this->timezone) {
 				date_default_timezone_set($this->timezone);
 			}
-			Language::instance()->change($this->language);
+			if ($Config->core['multilingual'] && $this->language) {
+				Language::instance()->change($this->language);
+			}
 			if ($this->theme) {
 				$theme = _json_decode($this->theme);
 				if (
@@ -279,21 +281,17 @@ class User extends Accessor {
 			}
 		}
 		/**
-		 * Security check for data, sent with POST method
+		 * Security check
 		 */
 		$session_id	= $this->get_session();
-		if (!$session_id || !isset($_POST['session']) || $_POST['session'] != $session_id) {
-			if (
-				API &&
-				!(
-					defined('API_GET_ACCESS') && API_GET_ACCESS
-				)
-			) {
+		if (!$session_id || !isset($_REQUEST['session']) || $_REQUEST['session'] != $session_id) {
+			if (API) {
 				define('ERROR_CODE', 403);
 				Page::instance()->error('Invalid user session');
-				__finish();
+				exit;
 			}
-			$_POST = [];
+			$_REQUEST	= array_diff_key($_REQUEST, $_POST);
+			$_POST		= [];
 		}
 		$this->init	= true;
 		Trigger::instance()->run('System/User/construct/after');

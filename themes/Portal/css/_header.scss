@@ -12,16 +12,27 @@
 	font-size   : 4rem;
 	line-height : 4rem;
 
-	> a {
+	> li {
 		@include transition(padding .3s, color .3s);
 
-		padding       : .1em 0;
-		display       : block;
-		border-bottom : none;
+		display         : block;
+		padding         : .1em 0;
+		text-decoration : none;
+
+		a {
+			display       : block;
+			border-bottom : none;
+			line-height   : 40px;
+		}
 	}
 
-	&:hover > a:hover {
+	&:hover > li:hover {
 		padding-left : 1rem;
+
+		a {
+			color           : #6EBC00;
+			text-decoration : none;
+		}
 	}
 }
 //User block container

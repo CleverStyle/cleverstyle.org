@@ -5,10 +5,27 @@
  * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
-
 @import "config";
 @import "general";
 @import "layout";
 @import "header";
 @import "profile";
 @import "admin";
+@import "uikit_fixes";
+
+.uk-button,
+.uk-form input,
+.uk-form select,
+.uk-form textarea {
+	background    : #555 !important;
+	border        : none !important;
+	color         : #eee !important;
+	text-shadow   : none !important;
+
+	&:hover,
+	&:focus,
+	&.uk-active {
+		background : #555 !important;
+		color      : #6EBC00 !important;
+	}
+}

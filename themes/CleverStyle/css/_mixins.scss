@@ -6,23 +6,17 @@
  * @license		MIT License, see license.txt
  */
 
-//Cross-browser box-sizing
-@mixin box-sizing($mode) {
-	box-sizing         : $mode;
-	-moz-box-sizing    : $mode;
-	-webkit-box-sizing : $mode;
-}
-//Cross-browser transition
-@mixin transition($params) {
-	transition         : $params;
-	-moz-transition    : $params;
-	-webkit-transition : $params;
-}
 //Alignment mixin
 @mixin cs-align($side) {
+	.cs-#{$side}-odd > thead > tr > :nth-child(odd),
+	.cs-#{$side}-even > thead > tr > :nth-child(even),
+	.cs-#{$side}-all > thead > tr > *,
 	.cs-#{$side}-odd > tbody > tr > :nth-child(odd),
 	.cs-#{$side}-even > tbody > tr > :nth-child(even),
 	.cs-#{$side}-all > tbody > tr > *,
+	.cs-#{$side}-odd > tfoot > tr > :nth-child(odd),
+	.cs-#{$side}-even > tfoot > tr > :nth-child(even),
+	.cs-#{$side}-all > tfoot > tr > *,
 	tr.cs-#{$side}-all > *,
 	td.cs-#{$side}-all {
 		text-align     : $side;
@@ -30,7 +24,7 @@
 		padding        : 2px;
 	}
 
-	td.cs-#{$side}-all {
+	.cs-#{$side}-all {
 		text-align : $side !important;
 	}
 

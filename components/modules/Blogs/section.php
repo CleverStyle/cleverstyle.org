@@ -45,15 +45,15 @@ if (isset($structure['id'])) {
 }
 $L						= Language::instance();
 $Page->title($L->latest_posts);
-$Page->Keywords			= keywords($L->Blogs.' '.implode(' ', $keywords).' '.$L->latest_posts).', '.$Page->Keywords;
-$Page->Description		= description($L->Blogs.' - '.implode(' - ', $description).' - '.$L->latest_posts.'. '.$Page->Description);
+$Page->Keywords			= keywords("$L->Blogs ".implode(' ', $keywords)." $L->latest_posts").", $Page->Keywords";
+$Page->Description		= description("$L->Blogs - ".implode(' - ', $description)." - $L->latest_posts. $Page->Description");
 $Page->og('type', 'blog');
 $module					= path($L->Blogs);
 if ($User->user()) {
 	if ($User->admin() && $User->get_user_permission('admin/Blogs', 'index')) {
 		$Index->content(
-			h::{'a.cs-button-compact'}(
-				h::icon('wrench'),
+			h::{'a.cs-button'}(
+				h::icon('gears'),
 				[
 					'href'			=> 'admin/Blogs',
 					'data-title'	=> $L->administration
@@ -62,17 +62,17 @@ if ($User->user()) {
 		);
 	}
 	$Index->content(
-		h::{'a.cs-button-compact'}(
-			h::icon('document'),
+		h::{'a.cs-button'}(
+			h::icon('pencil').$L->new_post,
 			[
-				'href'			=> $module.'/new_post/'.$section,
+				'href'			=> "$module/new_post/$section",
 				'data-title'	=> $L->new_post
 			]
 		).
-		h::{'a.cs-button-compact'}(
-			$L->drafts,
+		h::{'a.cs-button'}(
+			h::icon('archive').$L->drafts,
 			[
-				'href'			=> $module.'/'.path($L->drafts),
+				'href'			=> "$module/".path($L->drafts),
 				'data-title'	=> $L->drafts
 			]
 		).
@@ -84,7 +84,7 @@ $Index->buttons			= false;
 $Index->form_atributes	= ['class'	=> ''];
 $page					= isset($rc[0]) ? (int)$rc[0] : 1;
 $page					= $page > 0 ? $page : 1;
-$Page->canonical_url($Config->base_url().'/'.$module.'/'.path($L->section).'/'.$path.($page > 1 ? '/'.$page : ''));
+$Page->canonical_url($Config->base_url()."/$module/".path($L->section)."/$path".($page > 1 ? "/$page" : ''));
 if ($page > 1) {
 	$Page->title($L->blogs_nav_page($page));
 }
@@ -113,12 +113,12 @@ $Index->content(
 		get_posts_list($posts)
 	).
 	(
-		$posts ? h::{'nav.cs-center'}(
+		$posts ? h::{'div.cs-center-all.uk-margin nav.uk-button-group'}(
 			pages(
 				$page,
 				ceil($structure['posts'] / $num),
 				function ($page) use ($module, $L, $path) {
-					return $page == 1 ? $module.'/'.path($L->section).'/'.$path : $module.'/'.path($L->section).'/'.$path.'/'.$page;
+					return $page == 1 ? "$module/".path($L->section)."/$path" : "$module/".path($L->section)."/$path/$page";
 				},
 				true
 			)

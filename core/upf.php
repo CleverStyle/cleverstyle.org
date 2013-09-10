@@ -563,23 +563,27 @@ function xap ($in, $html = 'text') {
 	 */
 	} elseif ($html === true) {
 		$in = preg_replace(
-			'/(<(link|script|iframe|object|applet|embed).*?>[^<]*(<\/(link|script|iframe).*?>)?)/i',
+			'/<[^>]*(link|script|iframe|object|applet|embed)[^>]*>?(.*<\/[^>]*\\1[^>]*>)?/ims',
 			'',
 			$in
 		);
 		$in = preg_replace(
-			'/(script:)|(data:)|(vbscript:)|(expression\()/i',
-			'\\1<!---->',
+			'/(script|data|vbscript):/i',
+			'\\1&#58;',
 			$in
 		);
 		$in = preg_replace(
-			'/(onblur|onchange|onclick|ondblclick|onerror|onfocus|onkeydown|onkeypress|onkeyup|onload|onmousedown|'.
-				'onmousemove|onmouseout|onmouseover|onmouseup|onreset|onselect|onsubmit|onunload)=?/i',
+			'/(expression[\s\t\r\n]*)\(/i',
+			'\\1&#40;',
+			$in
+		);
+		$in = preg_replace(
+			'/<[^>]*\s(on[a-z]+|dynsrc|lowsrc)=[^>]*>?/ims',
 			'',
 			$in
 		);
 		$in = preg_replace(
-			'/(href=["\'])((?:http|https|ftp)\:\/\/.*?["\'])/i',
+			'/(href[\s\t\r\n]*=[\s\t\r\n]*["\'])((?:http|https|ftp)\:\/\/.*?["\'])/ims',
 			'\\1redirect/\\2',
 			$in
 		);
@@ -878,14 +882,23 @@ function post_request ($host, $path, $data) {
 function code_header ($code) {
 	$string_code = null;
 	switch ($code) {
+		case 201:
+			$string_code	= '201 Created';
+		break;
+		case 202:
+			$string_code	= '202 Accepted';
+		break;
 		case 301:
 			$string_code	= '301 Moved Permanently';
 		break;
 		case 302:
-			$string_code	= '302 Moved Temporarily';
+			$string_code	= '302 Found';
 		break;
 		case 303:
 			$string_code	= '303 See Other';
+		break;
+		case 307:
+			$string_code	= '307 Temporary Redirect';
 		break;
 		case 400:
 			$string_code	= '400 Bad Request';
@@ -896,8 +909,20 @@ function code_header ($code) {
 		case 404:
 			$string_code	= '404 Not Found';
 		break;
+		case 405:
+			$string_code	= '405 Method Not Allowed';
+		break;
+		case 409:
+			$string_code	= '409 Conflict';
+		break;
+		case 429:
+			$string_code	= '429 Too Many Requests';
+		break;
 		case 500:
 			$string_code	= '500 Internal Server Error';
+		break;
+		case 501:
+			$string_code	= '501 Not Implemented';
 		break;
 		case 503:
 			$string_code	= '503 Service Unavailable';
@@ -1102,7 +1127,7 @@ function truncate ($text, $length = 1024, $ending = '...', $exact = false, $cons
  */
 function path ($text) {
 	return strtr(
-		xap(trim($text)),
+		trim($text),
 		[
 			' '		=> '_',
 			'/'		=> '_',

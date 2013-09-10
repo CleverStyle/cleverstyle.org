@@ -66,7 +66,7 @@ if (isset($_POST['title'], $_POST['sections'], $_POST['content'], $_POST['tags']
 			if ($save) {
 				if ($Blogs->set($post['id'], $_POST['title'], null, $_POST['content'], $_POST['sections'], _trim(explode(',', $_POST['tags'])), $draft)) {
 					interface_off();
-					header('Location: '.$Config->base_url().'/'.$L->Blogs.'/'.$post['path'].':'.$post['id']);
+					header('Location: '.$Config->base_url()."/$module/$post[path]:$post[id]");
 					return;
 				} else {
 					$Page->warning($L->post_saving_error);
@@ -76,7 +76,7 @@ if (isset($_POST['title'], $_POST['sections'], $_POST['content'], $_POST['tags']
 		case 'delete':
 			if ($Blogs->del($post['id'])) {
 				interface_off();
-				header('Location: '.$Config->base_url().'/'.$L->Blogs);
+				header('Location: '.$Config->base_url()."/$module");
 				return;
 			} else {
 				$Page->warning($L->post_deleting_error);
@@ -86,17 +86,17 @@ if (isset($_POST['title'], $_POST['sections'], $_POST['content'], $_POST['tags']
 }
 $Index						= Index::instance();
 $Index->form				= true;
-$Index->action				= $module.'/edit_post/'.$post['id'];
+$Index->action				= "$module/edit_post/$post[id]";
 $Index->buttons				= false;
 $Index->cancel_button_back	= true;
 $disabled					= [];
 $max_sections				= $Config->module('Blogs')->max_sections;
 $Index->content(
-	h::{'p.ui-priority-primary.cs-state-messages.cs-center'}(
+	h::{'p.lead.cs-center'}(
 		$L->editing_of_post($post['title'])
 	).
 	h::{'div.cs-blogs-post-preview-content'}().
-	h::{'table.cs-fullwidth-table.cs-left-even.cs-right-odd tr| td'}(
+	h::{'table.cs-table-borderless.cs-left-even.cs-right-odd tr| td'}(
 		[
 			$L->post_title,
 			h::{'input.cs-blogs-new-post-title[name=title][required]'}([
@@ -118,7 +118,7 @@ $Index->content(
 		],
 		[
 			$L->post_content,
-			h::{'textarea.cs-blogs-new-post-content.cs-wide-textarea.EDITOR[name=content][required]'}(
+			h::{'textarea.cs-blogs-new-post-content.EDITOR[name=content][required]'}(
 				isset($_POST['content']) ? $_POST['content'] : $post['content']
 			).
 			h::br().

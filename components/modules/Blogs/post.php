@@ -75,42 +75,42 @@ $Page->canonical_url(
 Index::instance()->content(
 	h::{'section.cs-blogs-post article'}(
 		h::header(
+			(
+				$User->admin() &&
+				$User->get_user_permission('admin/Blogs', 'index') &&
+				$User->get_user_permission('admin/Blogs', 'edit_post') ? ' '.h::{'a.cs-button'}(
+					[
+						h::icon('edit'),
+						[
+							'href'			=> "$module/edit_post/$post[id]",
+							'data-title'	=> $L->edit
+						]
+					],
+					[
+						h::icon('trash'),
+						[
+							'href'			=> "admin/Blogs/delete_post/$post[id]",
+							'data-title'	=> $L->delete
+						]
+					]
+				) : (
+					$User->id == $post['user'] ? ' '.h::{'a.cs-button-compact'}(
+						h::icon('edit'),
+						[
+							'href'			=> "$module/edit_post/$post[id]",
+							'data-title'	=> $L->edit
+						]
+					) : ''
+				)
+			).
 			h::h1(
 				$post['title'].
 				(
 					$post['draft'] ? h::sup($L->draft) : ''
-				).
-				(
-					$User->admin() &&
-					$User->get_user_permission('admin/Blogs', 'index') &&
-					$User->get_user_permission('admin/Blogs', 'edit_post') ? ' '.h::{'a.cs-button-compact'}(
-						[
-							h::icon('wrench'),
-							[
-								'href'			=> "$module/edit_post/$post[id]",
-								'data-title'	=> $L->edit
-							]
-						],
-						[
-							h::icon('trash'),
-							[
-								'href'			=> "admin/Blogs/delete_post/$post[id]",
-								'data-title'	=> $L->delete
-							]
-						]
-					) : (
-						$User->id == $post['user'] ? ' '.h::{'a.cs-button-compact'}(
-							h::icon('wrench'),
-							[
-								'href'			=> "$module/edit_post/$post[id]",
-								'data-title'	=> $L->edit
-							]
-						) : ''
-					)
 				)
 			).
 			($post['sections'] != [0] ? h::p(
-				h::icon('suitcase').
+				h::icon('bookmark').
 				implode(
 					', ',
 					array_map(
@@ -119,7 +119,7 @@ Index::instance()->content(
 							return h::a(
 								$section['title'],
 								[
-									'href'	=> $module.'/'.path($L->section).'/'.$section['full_path']
+									'href'	=> "$module/".path($L->section)."/$section[full_path]"
 								]
 							);
 						},
@@ -128,12 +128,10 @@ Index::instance()->content(
 				)
 			) : '')
 		).
-		$post['content']."\n".
+		"$post[content]\n".
 		h::footer(
 			h::p(
-				h::icon(
-					'tag'
-				).
+				h::icon('tags').
 				implode(
 					', ',
 					array_map(
@@ -141,7 +139,7 @@ Index::instance()->content(
 							return h::a(
 								$tag,
 								[
-									'href'	=> $module.'/'.path($L->tag).'/'.$tag,
+									'href'	=> "$module/".path($L->tag)."/$tag",
 									'rel'	=> 'tag'
 								]
 							);
@@ -159,14 +157,14 @@ Index::instance()->content(
 					]
 				).
 				h::a(
-					h::icon('person').$User->username($post['user']),
+					h::icon('user').$User->username($post['user']),
 					[
 						'href'			=> path($L->profile).'/'.$User->get('login', $post['user']),
 						'rel'			=> 'author'
 					]
 				).
 				(
-					$Config->module('Blogs')->enable_comments && $Comments ? h::icon('comment').$post['comments_count'] : ''
+					$Config->module('Blogs')->enable_comments && $Comments ? h::icon('comments').$post['comments_count'] : ''
 				)
 			)
 		)

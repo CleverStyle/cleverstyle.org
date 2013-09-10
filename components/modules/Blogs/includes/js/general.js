@@ -20,10 +20,11 @@ $(function () {
 			data.id	= id;
 		}
 		$.ajax(
-			base_url+'/api/Blogs/preview_post',
+			cs.base_url + '/api/Blogs/posts/preview',
 			{
-				cache		: false,
-				data		: data,
+				cache	: false,
+				data	: data,
+				type	: 'post',
 				success	: function (result) {
 					var	preview	= $('.cs-blogs-post-preview-content');
 					preview.html(result);
@@ -36,9 +37,9 @@ $(function () {
 				},
 				error	: function (xhr) {
 					if (xhr.responseText) {
-						alert(json_decode(xhr.responseText).error_description);
+						alert(cs.json_decode(xhr.responseText).error_description);
 					} else {
-						alert(L.post_preview_connection_error);
+						alert(cs.Language.post_preview_connection_error);
 					}
 				}
 			}

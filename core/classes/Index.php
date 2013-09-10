@@ -39,6 +39,10 @@ class Index {
 				$submenu_auto		= false,
 				$menumore_auto		= false,
 
+				$main_menu			= [],
+				$main_sub_menu		= [],
+				$main_menu_more		= [],
+
 				$savefile			= 'save',
 				$form				= false,
 				$file_upload		= false,
@@ -65,7 +69,8 @@ class Index {
 
 				$admin				= false,
 				$module				= false,
-				$api				= false;
+				$api				= false,
+				$request_method		= null;
 	/**
 	 * Detecting module folder including of admin/api request type, including prepare file, including of plugins
 	 */
@@ -90,39 +95,32 @@ class Index {
 		$api_path	= MODULES.'/'.MODULE.'/api';
 		if (
 			ADMIN &&
-			file_exists($admin_path) && (file_exists($admin_path.'/index.php') || file_exists($admin_path.'/index.json'))
+			file_exists($admin_path) && (file_exists("$admin_path/index.php") || file_exists("$admin_path/index.json"))
 		) {
 			if (!($User->admin() && $User->get_user_permission($this->permission_group = 'admin/'.MODULE, 'index'))) {
 				define('ERROR_CODE', 403);
-				$this->__finish();
-				return;
+				exit;
 			}
 			define('MFOLDER', $admin_path);
 			$this->form		= true;
 			$this->admin	= true;
-		} elseif (
-			API
-			&& file_exists($api_path) && (file_exists($api_path.'/index.php') || file_exists($api_path.'/index.json'))
-		) {
+		} elseif (API && file_exists($api_path)) {
 			if (!$User->get_user_permission($this->permission_group = 'api/'.MODULE, 'index')) {
 				define('ERROR_CODE', 403);
-				$this->__finish();
-				return;
+				exit;
 			}
 			define('MFOLDER', $api_path);
 			$this->api		= true;
 		} elseif (file_exists(MODULES.'/'.MODULE)) {
 			if (!$User->get_user_permission($this->permission_group = MODULE, 'index')) {
 				define('ERROR_CODE', 403);
-				$this->__finish();
-				return;
+				exit;
 			}
 			define('MFOLDER', MODULES.'/'.MODULE);
 			$this->module	= true;
 		} else {
 			define('ERROR_CODE', 404);
-			$this->__finish();
-			return;
+			exit;
 		}
 		unset($admin_path, $api_path);
 		Trigger::instance()->run('System/Index/construct');
@@ -130,9 +128,12 @@ class Index {
 		 * Plugins processing
 		 */
 		foreach ($Config->components['plugins'] as $plugin) {
-			_include_once(PLUGINS.'/'.$plugin.'/index.php', false);
+			_include_once(PLUGINS."/$plugin/index.php", false);
 		}
 		_include_once(MFOLDER.'/prepare.php', false);
+		if (preg_match('/[a-z_\-]+/i', $_SERVER['REQUEST_METHOD'])) {
+			$this->request_method	= strtolower($_SERVER['REQUEST_METHOD']);
+		}
 	}
 	/**
 	 * Adding of content on the page
@@ -164,8 +165,8 @@ class Index {
 		} else {
 			$structure_file	= 'index.json';
 		}
-		if (file_exists(MFOLDER.'/'.$structure_file)) {
-			$this->structure	= _json_decode(file_get_contents(MFOLDER.'/'.$structure_file));
+		if (file_exists(MFOLDER."/$structure_file")) {
+			$this->structure	= _json_decode(file_get_contents(MFOLDER."/$structure_file"));
 			if (is_array($this->structure)) {
 				foreach ($this->structure as $item => $value) {
 					if (!is_array($value)) {
@@ -175,32 +176,34 @@ class Index {
 						$this->parts[] = $item;
 						if (isset($rc[0]) && $item == $rc[0] && is_array($value)) {
 							foreach ($value as $subpart) {
-								if ($User->get_user_permission($this->permission_group, $item.'/'.$subpart)) {
+								if ($User->get_user_permission($this->permission_group, "$item/$subpart")) {
 									$this->subparts[] = $subpart;
 								} elseif (isset($rc[1]) && $rc[1] == $subpart) {
 									define('ERROR_CODE', 403);
-									$this->__finish();
 									return;
 								}
 							}
 						}
 					} elseif ($rc[0] == $item) {
 						define('ERROR_CODE', 403);
-						$this->__finish();
 						return;
 					}
 				}
 				unset($item, $value, $subpart);
 			}
 		}
+		unset($structure_file);
 		_include_once(MFOLDER.'/index.php', false);
+		if (API && $this->request_method) {
+			_include_once(MFOLDER."/index.$this->request_method.php", false);
+		}
 		if ($this->stop || defined('ERROR_CODE')) {
 			return;
 		}
 		if ($this->parts) {
 			if (!isset($rc[0]) || $rc[0] == '') {
 				if (API) {
-					__finish();
+					return;
 				}
 				$rc[0] = $this->parts[0];
 				if (isset($this->structure[$rc[0]]) && is_array($this->structure[$rc[0]])) {
@@ -208,14 +211,13 @@ class Index {
 				}
 			} elseif ($rc[0] != '' && !empty($this->parts) && !in_array($rc[0], $this->parts)) {
 				define('ERROR_CODE', 404);
-				$this->__finish();
 				return;
 			}
 			/**
 			 * Saving of changes
 			 */
-			if ($this->admin && !_include_once(MFOLDER.'/'.$rc[0].'/'.$this->savefile.'.php', false)) {
-				_include_once(MFOLDER.'/'.$this->savefile.'.php', false);
+			if ($this->admin && !_include_once(MFOLDER."/$rc[0]/$this->savefile.php", false)) {
+				_include_once(MFOLDER."/$this->savefile.php", false);
 			}
 			$this->admin && $this->title_auto && $Page->title($L->administration);
 			if (!$this->api && $this->title_auto) {
@@ -232,19 +234,21 @@ class Index {
 			if (!$Config->core['site_mode']) {
 				$Page->warning(get_core_ml_text('closed_title'));
 			}
-			_include_once(MFOLDER.'/'.$rc[0].'.php', false);
+			_include_once(MFOLDER."/$rc[0].php", false);
+			if (API && $this->request_method) {
+				_include_once(MFOLDER."/$rc[0].$this->request_method.php", false);
+			}
 			if ($this->stop || defined('ERROR_CODE')) {
 				return;
 			}
 			if ($this->subparts) {
 				if (!isset($rc[1]) || ($rc[1] == '' && !empty($this->subparts))) {
 					if (API) {
-						__finish();
+						return;
 					}
 					$rc[1] = $this->subparts[0];
 				} elseif ($rc[1] != '' && !empty($this->subparts) && !in_array($rc[1], $this->subparts)) {
 					define('ERROR_CODE', 404);
-					$this->__finish();
 					return;
 				}
 				if (!$this->api) {
@@ -252,15 +256,18 @@ class Index {
 						$Page->title($L->$rc[1]);
 					}
 					if ($this->action === null) {
-						$this->action = ($this->admin ? 'admin/' : '').MODULE.'/'.$rc[0].'/'.$rc[1];
+						$this->action = ($this->admin ? 'admin/' : '').MODULE."/$rc[0]/$rc[1]";
 					}
 				}
-				_include_once(MFOLDER.'/'.$rc[0].'/'.$rc[1].'.php', false);
+				_include_once(MFOLDER."/$rc[0]/$rc[1].php", false);
+				if (API && $this->request_method) {
+					_include_once(MFOLDER."/$rc[0]/$rc[1].$this->request_method.php", false);
+				}
 				if ($this->stop || defined('ERROR_CODE')) {
 					return;
 				}
 			} elseif (!$this->api && $this->action === null) {
-				$this->action = ($this->admin ? 'admin/' : '').MODULE.'/'.$rc[0];
+				$this->action = ($this->admin ? 'admin/' : '').MODULE."/$rc[0]";
 			}
 			unset($rc);
 			if ($this->post_title && $this->title_auto) {
@@ -274,42 +281,41 @@ class Index {
 			if ($this->action === null) {
 				$this->action = $Config->server['relative_address'];
 			}
-			_include_once(MFOLDER.'/'.$this->savefile.'.php', false);
+			_include_once(MFOLDER."/$this->savefile.php", false);
 		}
 	}
 	/**
-	 * Rendering of main menu
+	 * Rendering of data for main menu
 	 */
-	protected function mainmenu () {
+	protected function main_menu () {
 		$Config			= Config::instance();
 		$L				= Language::instance();
-		$Page			= Page::instance();
 		$User			= User::instance();
 		if ($User->admin() || ($Config->can_be_admin && $Config->core['ip_admin_list_only'])) {
 			if (DEBUG) {
-				$Page->mainmenu .= h::a(
+				$this->main_menu[]	= [
 					mb_substr($L->debug, 0, 1),
 					[
-						 'onClick'	=> 'debug_window();',
-						 'title'	=> $L->debug
+						 'onClick'		=> 'cs.debug_window();',
+						 'data-title'	=> $L->debug
 					]
-				);
+				];
 			}
-			$Page->mainmenu .= h::a(
+			$this->main_menu[]	= [
 				mb_substr($L->administration, 0, 1),
 				[
-					 'href'		=> 'admin',
-					 'title'	=> $L->administration
+					 'href'			=> 'admin',
+					 'data-title'	=> $L->administration
 				]
-			);
+			];
 		}
-		$Page->mainmenu .= h::a(
+		$this->main_menu[]	= [
 			$L->home,
 			[
 				 'href'		=> '/',
 				 'title'	=> $L->home
 			]
-		);
+		];
 		foreach ($Config->components['modules'] as $module => $mdata) {
 			if (
 				$mdata['active'] == 1 &&
@@ -318,16 +324,16 @@ class Index {
 				$User->get_user_permission($module, 'index') &&
 				(
 					(
-						file_exists(MODULES.'/'.$module.'/index.php') && filesize(MODULES.'/'.$module.'/index.php')
+						file_exists(MODULES."/$module/index.php") && filesize(MODULES."/$module/index.php")
 					) ||
 					(
-						file_exists(MODULES.'/'.$module.'/index.html') && filesize(MODULES.'/'.$module.'/index.html')
+						file_exists(MODULES."/$module/index.html") && filesize(MODULES."/$module/index.html")
 					) ||
-					file_exists(MODULES.'/'.$module.'/index.json')
+					file_exists(MODULES."/$module/index.json")
 				)
 			) {
-				$path			= $module;
 				$title			= $L->$module;
+				$path			= path($title);
 				$hide			= false;
 				Trigger::instance()->run(
 					'System/Index/mainmenu',
@@ -340,50 +346,52 @@ class Index {
 				if ($hide) {
 					continue;
 				}
-				$Page->mainmenu	.= h::a(
+				$this->main_menu[]	= [
 					$title,
 					[
 						'href'	=> $path,
 						'title'	=> $title
 					]
-				);
+				];
 			}
 		}
 	}
 	/**
-	 * Rendering of main submenu
+	 * Rendering of data for main sub menu
 	 */
-	protected function mainsubmenu () {
+	protected function main_sub_menu () {
 		if (!is_array($this->parts) || !$this->parts) {
 			return;
 		}
-		$Config	= Config::instance();
+		$rc		= Config::instance()->route;
+		$L		= Language::instance();
 		foreach ($this->parts as $part) {
-			Page::instance()->mainsubmenu .= h::a(
-				Language::instance()->$part,
+			$this->main_sub_menu[]	= [
+				$L->$part,
 				[
-					'href'		=> ($this->admin ? 'admin/' : '').MODULE.'/'.$part,
-					'class'		=> isset($Config->route[0]) && $Config->route[0] == $part ? 'active' : ''
+					'href'		=> ($this->admin ? 'admin/' : '').MODULE."/$part",
+					'class'		=> isset($rc[0]) && $rc[0] == $part ? 'uk-active' : ''
 				]
-			);
+			];
 		}
 	}
 	/**
-	 * Rendering of additional menu
+	 * Rendering of data for main menu more
 	 */
-	protected function menumore () {
+	protected function main_menu_more () {
 		if (!is_array($this->subparts) || !$this->subparts) {
 			return;
 		}
-		$Config	= Config::instance();
+		$rc		= Config::instance()->route;
+		$L		= Language::instance();
 		foreach ($this->subparts as $subpart) {
-			Page::instance()->menumore .= h::a(
-				Language::instance()->$subpart,
+			$this->main_menu_more[]	= [
+				$L->$subpart,
 				[
-					'href'		=> ($this->admin ? 'admin/' : '').MODULE.'/'.$Config->route[0].'/'.$subpart,
-					'class'		=> $Config->route[1] == $subpart ? 'active' : ''
+					'href'		=> ($this->admin ? 'admin/' : '').MODULE."/$rc[0]/$subpart",
+					'class'		=> $rc[1] == $subpart ? 'uk-active' : ''
 				]
-			);
+			];
 		}
 	}
 	/**
@@ -397,9 +405,9 @@ class Index {
 			$Page->content($this->Content);
 			return;
 		}
-		$this->menu_auto		&& $this->mainmenu();
-		$this->submenu_auto		&& $this->mainsubmenu();
-		$this->menumore_auto	&& $this->menumore();
+		$this->menu_auto		&& $this->main_menu();
+		$this->submenu_auto		&& $this->main_sub_menu();
+		$this->menumore_auto	&& $this->main_menu_more();
 		$this->blocks_processing();
 		if ($this->form) {
 			$Page->content(
@@ -462,8 +470,7 @@ class Index {
 					array_merge(
 						[
 							'enctype'	=> $this->file_upload ? 'multipart/form-data' : false,
-							'action'	=> $this->action,
-							'class'		=> 'cs-fullwidth-form'
+							'action'	=> $this->action
 						],
 						$this->form_atributes
 					)
@@ -484,28 +491,33 @@ class Index {
 			$Page	= Page::instance();
 			$User	= User::instance();
 			$Page->js(
-				'var	base_url = "'.$Config->base_url()."\",\n".
-				'	current_base_url = "'.$Config->base_url().'/'.($this->admin ? 'admin/' : '').MODULE."\",\n".
-				'	public_key = "'.Core::instance()->public_key."\",\n".
-				($User->guest() ?
-					'	rules_text = "'.get_core_ml_text('rules')."\",\n"
-				: '').
-				'	module = "'.MODULE."\",\n".
-				'	in_admin = '.(int)$this->admin.",\n".
-				'	is_admin = '.(int)$User->admin().",\n".
-				'	is_user = '.(int)$User->user().",\n".
-				'	is_guest = '.(int)$User->guest().",\n".
-				'	debug = '.(int)DEBUG.",\n".
-				'	cookie_prefix = "'.$Config->core['cookie_prefix']."\",\n".
-				'	cookie_domain = "'.$Config->core['cookie_domain']."\",\n".
-				'	cookie_path = "'.$Config->core['cookie_path']."\",\n".
-				'	protocol = "'.$Config->server['protocol']."\",\n".
-				'	route = '._json_encode($Config->route).';',
+				'window.cs	= '._json_encode([
+					'base_url'			=> $Config->base_url(),
+					'current_base_url'	=> $Config->base_url().'/'.($this->admin ? 'admin/' : '').MODULE,
+					'public_key'		=> Core::instance()->public_key,
+					'module'			=> MODULE,
+					'in_admin'			=> (int)$this->admin,
+					'is_admin'			=> (int)$User->admin(),
+					'is_user'			=> (int)$User->user(),
+					'is_guest'			=> (int)$User->guest(),
+					'debug'				=> (int)$User->guest(),
+					'cookie_prefix'		=> $Config->core['cookie_prefix'],
+					'cookie_domain'		=> $Config->core['cookie_domain'],
+					'cookie_path'		=> $Config->core['cookie_path'],
+					'protocol'			=> $Config->server['protocol'],
+					'route'				=> $Config->route
+				]).';',
 				'code'
 			);
+			if ($User->guest()) {
+				$Page->js(
+					'cs.rules_text = '._json_encode(get_core_ml_text('rules')).';',
+					'code'
+				);
+			}
 			if (!$Config->core['cache_compress_js_css']) {
 				$Page->js(
-					'var	L = '.Language::instance()->get_json().';',
+					'cs.Language = '.Language::instance()->get_json().';',
 					'code'
 				);
 			}
@@ -545,7 +557,7 @@ class Index {
 				switch ($block['type']) {
 					default:
 						$content = ob_wrapper(function () use ($block) {
-							include BLOCKS.'/block.'.$block['type'].'.php';
+							include BLOCKS."/block.$block[type].php";
 						});
 					break;
 					case 'html':
@@ -554,7 +566,7 @@ class Index {
 					break;
 				}
 				$template	= TEMPLATES.'/blocks/block.'.(
-					file_exists(TEMPLATES.'/blocks/block.'.$block['template']) ? $block['template'] : 'default.html'
+					file_exists(TEMPLATES."/blocks/block.$block[template]") ? $block['template'] : 'default.html'
 				);
 				$content	= str_replace(
 					[
@@ -573,7 +585,7 @@ class Index {
 				);
 				if ($block['position'] == 'floating') {
 					$Page->replace(
-						'<!--block#'.$block['index'].'-->',
+						"<!--block#$block[index]-->",
 						$content
 					);
 				} else {
@@ -670,9 +682,9 @@ class Index {
 			$Page->error();
 		}
 		Trigger::instance()->run('System/Index/preload');
-		if (!$this->admin && !$this->api && file_exists(MFOLDER.'/index.html')) {
+		if (!$this->admin && !$this->api && file_exists(MODULES.'/'.MODULE.'/index.html')) {
 			ob_start();
-			_include(MFOLDER.'/index.html', false, false);
+			_include(MODULES.'/'.MODULE.'/index.html', false, false);
 			$Page->content(ob_get_clean());
 			if ($this->title_auto) {
 				$Page->title(Language::instance()->{HOME ? 'home' : MODULE});

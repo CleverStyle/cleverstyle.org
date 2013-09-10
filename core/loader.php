@@ -103,9 +103,7 @@ _include_once(DIR.'/custom.php', false);
 /**
  * System running
  */
-Core::instance()->instance();
+Core::instance();
 Language::instance();
 defined('CS_ERROR_HANDLER') && CS_ERROR_HANDLER && Error::instance();
-Index::instance()->__finish();
-Page::instance()->__finish();
-User::instance()->__finish();
+Index::instance();

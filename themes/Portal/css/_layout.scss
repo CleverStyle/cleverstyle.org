@@ -17,12 +17,14 @@ html {
 }
 //Whole body
 body {
-	font-size : 1.5rem;
-	height    : 100%;
-	margin    : 0;
-	padding   : 0;
-	position  : absolute;
-	width     : 100%;
+	font-family : inherit;
+	font-size   : 1.5rem;
+	height      : 100%;
+	line-height : normal;
+	margin      : 0;
+	padding     : 0;
+	position    : absolute;
+	width       : 100%;
 	> {
 		header {
 			@include box-sizing(border-box);

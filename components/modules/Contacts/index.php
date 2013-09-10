@@ -10,7 +10,7 @@ namespace	cs;
 $L			= Language::instance();
 $base_url	= Config::instance()->base_url();
 if (!preg_match('/\/(en|ru|uk)$/', $base_url)) {
-	$base_url	.= '/'.$L->clang;
+	$base_url	.= "/$L->clang";
 }
 Page::instance()->canonical_url("$base_url/$L->Contacts");
-Index::instance()->content(file_get_contents(__DIR__.'/index_'.$L->clang.'.html'));
+Index::instance()->content(file_get_contents(__DIR__."/index_$L->clang.html"));

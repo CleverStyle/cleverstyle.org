@@ -25,12 +25,12 @@
 
 (function() {
 
-  window.file_upload = function(button, success, error, progress, multi) {
-    var file_element, files, uploader;
+  cs.file_upload = function(button, success, error, progress, multi) {
+    var file_element, files, uploader, _ref, _ref1;
     files = [];
     uploader = new plupload.Uploader({
       runtimes: 'html5',
-      max_file_size: window.plupload_max_file_size ? plupload_max_file_size : null,
+      max_file_size: (_ref = (_ref1 = cs.plupload) != null ? _ref1.max_file_size : void 0) != null ? _ref : null,
       url: '/Plupload',
       multi_selection: multi,
       multipart: true

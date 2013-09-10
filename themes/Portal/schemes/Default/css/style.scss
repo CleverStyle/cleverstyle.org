@@ -5,7 +5,6 @@
  * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
-
 @import "../../../css/config";
 @import "../../../css/mixins";
 
@@ -47,6 +46,7 @@ h3,
 h4,
 h5,
 h6 {
+	color : $base-color;
 	a {
 		border-bottom-width : .08em;
 	}

@@ -14,35 +14,37 @@ use			h,
 			cs\Language,
 			cs\Page,
 			cs\User;
-$Index				= Index::instance();
-$Index->title_auto	= false;
-$L					= Language::instance();
-$Page				= Page::instance();
-$Page->title($L->administration)->title($L->Blogs);
-$rc					= Config::instance()->route;
-$Page->menumore		= h::a(
+$Index					= Index::instance();
+$Index->title_auto		= false;
+$L						= Language::instance();
+$Page					= Page::instance();
+$Page
+	->title($L->administration)
+	->title($L->Blogs);
+$rc						= Config::instance()->route;
+$Index->main_sub_menu	= [
 	[
 		$L->general,
 		[
 			'href'	=> 'admin/Blogs',
-			'class'	=> !isset($rc[0]) || $rc[0] == 'general' ? 'active' : false
+			'class'	=> !isset($rc[0]) || $rc[0] == 'general' ? 'uk-active' : false
 		]
 	],
 	[
 		$L->browse_sections,
 		[
 			'href'	=> 'admin/Blogs/browse_sections',
-			'class'	=> isset($rc[0]) && $rc[0] == 'browse_sections' ? 'active' : false
+			'class'	=> isset($rc[0]) && $rc[0] == 'browse_sections' ? 'uk-active' : false
 		]
 	],
 	[
 		$L->browse_posts,
 		[
 			'href'	=> 'admin/Blogs/browse_posts',
-			'class'	=> isset($rc[0]) && $rc[0] == 'browse_posts' ? 'active' : false
+			'class'	=> isset($rc[0]) && $rc[0] == 'browse_posts' ? 'uk-active' : false
 		]
 	]
-);
+];
 function get_sections_rows ($structure = null, $level = 0, &$content = null) {
 	$L			= Language::instance();
 	$root		= false;
@@ -57,18 +59,18 @@ function get_sections_rows ($structure = null, $level = 0, &$content = null) {
 		[
 			h::a(
 				$structure['title'].
-				h::{'span.ui-priority-primary.cs-blogs-posts-count'}(
+				h::{'b.cs-blogs-posts-count'}(
 					(empty($structure['sections']) ? ' '.$structure['posts'] : ''),
 					[
 						'data-title'	=> $L->posts_in_section
 					]
 				),
 				[
-					'href'	=> $module.(isset($structure['full_path']) ? '/'.path($L->section).'/'.$structure['full_path'] : '')
+					'href'	=> $module.(isset($structure['full_path']) ? '/'.path($L->section)."/$structure[full_path]" : '')
 				]
 			),
 			[
-				'class'	=> 'cs-blogs-padding-left-'.$level
+				'class'	=> "cs-blogs-padding-left-$level"
 			]
 		],
 		h::{'a.cs-button-compact'}(
@@ -82,7 +84,7 @@ function get_sections_rows ($structure = null, $level = 0, &$content = null) {
 		).
 		(!$root ? h::{'a.cs-button-compact'}(
 			[
-				h::icon('wrench'),
+				h::icon('edit'),
 				[
 					'href'			=> "admin/Blogs/edit_section/$structure[id]",
 					'data-title'	=> $L->edit
@@ -99,7 +101,7 @@ function get_sections_rows ($structure = null, $level = 0, &$content = null) {
 	];
 	if (!empty($structure['sections'])) {
 		foreach ($structure['sections'] as $section) {
-			get_sections_rows($section, $level+1, $content);
+			get_sections_rows($section, $level + 1, $content);
 		}
 	}
 	return [$content];
@@ -183,7 +185,7 @@ function get_posts_rows ($page = 1) {
 				$section	= h::a(
 					$section['title'],
 					[
-						'href'	=> $module.(isset($section['full_path']) ? '/'.path($L->section).'/'.$section['full_path'] : '')
+						'href'	=> $module.(isset($section['full_path']) ? '/'.path($L->section)."/$section[full_path]" : '')
 					]
 				);
 			}
@@ -192,7 +194,7 @@ function get_posts_rows ($page = 1) {
 				h::a(
 					$post['title'],
 					[
-						'href'	=> $module.'/'.$post['path'].':'.$post['id']
+						'href'	=> "$module/$post[path]:$post[id]"
 					]
 				),
 				implode(', ', $post['sections']),
@@ -203,7 +205,7 @@ function get_posts_rows ($page = 1) {
 							return h::a(
 								$tag,
 								[
-									'href'	=> $module.'/'.path($L->tag).'/'.$tag
+									'href'	=> "$module/".path($L->tag)."/$tag"
 								]
 							);
 						},
@@ -220,7 +222,7 @@ function get_posts_rows ($page = 1) {
 				date($L->_datetime, $post['date']),
 				h::{'a.cs-button-compact'}(
 					[
-						h::icon('wrench'),
+						h::icon('edit'),
 						[
 							'href'			=> "admin/Blogs/edit_post/$post[id]",
 							'data-title'	=> $L->edit
