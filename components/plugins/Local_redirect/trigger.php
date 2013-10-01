@@ -17,7 +17,11 @@ Trigger::instance()->register(
 		}
 		$relative_address		= $Config->server['relative_address'];
 		if (!in_array(substr($_SERVER['REQUEST_URI'], 1, 2), ['en', 'ru', 'uk'])) {
-			header('Location: /'.Language::instance()->clang."/$relative_address", true, 301);
+			if (!HOME) {
+				header('Location: /'.Language::instance()->clang."/$relative_address", true, 301);
+			} else {
+				header('Location: /'.Language::instance()->clang, true, 301);
+			}
 		}
 		$base_url				= substr($Config->base_url(), 0, -3);
 		Page::instance()->Head	.= h::{'link[rel=alternate]'}([
