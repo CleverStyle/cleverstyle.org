@@ -967,6 +967,10 @@ abstract class _Abstract {
 				]
 			);
 		}
+		if (substr($input, -1) == '|') {
+			$input	= substr($input, 0, -1);
+			$data	= [$data];
+		}
 		/**
 		 * Fix for textarea tag, which can accept array as content
 		 */
