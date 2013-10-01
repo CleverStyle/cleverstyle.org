@@ -55,7 +55,8 @@
  *  ['id'	=> <i>user_id</i>]
  */
 namespace	cs;
-use			cs\DB\Accessor;
+use			cs\DB\Accessor,
+			h;
 /**
  * Class for users/groups/permissions manipulating
  *
@@ -119,9 +120,9 @@ class User extends Accessor {
 		$Cache		= Cache::instance();
 		$Config		= Config::instance();
 		Trigger::instance()->run('System/User/construct/before');
-		if (($this->users_columns = $Cache->{'users/columns'}) === false) {
-			$this->users_columns = $Cache->{'users/columns'} = $this->db()->columns('[prefix]users');
-		}
+		$this->users_columns = $Cache->get('users/columns', function () {
+			return $this->db()->columns('[prefix]users');
+		});
 		/**
 		 * Detecting of current user
 		 * Last part in page path - key
@@ -172,8 +173,8 @@ class User extends Accessor {
 			/**
 			 * Loading bots list
 			 */
-			if (($bots = $Cache->{'users/bots'}) === false) {
-				$bots = $this->db()->qfa(
+			$bots = $Cache->get('users/bots', function () {
+				return $this->db()->qfa(
 					"SELECT
 						`u`.`id`,
 						`u`.`login`,
@@ -184,13 +185,8 @@ class User extends Accessor {
 					WHERE
 						`g`.`group`		= 3 AND
 						`u`.`status`	= 1"
-				);
-				if (is_array($bots) && !empty($bots)) {
-					$Cache->{'users/bots'} = $bots;
-				} else {
-					$Cache->{'users/bots'} = [];
-				}
-			}
+				) ?: [];
+			});
 			/**
 			 * For bots: login is user agent, email is IP
 			 */
@@ -286,7 +282,7 @@ class User extends Accessor {
 		$session_id	= $this->get_session();
 		if (!$session_id || !isset($_REQUEST['session']) || $_REQUEST['session'] != $session_id) {
 			if (API) {
-				define('ERROR_CODE', 403);
+				error_code(403);
 				Page::instance()->error('Invalid user session');
 				exit;
 			}
@@ -542,7 +538,7 @@ class User extends Accessor {
 			return false;
 		}
 		$Cache	= Cache::instance();
-		if (($data = $Cache->{'users/data/'.$user}) === false || !isset($data[$item])) {
+		if (($data = $Cache->{"users/data/$user"}) === false || !isset($data[$item])) {
 			if (!is_array($data)) {
 				$data	= [];
 			}
@@ -554,7 +550,7 @@ class User extends Accessor {
 					`item`	= '%s'",
 				$item
 			]);
-			$Cache->{'users/data/'.$user}	= $data[$item];
+			$Cache->{"users/data/$user"}	= $data[$item];
 		}
 		return _json_decode($data[$item]);
 	}
@@ -673,18 +669,43 @@ class User extends Accessor {
 			return false;
 		}
 		$Cache	= Cache::instance();
-		if (($id = $Cache->{'users/'.$login_hash}) === false) {
-			$Cache->{'users/'.$login_hash} = $id = $this->db()->qfs([
-				"SELECT `id` FROM `[prefix]users` WHERE `login_hash` = '%1\$s' OR `email_hash` = '%1\$s' LIMIT 1",
+		if (($id = $Cache->{"users/$login_hash"}) === false) {
+			$Cache->{"users/$login_hash"} = $id = $this->db()->qfs([
+				"SELECT `id`
+				FROM `[prefix]users`
+				WHERE
+					`login_hash`	= '%1\$s' OR
+					`email_hash`	= '%1\$s'
+				LIMIT 1",
 				$login_hash
 			]);
 		}
 		return $id && $id != 1 ? $id : false;
 	}
 	/**
+	 * Get user avatar, if no one present - uses Gravatar
+	 *
+	 * @param int|null	$size	Avatar size, if not specified or resizing is not possible - original image is used
+	 * @param bool|int	$user	If not specified - current user assumed
+	 *
+	 * @return string
+	 */
+	function avatar ($size = null, $user = false) {
+		$user	= (int)($user ?: $this->id);
+		$avatar	= $this->get('avatar', $user);
+		if (!$avatar && $this->id != 1) {
+			$avatar	= 'https://www.gravatar.com/avatar/'.md5($this->get('email', $user))."?d=mm&s=$size";
+			$avatar	.= '&d='.urlencode(Config::instance()->base_url().'/includes/img/guest.gif');
+		}
+		if (!$avatar) {
+			$avatar	= '/includes/img/guest.gif';
+		}
+		return h::prepare_url($avatar, true);
+	}
+	/**
 	 * Get user name or login or email, depending on existing information
 	 *
-	 * @param  bool|int $user	If not specified - current user assumed
+	 * @param bool|int $user	If not specified - current user assumed
 	 *
 	 * @return string
 	 */
@@ -852,17 +873,14 @@ class User extends Accessor {
 		if (!$user || $user == 1) {
 			return false;
 		}
-		$Cache	= Cache::instance();
-		if (($groups = $Cache->{'users/groups/'.$user}) === false) {
-			$groups = $this->db()->qfas(
+		return Cache::instance()->get("users/groups/$user", function () use ($user) {
+			return $this->db()->qfas(
 				"SELECT `group`
 				FROM `[prefix]users_groups`
 				WHERE `id` = '$user'
 				ORDER BY `priority` DESC"
 			);
-			return $Cache->{'users/groups/'.$user} = $groups;
-		}
-		return $groups;
+		});
 	}
 	/**
 	 * Set user groups
@@ -885,14 +903,19 @@ class User extends Accessor {
 			}
 		}
 		unset($i, $group);
-		$exitsing	= $this->get_user_groups($user);
+		$exiting	= $this->get_user_groups($user);
 		$return		= true;
-		$insert		= array_diff($data, $exitsing);
-		$delete		= array_diff($exitsing, $data);
-		unset($exitsing);
+		$insert		= array_diff($data, $exiting);
+		$delete		= array_diff($exiting, $data);
+		unset($exiting);
 		if (!empty($delete)) {
 			$delete	= implode(', ', $delete);
-			$return	= $return && $this->db_prime()->q("DELETE FROM `[prefix]users_groups` WHERE `id` ='$user' AND `group` IN ($delete)");
+			$return	= $return && $this->db_prime()->q(
+				"DELETE FROM `[prefix]users_groups`
+				WHERE
+					`id`	='$user' AND
+					`group`	IN ($delete)"
+			);
 		}
 		unset($delete);
 		if (!empty($insert)) {
@@ -902,18 +925,32 @@ class User extends Accessor {
 			}
 			unset($group, $insert);
 			$q		= implode('), (', $q);
-			$return	= $return && $this->db_prime()->q("INSERT INTO `[prefix]users_groups` (`id`, `group`) VALUES ('$q')");
+			$return	= $return && $this->db_prime()->q(
+				"INSERT INTO `[prefix]users_groups`
+					(
+						`id`,
+						`group`
+					) VALUES (
+						'$q'
+					)"
+			);
 			unset($q);
 		}
 		$update		= [];
 		foreach ($data as $i => $group) {
-			$update[] = "UPDATE `[prefix]users_groups` SET `priority` = '$i' WHERE `id` = '$user.' AND `group` = '$group' LIMIT 1";
+			$update[] =
+				"UPDATE `[prefix]users_groups`
+				SET `priority` = '$i'
+				WHERE
+					`id`	= '$user' AND
+					`group`	= '$group'
+				LIMIT 1";
 		}
 		$return		= $return && $this->db_prime()->q($update);
 		$Cache		= Cache::instance();
 		unset(
-			$Cache->{'users/groups/'.$user},
-			$Cache->{'users/permissions/'.$user}
+			$Cache->{"users/groups/$user"},
+			$Cache->{"users/permissions/$user"}
 		);
 		return $return;
 	}
@@ -970,7 +1007,7 @@ class User extends Accessor {
 		if (!$group) {
 			return false;
 		}
-		if (($group_data = $Cache->{"groups/$group"}) === false) {
+		$group_data = $Cache->get("groups/$group", function ($group) {
 			$group_data = $this->db()->qf(
 				"SELECT
 					`title`,
@@ -981,8 +1018,8 @@ class User extends Accessor {
 				LIMIT 1"
 			);
 			$group_data['data'] = _json_decode($group_data['data']);
-			$Cache->{"groups/$group"} = $group_data;
-		}
+			return $group_data;
+		});
 		if ($item !== false) {
 			if (isset($group_data[$item])) {
 				return $group_data[$item];
@@ -1074,17 +1111,15 @@ class User extends Accessor {
 	 * @return array|bool		Every item in form of array('id' => <i>id</i>, 'title' => <i>title</i>, 'description' => <i>description</i>)
 	 */
 	function get_groups_list () {
-		$Cache	= Cache::instance();
-		if (($groups_list = $Cache->{'groups/list'}) === false) {
-			$Cache->{'groups/list'} = $groups_list = $this->db()->qfa(
+		return Cache::instance()->get('groups/list', function () {
+			return $this->db()->qfa(
 				"SELECT
 					`id`,
 					`title`,
 					`description`
 				FROM `[prefix]groups`"
 			);
-		}
-		return $groups_list;
+		});
 	}
 	/**
 	 * Get group permissions
@@ -1142,26 +1177,22 @@ class User extends Accessor {
 				return false;
 		}
 		$Cache	= Cache::instance();
-		if (($permissions = $Cache->{$path.$id}) === false) {
-			$permissions_array = $this->db()->qfa(
+		return $Cache->get($path.$id, function () use ($id, $table) {
+			$permissions	= false;
+			if ($permissions_array = $this->db()->qfa(
 				"SELECT
 					`permission`,
 					`value`
 				FROM `$table`
 				WHERE `id` = '$id'"
-			);
-			if (is_array($permissions_array)) {
+			)) {
 				$permissions = [];
 				foreach ($permissions_array as $permission) {
 					$permissions[$permission['permission']] = (int)(bool)$permission['value'];
 				}
-				unset($permissions_array, $permission);
-				return $Cache->{$path.$id} = $permissions;
-			} else {
-				return $Cache->{$path.$id} = false;
 			}
-		}
-		return $permissions;
+			return $permissions;
+		});
 	}
 	/**
 	 * Common function for set_user_permissions() and set_group_permissions() because of their similarity
@@ -1206,17 +1237,22 @@ class User extends Accessor {
 		}
 		unset($delete);
 		if (!empty($data)) {
-			$exitsing	= $this->get_any_permissions($id, $type);
-			if (!empty($exitsing)) {
+			$exiting	= $this->get_any_permissions($id, $type);
+			if (!empty($exiting)) {
 				$update		= [];
-				foreach ($exitsing as $permission => $value) {
+				foreach ($exiting as $permission => $value) {
 					if (isset($data[$permission]) && $data[$permission] != $value) {
 						$value		= (int)(bool)$data[$permission];
-						$update[]	= "UPDATE `$table` SET `value` = '$value' WHERE `permission` = '$permission' AND `id` = '$id'";
+						$update[]	=
+							"UPDATE `$table`
+							SET `value` = '$value'
+							WHERE
+								`permission`	= '$permission' AND
+								`id`			= '$id'";
 					}
 					unset($data[$permission]);
 				}
-				unset($exitsing, $permission, $value);
+				unset($exiting, $permission, $value);
 				if (!empty($update)) {
 					$return = $return && $this->db_prime()->q($update);
 				}
@@ -1231,7 +1267,15 @@ class User extends Accessor {
 				if (!empty($insert)) {
 					$insert	= implode('), (', $insert);
 					$return	= $return && $this->db_prime()->q(
-						"INSERT INTO `$table` (`id`, `permission`, `value`) VALUES ($insert)");
+						"INSERT INTO `$table`
+							(
+								`id`,
+								`permission`,
+								`value`
+							) VALUES (
+								$insert
+							)"
+					);
 				}
 			}
 		}
@@ -1281,10 +1325,9 @@ class User extends Accessor {
 	 */
 	function get_permissions_table () {
 		if (empty($this->permissions_table)) {
-			$Cache	= Cache::instance();
-			if (($this->permissions_table = $Cache->permissions_table) === false) {
-				$this->permissions_table	= [];
-				$data						= $this->db()->qfa(
+			$this->permissions_table = Cache::instance()->get('permissions_table', function () {
+				$permissions_table	= [];
+				$data				= $this->db()->qfa(
 					'SELECT
 						`id`,
 						`label`,
@@ -1292,14 +1335,14 @@ class User extends Accessor {
 					FROM `[prefix]permissions`'
 				);
 				foreach ($data as $item) {
-					if (!isset($this->permissions_table[$item['group']])) {
-						$this->permissions_table[$item['group']] = [];
+					if (!isset($permissions_table[$item['group']])) {
+						$permissions_table[$item['group']] = [];
 					}
-					$this->permissions_table[$item['group']][$item['label']] = $item['id'];
+					$permissions_table[$item['group']][$item['label']] = $item['id'];
 				}
 				unset($data, $item);
-				$Cache->permissions_table = $this->permissions_table;
-			}
+				return $permissions_table;
+			});
 		}
 		return $this->permissions_table;
 	}
@@ -1319,12 +1362,22 @@ class User extends Accessor {
 	 * @return bool|int			Group id or <b>false</b> on failure
 	 */
 	function add_permission ($group, $label) {
-		if ($this->db_prime()->q("INSERT INTO `[prefix]permissions` (`label`, `group`) VALUES ('%s', '%s')", xap($label), xap($group))) {
+		if ($this->db_prime()->q(
+			"INSERT INTO `[prefix]permissions`
+				(
+					`label`,
+					`group`
+				) VALUES (
+					'%s',
+					'%s'
+				)",
+			xap($label),
+			xap($group)
+		)) {
 			$this->del_permission_table();
 			return $this->db_prime()->id();
-		} else {
-			return false;
 		}
+		return false;
 	}
 	/**
 	 * Get permission data<br>

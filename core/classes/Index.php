@@ -60,6 +60,18 @@ class Index {
 				$generate_auto		= true,
 				$title_auto			= true,
 				$stop				= false;	//Gives the ability to stop further processing
+	/**
+	 * Like Config::$route property, but excludes numerical items
+	 *
+	 * @var string[]
+	 */
+	public		$route_path	= [];
+	/**
+	 * Like Config::$route property, but only includes numerical items (opposite to route_path property)
+	 *
+	 * @var int[]
+	 */
+	public		$route_ids	= [];
 
 	protected	$post_title			= '',		//Appends to the end of title
 				$structure			= [],
@@ -98,7 +110,7 @@ class Index {
 			file_exists($admin_path) && (file_exists("$admin_path/index.php") || file_exists("$admin_path/index.json"))
 		) {
 			if (!($User->admin() && $User->get_user_permission($this->permission_group = 'admin/'.MODULE, 'index'))) {
-				define('ERROR_CODE', 403);
+				error_code(403);
 				exit;
 			}
 			define('MFOLDER', $admin_path);
@@ -106,20 +118,20 @@ class Index {
 			$this->admin	= true;
 		} elseif (API && file_exists($api_path)) {
 			if (!$User->get_user_permission($this->permission_group = 'api/'.MODULE, 'index')) {
-				define('ERROR_CODE', 403);
+				error_code(403);
 				exit;
 			}
 			define('MFOLDER', $api_path);
 			$this->api		= true;
 		} elseif (file_exists(MODULES.'/'.MODULE)) {
 			if (!$User->get_user_permission($this->permission_group = MODULE, 'index')) {
-				define('ERROR_CODE', 403);
+				error_code(403);
 				exit;
 			}
 			define('MFOLDER', MODULES.'/'.MODULE);
 			$this->module	= true;
 		} else {
-			define('ERROR_CODE', 404);
+			error_code(404);
 			exit;
 		}
 		unset($admin_path, $api_path);
@@ -159,7 +171,20 @@ class Index {
 		$L		= Language::instance();
 		$Page	= Page::instance();
 		$User	= User::instance();
-		$rc		= &$Config->route;
+		/**
+		 * Some routing preparations
+		 */
+		$rc_path	= &$this->route_path;
+		$rc_ids		= &$this->route_ids;
+		foreach ($Config->route as &$item) {
+			if (is_numeric($item)) {
+				$rc_ids[]	= &$item;
+			} else {
+				$rc_path[]	= &$item;
+			}
+		}
+		unset($item, $rc_path, $rc_ids);
+		$rc		= &$this->route_path;
 		if ($Config->core['simple_admin_mode'] && file_exists(MFOLDER.'/index_simple.json')) {
 			$structure_file	= 'index_simple.json';
 		} else {
@@ -179,13 +204,13 @@ class Index {
 								if ($User->get_user_permission($this->permission_group, "$item/$subpart")) {
 									$this->subparts[] = $subpart;
 								} elseif (isset($rc[1]) && $rc[1] == $subpart) {
-									define('ERROR_CODE', 403);
+									error_code(403);
 									return;
 								}
 							}
 						}
 					} elseif ($rc[0] == $item) {
-						define('ERROR_CODE', 403);
+						error_code(403);
 						return;
 					}
 				}
@@ -210,7 +235,7 @@ class Index {
 					$this->subparts = $this->structure[$rc[0]];
 				}
 			} elseif ($rc[0] != '' && !empty($this->parts) && !in_array($rc[0], $this->parts)) {
-				define('ERROR_CODE', 404);
+				error_code(404);
 				return;
 			}
 			/**
@@ -248,7 +273,7 @@ class Index {
 					}
 					$rc[1] = $this->subparts[0];
 				} elseif ($rc[1] != '' && !empty($this->subparts) && !in_array($rc[1], $this->subparts)) {
-					define('ERROR_CODE', 404);
+					error_code(404);
 					return;
 				}
 				if (!$this->api) {
@@ -316,9 +341,9 @@ class Index {
 				 'title'	=> $L->home
 			]
 		];
-		foreach ($Config->components['modules'] as $module => $mdata) {
+		foreach ($Config->components['modules'] as $module => $module_data) {
 			if (
-				$mdata['active'] == 1 &&
+				$module_data['active'] == 1 &&
 				$module != $Config->core['default_module'] &&
 				$module != 'System' &&
 				$User->get_user_permission($module, 'index') &&
@@ -363,7 +388,7 @@ class Index {
 		if (!is_array($this->parts) || !$this->parts) {
 			return;
 		}
-		$rc		= Config::instance()->route;
+		$rc		= $this->route_path;
 		$L		= Language::instance();
 		foreach ($this->parts as $part) {
 			$this->main_sub_menu[]	= [
@@ -382,7 +407,7 @@ class Index {
 		if (!is_array($this->subparts) || !$this->subparts) {
 			return;
 		}
-		$rc		= Config::instance()->route;
+		$rc		= $this->route_path;
 		$L		= Language::instance();
 		foreach ($this->subparts as $subpart) {
 			$this->main_menu_more[]	= [
@@ -505,7 +530,9 @@ class Index {
 					'cookie_domain'		=> $Config->core['cookie_domain'],
 					'cookie_path'		=> $Config->core['cookie_path'],
 					'protocol'			=> $Config->server['protocol'],
-					'route'				=> $Config->route
+					'route'				=> $Config->route,
+					'route_path'		=> $this->route_path,
+					'route_ids'			=> $this->route_ids
 				]).';',
 				'code'
 			);

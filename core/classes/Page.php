@@ -657,7 +657,7 @@ class Page {
 		if ($Config->core['multilingual']) {
 			$L	= Language::instance();
 			if (!isset($og['locale']) || empty($og['locale'])) {
-				$this->og('locale', $L->locale);
+				$this->og('locale', $L->clang.'_'.strtoupper($L->cregion));
 			}
 			if (
 				(
@@ -666,7 +666,7 @@ class Page {
 			) {
 				foreach ($Config->core['active_languages'] as $lang) {
 					if ($lang != $L->clanguage) {
-						$this->og('locale:alternate', $L->get('locale', $lang));
+						$this->og('locale:alternate', $L->get('clang', $lang).'_'.strtoupper($L->get('cregion', $lang)));
 					}
 				}
 			}
@@ -1126,7 +1126,7 @@ class Page {
 		}
 		$error_showed	= true;
 		if (!defined('ERROR_CODE')) {
-			define('ERROR_CODE', 500);
+			error_code(500);
 		}
 		if (!API && ERROR_CODE == 403 && _getcookie('logout')) {
 			header('Location: '.Config::instance()->base_url(), true, 302);
@@ -1167,11 +1167,7 @@ class Page {
 	protected function get_header_info () {
 		$L		= Language::instance();
 		$User	= User::instance(true);
-		if ($User->avatar) {
-			$this->user_avatar_image = h::prepare_url($User->avatar, true);
-		} else {
-			$this->user_avatar_image = '/includes/img/guest.gif';
-		}
+		$this->user_avatar_image = $User->avatar();
 		if ($User->user()) {
 			$this->header_info = h::{'div.cs-header-user-block'}(
 				h::b(

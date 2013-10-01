@@ -120,7 +120,7 @@ class Config {
 			$Page->replace($this->replace['in'], $this->replace['out']);
 			$this->init = true;
 			if ($this->check_ip($this->core['ip_black_list'])) {
-				define('ERROR_CODE', 403);
+				error_code(403);
 				$Page->error();
 				return;
 			}
@@ -268,7 +268,7 @@ class Config {
 			if ($this->server['referer']['local']) {
 				header('Location: '.substr($rc, 9));
 			} else {
-				define('ERROR_CODE', 404);
+				error_code(404);
 				Page::instance()->error();
 			}
 			exit;
@@ -293,6 +293,7 @@ class Config {
 			errors_on();
 			unset($i, $search);
 		}
+		unset($r);
 		Trigger::instance()->run(
 			'System/Config/routing_replace',
 			[
@@ -308,7 +309,7 @@ class Config {
 		 */
 		if (isset($rc[0]) && mb_strtolower($rc[0]) == 'admin') {
 			if ($this->core['ip_admin_list_only'] && !$this->check_ip($this->core['ip_admin_list'])) {
-				define('ERROR_CODE', 403);
+				error_code(403);
 				Page::instance()->error();
 				return;
 			}
@@ -370,7 +371,6 @@ class Config {
 			(ADMIN ? 'admin/' : '').MODULE.(API ? 'api/' : '').'/'.implode('/', $rc),
 			'/'
 		);
-		unset($rc, $r);
 		$this->server['ajax']					= isset($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] == 'XMLHttpRequest';
 	}
 	/**
@@ -593,7 +593,7 @@ class Config {
 	 */
 	function module ($module_name) {
 		if (!isset($this->components['modules'][$module_name])) {
-			return false;
+			return False_class::instance();
 		}
 		return (new Config\Module_Properties($this->components['modules'][$module_name], $module_name));
 	}

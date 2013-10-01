@@ -5,7 +5,8 @@
  * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
-namespace cs;
+namespace	cs;
+use			Closure;
 /**
  * @method static \cs\Cache instance($check = false)
  */
@@ -34,17 +35,27 @@ class Cache {
 	/**
 	 * Get item from cache
 	 *
-	 * @param string		$item	May contain "/" symbols for cache structure, for example users/<i>user_id</i>
+	 * If item not found and $closure parameter specified - closure must return value for item. This value will be set for current item, and returned.
 	 *
-	 * @return bool|mixed			Returns item on success of <b>false</b> on failure
+	 * @param string		$item		May contain "/" symbols for cache structure, for example users/<i>user_id</i>
+	 * @param Closure|null	$closure
+	 *
+	 * @return bool|mixed				Returns item on success of <b>false</b> on failure
 	 */
-	function get ($item) {
+	function get ($item, $closure = null) {
 		if (!$this->cache) {
 			return false;
 		}
-		return $this->engine_instance->get($item);
+		$item	= trim($item, '/');
+		$data	= $this->engine_instance->get($item);
+		if ($data === false && $closure instanceof Closure) {
+			$data	= $closure();
+			if ($data !== false) {
+				$this->set($item, $data);
+			}
+		}
+		return $data;
 	}
-
 	/**
 	 * Put or change data of cache item
 	 *
@@ -60,6 +71,7 @@ class Cache {
 		if (!$this->cache) {
 			return true;
 		}
+		$item	= trim($item, '/');
 		return $this->engine_instance->set($item, $data);
 	}
 	/**
@@ -74,6 +86,7 @@ class Cache {
 			return false;
 		}
 		if (is_object($this->engine_instance)){
+			$item	= trim($item, '/');
 			return $this->engine_instance->del($item);
 		} else {
 			return false;

@@ -21,7 +21,7 @@ $Page	= Page::instance();
 $User	= User::instance();
 $rc		= Config::instance()->route;
 if (!isset($rc[1], $rc[2]) || !($id = $User->get_id(hash('sha224', $rc[2])))) {
-	define('ERROR_CODE', 404);
+	error_code(404);
 	$Page->error();
 	return;
 }
@@ -42,7 +42,7 @@ $data	= $User->get(
 	$id
 );
 if ($data['status'] == -1) {
-	define('ERROR_CODE', 404);
+	error_code(404);
 	$Page->error();
 	return;
 } elseif ($data['status'] == 0) {
@@ -78,7 +78,7 @@ $Page->og(
 $Page->content(
 	h::{'table.cs-table-borderless.cs-profile-table tr'}([
 		h::{'td.cs-profile-avatar[rowspan=2] img'}([
-			'src'	=> $data['avatar'] ? h::prepare_url($data['avatar']) : '/includes/img/guest.gif',
+			'src'	=> $User->avatar(128, $id),
 			'alt'	=> $name,
 			'title'	=> $name
 		]).
