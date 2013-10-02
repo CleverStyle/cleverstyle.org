@@ -26,7 +26,7 @@ Trigger::instance()->register(
 		$base_url				= substr($Config->base_url(), 0, -3);
 		Page::instance()->Head	.= h::{'link[rel=alternate]'}([
 			'hreflang'	=> 'x-default',
-			'href'		=> "$base_url/$relative_address"
+			'href'		=> !HOME ? "$base_url/$relative_address" : "$base_url"
 		]).
 		h::{'link[rel=alternate]|'}(array_map(
 				function ($lang) use ($base_url, $relative_address) {
