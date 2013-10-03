@@ -43,21 +43,21 @@ class Page {
 				$post_Body			= '',
 				$post_Html			= '',
 				$level				= [				//Number of tabs by default for margins the substitution
-					'Head'				=> 0,	//of values into template
-					'pre_Body'			=> 0,
-					'Header'			=> 2,
-					'main_menu'			=> 2,
-					'main_sub_menu'		=> 2,
-					'main_menu_more'	=> 2,
-					'header_info'		=> 3,
-					'debug_info'		=> 1,
-					'Left'				=> 2,
-					'Top'				=> 2,
-					'Content'			=> 3,
-					'Bottom'			=> 2,
-					'Right'				=> 2,
-					'Footer'			=> 1,
-					'post_Body'			=> 0
+					'Head'				=> 0,		//of values into template
+					'pre_Body'			=> 1,
+					'Header'			=> 3,
+					'main_menu'			=> 3,
+					'main_sub_menu'		=> 3,
+					'main_menu_more'	=> 3,
+					'header_info'		=> 4,
+					'debug_info'		=> 2,
+					'Left'				=> 3,
+					'Top'				=> 3,
+					'Content'			=> 4,
+					'Bottom'			=> 3,
+					'Right'				=> 3,
+					'Footer'			=> 2,
+					'post_Body'			=> 1
 				],
 				$user_avatar_image,
 				$header_info,
@@ -309,13 +309,11 @@ class Page {
 				$this->link ?: false
 			).
 			implode('', $this->core_css).
-			implode('', $this->css).
-			$this->core_js[1].
-			$this->js[1];
+			implode('', $this->css);
 		if ($Config->core['put_js_after_body']) {
-			$this->post_Body	.= $this->core_js[0].$this->js[0];
+			$this->post_Body	.= $this->core_js[1].$this->js[1].$this->core_js[0].$this->js[0];
 		} else {
-			$this->Head			.= $this->core_js[0].$this->js[0];
+			$this->Head			.= $this->core_js[1].$this->js[1].$this->core_js[0].$this->js[0];
 		}
 		/**
 		 * Generation of Open Graph protocol information
