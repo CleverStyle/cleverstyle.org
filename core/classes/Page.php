@@ -309,11 +309,13 @@ class Page {
 				$this->link ?: false
 			).
 			implode('', $this->core_css).
-			implode('', $this->css);
+			implode('', $this->css).
+			$this->core_js[1].
+			$this->js[1];
 		if ($Config->core['put_js_after_body']) {
-			$this->post_Body	.= $this->core_js[1].$this->js[1].$this->core_js[0].$this->js[0];
+			$this->post_Body	.= $this->core_js[0].$this->js[0];
 		} else {
-			$this->Head			.= $this->core_js[1].$this->js[1].$this->core_js[0].$this->js[0];
+			$this->Head			.= $this->core_js[0].$this->js[0];
 		}
 		/**
 		 * Generation of Open Graph protocol information
