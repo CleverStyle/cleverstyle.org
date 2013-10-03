@@ -3,12 +3,12 @@
 <body>
 <!--pre_Body--><!--debug_info-->
 	<aside id="cs-right-blocks">
-	<div class="cs-header-user">
-		<div class="cs-header-avatar" style="background-image:url(<!--user-avatar-image-->);"></div>
-	<div class="cs-header-user-info">
+		<div class="cs-header-user">
+			<div class="cs-header-avatar" style="background-image:url(<!--user-avatar-image-->);"></div>
+			<div class="cs-header-user-info">
 <!--header_info-->
+			</div>
 		</div>
-	</div>
 		<nav class="cs-header-main-menu">
 <!--main-menu-->
 		</nav>
