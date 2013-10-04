@@ -64,12 +64,13 @@
 	[type=text],
 	[type=email],
 	[type=password] {
-		background : $form-element-background-color;
-		color      : $base-color;
-		float      : left;
-		margin     : 0 0 .5rem 0;
-		padding    : .3rem;
-		width      : $right-column - 10.45rem;
+		background    : $form-element-background-color;
+		border-radius : 4px;
+		color         : $base-color;
+		float         : left;
+		margin        : 0 0 .35rem;
+		padding       : .1rem;
+		width         : $right-column - 10.45rem;
 
 		&:hover,
 		&:focus {
@@ -112,7 +113,7 @@
 
 	left         : auto;
 	margin-right : 16px !important;
-	right        : 1rem;
+	right        : 3rem;
 }
 .cs-header-restore-password-process {
 	@extend .cs-header-login-process;
