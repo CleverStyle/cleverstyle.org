@@ -32,6 +32,7 @@ $db			= DB::instance();
 $L			= Language::instance();
 $Page		= Page::instance();
 $User		= User::instance();
+$Permission	= Permission::instance();
 $a			= Index::instance();
 if (isset($_POST['update_modules_list'])) {
 	/**
@@ -59,9 +60,9 @@ if (isset($_POST['update_modules_list'])) {
 			if (!isset($modules_list[$module])) {
 				$permissions_ids = array_merge(
 					$permissions_ids,
-					(array)$User->get_permission(null, $module),
-					(array)$User->get_permission(null, 'admin/'.$module),
-					(array)$User->get_permission(null, 'api/'.$module)
+					(array)$Permission->get(null, $module),
+					(array)$Permission->get(null, "admin/$module"),
+					(array)$Permission->get(null, "api/$module")
 				);
 			}
 		}
@@ -71,7 +72,7 @@ if (isset($_POST['update_modules_list'])) {
 				$id = $id['id'];
 			}
 			unset($id);
-			$User->del_permission($permissions_ids);
+			$Permission->del($permissions_ids);
 		}
 		unset($permissions_ids);
 	}
@@ -97,9 +98,9 @@ if (isset($_POST['update_modules_list'])) {
 				break;
 			}
 			$module_data['active'] = 0;
-			if (isset($_POST['db']) && is_array($_POST['db']) && file_exists(MODULES.'/'.$module.'/meta/db.json')) {
+			if (isset($_POST['db']) && is_array($_POST['db']) && file_exists(MODULES."/$module/meta/db.json")) {
 				$module_data['db'] = $_POST['db'];
-				$db_json = _json_decode(file_get_contents(MODULES.'/'.$module.'/meta/db.json'));
+				$db_json = _json_decode(file_get_contents(MODULES."/$module/meta/db.json"));
 				time_limit_pause();
 				foreach ($db_json as $database) {
 					if ($module_data['db'][$database] == 0) {
@@ -107,7 +108,7 @@ if (isset($_POST['update_modules_list'])) {
 					} else {
 						$db_type	= $Config->db[$module_data['db'][$database]]['type'];
 					}
-					$sql_file	= MODULES.'/'.$module.'/meta/install_db/'.$database.'/'.$db_type.'.sql';
+					$sql_file	= MODULES."/$module/meta/install_db/$database/$db_type.sql";
 					if (file_exists($sql_file)) {
 						$db->{$module_data['db'][$database]}()->q(
 							explode(';', file_get_contents($sql_file))
@@ -120,59 +121,6 @@ if (isset($_POST['update_modules_list'])) {
 			if (isset($_POST['storage']) && is_array($_POST['storage'])) {
 				$module_data['storage'] = $_POST['storage'];
 			}
-			$permissions = [
-				$module => ['index']
-			];
-			/**
-			 * Adding module permissions
-			 */
-			if (file_exists(MODULES.'/'.$module.'/index.json')) {
-				$structure = _json_decode(file_get_contents(MODULES.'/'.$module.'/index.json'));
-				if (is_array($structure) && !empty($structure)) {
-					foreach ($structure as $item => $part) {
-						$permissions[$module][] = is_array($part) ? $item : $part;
-					}
-				}
-				unset($structure, $item, $part);
-			}
-			/**
-			 * Adding module admin permissions
-			 */
-			if (file_exists(MODULES.'/'.$module.'/admin')) {
-				$permissions['admin/'.$module] = ['index'];
-				if (file_exists(MODULES.'/'.$module.'/admin/index.json')) {
-					$structure = _json_decode(file_get_contents(MODULES.'/'.$module.'/admin/index.json'));
-					if (is_array($structure) && !empty($structure)) {
-						foreach ($structure as $item => $part) {
-							$permissions['admin/'.$module][] = is_array($part) ? $item : $part;
-						}
-					}
-					unset($structure, $item, $part);
-				}
-				$permissions['admin/'.$module]	= array_unique($permissions['admin/'.$module]);
-			}
-			/**
-			 * Adding module API permissions
-			 */
-			if (file_exists(MODULES.'/'.$module.'/api')) {
-				$permissions['api/'.$module] = ['index'];
-				if (file_exists(MODULES.'/'.$module.'/api/index.json')) {
-					$structure = _json_decode(file_get_contents(MODULES.'/'.$module.'/api/index.json'));
-					if (is_array($structure) && !empty($structure)) {
-						foreach ($structure as $item => $part) {
-							$permissions['api/'.$module][] = is_array($part) ? $item : $part;
-						}
-					}
-					unset($structure, $item, $part);
-				}
-				$permissions['api/'.$module]	= array_unique($permissions['api/'.$module]);
-			}
-			foreach ($permissions as $group => $list) {
-				foreach ($list as $label) {
-					$User->add_permission($group, $label);
-				}
-			}
-			unset($permissions, $group, $list, $label);
 			$a->save();
 			clean_pcache();
 		break;
@@ -197,8 +145,8 @@ if (isset($_POST['update_modules_list'])) {
 				]
 			);
 			$Config->save();
-			if (isset($module_data['db']) && file_exists(MODULES.'/'.$module.'/meta/db.json')) {
-				$db_json = _json_decode(file_get_contents(MODULES.'/'.$module.'/meta/db.json'));
+			if (isset($module_data['db']) && file_exists(MODULES."/$module/meta/db.json")) {
+				$db_json = _json_decode(file_get_contents(MODULES."/$module/meta/db.json"));
 				time_limit_pause();
 				foreach ($db_json as $database) {
 					if ($module_data['db'][$database] == 0) {
@@ -206,7 +154,7 @@ if (isset($_POST['update_modules_list'])) {
 					} else {
 						$db_type	= $Config->db[$module_data['db'][$database]]['type'];
 					}
-					$sql_file	= MODULES.'/'.$module.'/meta/uninstall_db/'.$database.'/'.$db_type.'.sql';
+					$sql_file	= MODULES."/$module/meta/uninstall_db/$database/$db_type.sql";
 					if (file_exists($sql_file)) {
 						$db->{$module_data['db'][$database]}()->q(
 							explode(';', file_get_contents($sql_file))
@@ -217,15 +165,15 @@ if (isset($_POST['update_modules_list'])) {
 				time_limit_pause(false);
 			}
 			$permissions_ids		= array_merge(
-				$User->get_permission(null, $module),
-				$User->get_permission(null, $module.'/admin'),
-				$User->get_permission(null, $module.'/api')
+				$Permission->get(null, $module),
+				$Permission->get(null, "$module/admin"),
+				$Permission->get(null, "$module/api")
 			);
 			if (!empty($permissions_ids)) {
 				foreach ($permissions_ids as &$id) {
 					$id = $id['id'];
 				}
-				$User->del_permission($permissions_ids);
+				$Permission->del($permissions_ids);
 			}
 			$module_data			= ['active' => -1];
 			$a->save();
@@ -274,8 +222,8 @@ if (isset($_POST['update_modules_list'])) {
 			);
 			if (!$extract) {
 				$Page->warning($L->module_files_unpacking_error);
-				unlink($module_dir.'/fs_old.json');
-				unlink($module_dir.'/meta_old.json');
+				unlink("$module_dir/fs_old.json");
+				unlink("$module_dir/meta_old.json");
 				break;
 			}
 			unset($extract);
@@ -297,19 +245,19 @@ if (isset($_POST['update_modules_list'])) {
 				}
 				if (!$success) {
 					$Page->warning($L->module_files_unpacking_error);
-					unlink($module_dir.'/fs_old.json');
-					unlink($module_dir.'/meta_old.json');
+					unlink("$module_dir/fs_old.json");
+					unlink("$module_dir/meta_old.json");
 					break;
 				}
 				unset($success, $mirror, $result);
 			}
 			unlink($tmp_file);
 			unset($api_request, $tmp_file);
-			file_put_contents($module_dir.'/fs.json', _json_encode($fs = array_keys($fs)));
+			file_put_contents("$module_dir/fs.json", _json_encode($fs = array_keys($fs)));
 			/**
 			 * Removing of old unnecessary files and directories
 			 */
-			foreach (array_diff(_json_decode(file_get_contents($module_dir.'/fs_old.json')), $fs) as $file) {
+			foreach (array_diff(_json_decode(file_get_contents("$module_dir/fs_old.json")), $fs) as $file) {
 				$file	= "$module_dir/$file";
 				if (file_exists($file) && is_writable($file)) {
 					unlink($file);
@@ -322,19 +270,19 @@ if (isset($_POST['update_modules_list'])) {
 			/**
 			 * Updating of module
 			 */
-			if ($active && file_exists($module_dir.'/versions.json')) {
-				$old_version	= _json_decode(file_get_contents($module_dir.'/meta_old.json'))['version'];
-				foreach (_json_decode(file_get_contents($module_dir.'/versions.json')) as $version) {
+			if ($active && file_exists("$module_dir/versions.json")) {
+				$old_version	= _json_decode(file_get_contents("$module_dir/meta_old.json"))['version'];
+				foreach (_json_decode(file_get_contents("$module_dir/versions.json")) as $version) {
 					if (version_compare($old_version, $version, '<')) {
 						/**
 						 * PHP update script
 						 */
-						_include($module_dir.'/meta/update/'.$version.'.php', true, false);
+						_include("$module_dir/meta/update/$version.php", true, false);
 						/**
 						 * Database update
 						 */
-						if (isset($module_data['db']) && file_exists($module_dir.'/meta/db.json')) {
-							$db_json = _json_decode(file_get_contents($module_dir.'/meta/db.json'));
+						if (isset($module_data['db']) && file_exists("$module_dir/meta/db.json")) {
+							$db_json = _json_decode(file_get_contents("$module_dir/meta/db.json"));
 							time_limit_pause();
 							foreach ($db_json as $database) {
 								if ($module_data['db'][$database] == 0) {
@@ -342,7 +290,7 @@ if (isset($_POST['update_modules_list'])) {
 								} else {
 									$db_type	= $Config->db[$module_data['db'][$database]]['type'];
 								}
-								$sql_file	= $module_dir.'/meta/update_db/'.$database.'/'.$version.'/'.$db_type.'.sql';
+								$sql_file	= "$module_dir/meta/update_db/$database/$version/$db_type.sql";
 								if (file_exists($sql_file)) {
 									$db->{$module_data['db'][$database]}()->q(
 										explode(';', file_get_contents($sql_file))
@@ -355,8 +303,8 @@ if (isset($_POST['update_modules_list'])) {
 					}
 				}
 			}
-			unlink($module_dir.'/fs_old.json');
-			unlink($module_dir.'/meta_old.json');
+			unlink("$module_dir/fs_old.json");
+			unlink("$module_dir/meta_old.json");
 			/**
 			 * Restore previous module state
 			 */
@@ -413,7 +361,7 @@ if (isset($_POST['update_modules_list'])) {
 			if (!$extract) {
 				$Page->warning($L->system_files_unpacking_error);
 				unlink(DIR.'/core/fs_old.json');
-				unlink($module_dir.'/meta_old.json');
+				unlink("$module_dir/meta_old.json");
 				break;
 			}
 			unset($extract);
@@ -436,7 +384,7 @@ if (isset($_POST['update_modules_list'])) {
 				if (!$success) {
 					$Page->warning($L->system_files_unpacking_error);
 					unlink(DIR.'/core/fs_old.json');
-					unlink($module_dir.'/meta_old.json');
+					unlink("$module_dir/meta_old.json");
 					break;
 				}
 				unset($success, $mirror, $result);
@@ -460,19 +408,19 @@ if (isset($_POST['update_modules_list'])) {
 			/**
 			 * Updating of System
 			 */
-			if (file_exists($module_dir.'/versions.json')) {
-				$old_version	= _json_decode(file_get_contents($module_dir.'/meta_old.json'))['version'];
-				foreach (_json_decode(file_get_contents($module_dir.'/versions.json')) as $version) {
+			if (file_exists("$module_dir/versions.json")) {
+				$old_version	= _json_decode(file_get_contents("$module_dir/meta_old.json"))['version'];
+				foreach (_json_decode(file_get_contents("$module_dir/versions.json")) as $version) {
 					if (version_compare($old_version, $version, '<')) {
 						/**
 						 * PHP update script
 						 */
-						_include($module_dir.'/meta/update/'.$version.'.php', true, false);
+						_include("$module_dir/meta/update/$version.php", true, false);
 						/**
 						 * Database update
 						 */
-						if (isset($module_data['db']) && file_exists($module_dir.'/meta/db.json')) {
-							$db_json = _json_decode(file_get_contents($module_dir.'/meta/db.json'));
+						if (isset($module_data['db']) && file_exists("$module_dir/meta/db.json")) {
+							$db_json = _json_decode(file_get_contents("$module_dir/meta/db.json"));
 							time_limit_pause();
 							foreach ($db_json as $database) {
 								if ($module_data['db'][$database] == 0) {
@@ -480,7 +428,7 @@ if (isset($_POST['update_modules_list'])) {
 								} else {
 									$db_type	= $Config->db[$module_data['db'][$database]]['type'];
 								}
-								$sql_file	= $module_dir.'/meta/update_db/'.$database.'/'.$version.'/'.$db_type.'.sql';
+								$sql_file	= "$module_dir/meta/update_db/$database/$version/$db_type.sql";
 								if (file_exists($sql_file)) {
 									$db->{$module_data['db'][$database]}()->q(
 										explode(';', file_get_contents($sql_file))
@@ -494,7 +442,7 @@ if (isset($_POST['update_modules_list'])) {
 				}
 			}
 			unlink(DIR.'/core/fs_old.json');
-			unlink($module_dir.'/meta_old.json');
+			unlink("$module_dir/meta_old.json");
 			/**
 			 * Restore previous site mode
 			 */
@@ -509,9 +457,9 @@ if (isset($_POST['update_modules_list'])) {
 				$module_data['active'] != 1 ||
 				$module == $Config->core['default_module'] ||
 				!(
-					file_exists(MODULES.'/'.$module.'/index.php') ||
-					file_exists(MODULES.'/'.$module.'/index.html') ||
-					file_exists(MODULES.'/'.$module.'/index.json')
+					file_exists(MODULES."/$module/index.php") ||
+					file_exists(MODULES."/$module/index.html") ||
+					file_exists(MODULES."/$module/index.json")
 				)
 			) {
 				break;

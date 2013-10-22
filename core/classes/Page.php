@@ -329,28 +329,29 @@ class Page {
 		 * Menu generation
 		 */
 		$Index				= Index::instance();
-		if ($Index->main_menu) {
+		if (!$this->main_menu && $Index->main_menu) {
 			$this->main_menu	= h::{'li| a'}($Index->main_menu);
 		}
 		if ($Index->main_sub_menu) {
-			$this->main_sub_menu	= '';
-			foreach ($Index->main_sub_menu as $item) {
-				if (isset($item[1], $item[1]['class']) && $item[1]['class'] == 'uk-active') {
-					if ($Index->main_menu_more) {
-						$item[0]				.= ' '.h::icon('caret-down');
+			if (!$this->main_sub_menu) {
+				foreach ($Index->main_sub_menu as $item) {
+					if (isset($item[1], $item[1]['class']) && $item[1]['class'] == 'uk-active') {
+						if ($Index->main_menu_more) {
+							$item[0]				.= ' '.h::icon('caret-down');
+						}
+						$item[1]['class']		= trim(str_replace('uk-active', '', $item[1]['class']));
+						$this->main_sub_menu	.= h::{'li.uk-active[data-uk-dropdown=]'}(
+							h::a($item).
+							(
+								$Index->main_menu_more ? h::{'div.uk-dropdown.uk-dropdown-small ul.uk-nav.uk-nav-dropdown li| a'}($Index->main_menu_more) : ''
+							)
+						);
+					} else {
+						$this->main_sub_menu	.= h::{'li a'}($item);
 					}
-					$item[1]['class']		= trim(str_replace('uk-active', '', $item[1]['class']));
-					$this->main_sub_menu	.= h::{'li.uk-active[data-uk-dropdown=]'}(
-						h::a($item).
-						(
-							$Index->main_menu_more ? h::{'div.uk-dropdown.uk-dropdown-small ul.uk-nav.uk-nav-dropdown li| a'}($Index->main_menu_more) : ''
-						)
-					);
-				} else {
-					$this->main_sub_menu	.= h::{'li a'}($item);
 				}
 			}
-		} elseif ($Index->main_menu_more) {
+		} elseif (!$this->main_menu && $Index->main_menu_more) {
 			$this->main_menu	= h::{'li| a'}($Index->main_menu_more);
 		}
 		/**
@@ -905,7 +906,7 @@ class Page {
 				}
 			}
 			if ($extension == 'js') {
-				$temp_cache	= "window.cs.Language=".Language::instance()->get_json().";$temp_cache";
+				$temp_cache	= "window.cs.Language="._json_encode(Language::instance()).";$temp_cache";
 			}
 			file_put_contents(PCACHE."/$this->pcache_basename$extension", gzencode($temp_cache, 9), LOCK_EX | FILE_BINARY);
 			$key .= md5($temp_cache);
@@ -1088,20 +1089,33 @@ class Page {
 		return $this;
 	}
 	/**
-	 * Display notice
+	 * Display success message
+	 *
+	 * @param string $success_text
+	 *
+	 * @return Page
+	 */
+	function success ($success_text) {
+		$this->Top .= h::{'div.uk-alert.uk-alert-success.uk-lead.cs-center'}(
+			$success_text
+		);
+		return $this;
+	}
+	/**
+	 * Display notice message
 	 *
 	 * @param string $notice_text
 	 *
 	 * @return Page
 	 */
 	function notice ($notice_text) {
-		$this->Top .= h::{'div.uk-alert.uk-alert-success.uk-lead.cs-center'}(
+		$this->Top .= h::{'div.uk-alert.uk-alert-warning.uk-lead.cs-center'}(
 			$notice_text
 		);
 		return $this;
 	}
 	/**
-	 * Display warning
+	 * Display warning message
 	 *
 	 * @param string $warning_text
 	 *
@@ -1157,6 +1171,8 @@ class Page {
 			}
 			$this->Content	= ob_get_clean();
 		}
+		Page::instance()->__finish();
+		User::instance(true)->__finish();
 		exit;
 	}
 	/**
@@ -1165,9 +1181,9 @@ class Page {
 	 * @return Page
 	 */
 	protected function get_header_info () {
-		$L		= Language::instance();
-		$User	= User::instance(true);
-		$this->user_avatar_image = $User->avatar();
+		$L							= Language::instance();
+		$User						= User::instance(true);
+		$this->user_avatar_image	= $User->avatar();
 		if ($User->user()) {
 			$this->header_info = h::{'div.cs-header-user-block'}(
 				h::b(
@@ -1209,11 +1225,9 @@ class Page {
 			$this->header_info			= h::{'div.cs-header-guest-form'}(
 				h::b("$L->hello, $L->guest!").
 				h::div(
-					h::{'button.cs-header-login-slide.cs-button-compact'}(
-						h::icon('signin').$L->log_in
-					).
-					h::{'button.cs-header-registration-slide.cs-button-compact'}(
-						h::icon('pencil').$L->registration,
+					h::{'button.cs-header-login-slide.cs-button-compact.uk-icon-signin'}($L->log_in).
+					h::{'button.cs-header-registration-slide.cs-button-compact.uk-icon-pencil'}(
+						$L->registration,
 						[
 							'data-title'	=> $L->quick_registration_form
 						]
@@ -1227,9 +1241,7 @@ class Page {
 					'autocorrect'		=> 'off'
 				]).
 				h::br().
-				h::{'button.cs-header-restore-password-process.cs-button-compact[tabindex=2]'}(
-					h::icon('question').$L->restore_password
-				).
+				h::{'button.cs-header-restore-password-process.cs-button-compact.uk-icon-question[tabindex=2]'}($L->restore_password).
 				h::{'button.cs-button-compact.cs-header-back[tabindex=3]'}(
 					h::icon('chevron-down'),
 					[
@@ -1247,9 +1259,7 @@ class Page {
 					'autocorrect'		=> 'off'
 				]).
 				h::br().
-				h::{'button.cs-header-registration-process.cs-button-compact[tabindex=2]'}(
-					h::icon('pencil').$L->registration
-				).
+				h::{'button.cs-header-registration-process.cs-button-compact.uk-icon-pencil[tabindex=2]'}($L->registration).
 				h::{'button.cs-button-compact.cs-header-back[tabindex=4]'}(
 					h::icon('chevron-down'),
 					[
@@ -1270,7 +1280,7 @@ class Page {
 					'placeholder'	=> $L->password
 				]).
 				h::br().
-				h::{'button.cs-header-login-process.cs-button-compact[tabindex=3]'}(h::icon('signin').$L->log_in).
+				h::{'button.cs-header-login-process.cs-button-compact.uk-icon-signin[tabindex=3]'}($L->log_in).
 				h::{'button.cs-button-compact.cs-header-back[tabindex=5]'}(
 					h::icon('chevron-down'),
 					[
@@ -1308,7 +1318,7 @@ class Page {
 			/**
 			 * Processing of replacing in content
 			 */
-			echo $this->process_replacing($this->Content);
+			echo $this->process_replacing($this->Content ?: (API ? 'null' : ''));
 		} else {
 			Trigger::instance()->run('System/Page/pre_display');
 			class_exists('\\cs\\Error', false) && Error::instance(true)->display();

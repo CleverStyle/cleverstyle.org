@@ -254,11 +254,11 @@
       date.setTime(expires * 1000);
       expires = date;
     }
-    return !!$.cookie(name, value({
+    return !!$.cookie(name, value, {
       path: cs.cookie_path,
       domain: cs.cookie_domain,
       secure: cs.protocol === 'https'
-    }));
+    });
   };
 
   /**
@@ -284,8 +284,10 @@
 
 
   cs.login = function(login, password) {
-    login = login.toLowerCase();
-    return $.ajax(cs.base_url + '/api/System/user/login', {
+    login = String(login).toLowerCase();
+    password = String(password);
+    return $.ajax({
+      url: 'api/System/user/login',
       cache: false,
       data: {
         login: cs.hash('sha224', login)
@@ -293,7 +295,7 @@
       type: 'post',
       success: function(random_hash) {
         if (random_hash.length === 56) {
-          return $.ajax(cs.base_url + '/api/user/login', {
+          return $.ajax('api/user/login', {
             cache: false,
             data: {
               login: cs.hash('sha224', login),
@@ -333,7 +335,8 @@
 
 
   cs.logout = function() {
-    return $.ajax(cs.base_url + '/api/System/user/logout', {
+    return $.ajax({
+      url: 'api/System/user/logout',
       cache: false,
       data: {
         logout: true
@@ -364,8 +367,9 @@
       alert(L.please_type_your_email);
       return;
     }
-    email = email.toLowerCase();
-    return $.ajax(cs.base_url + '/api/System/user/registration', {
+    email = String(email).toLowerCase();
+    return $.ajax({
+      url: 'api/System/user/registration',
       cache: false,
       data: {
         email: email
@@ -404,8 +408,9 @@
       alert(L.please_type_your_email);
       return;
     }
-    email = email.toLowerCase();
-    return $.ajax(cs.base_url + '/api/System/user/restore_password', {
+    email = String(email).toLowerCase();
+    return $.ajax({
+      url: 'api/System/user/restore_password',
       cache: false,
       data: {
         email: cs.hash('sha224', email)
@@ -447,9 +452,10 @@
       alert(L.current_new_password_equal);
       return;
     }
-    current_password = cs.hash('sha512', cs.hash('sha512', current_password) + cs.public_key);
-    new_password = cs.hash('sha512', cs.hash('sha512', new_password) + cs.public_key);
-    return $.ajax(cs.base_url + '/api/System/user/change_password', {
+    current_password = cs.hash('sha512', cs.hash('sha512', String(current_password)) + cs.public_key);
+    new_password = cs.hash('sha512', cs.hash('sha512', String(new_password)) + cs.public_key);
+    return $.ajax({
+      url: 'api/System/user/change_password',
       cache: false,
       data: {
         verify_hash: cs.hash('sha224', current_password + session_id),

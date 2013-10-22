@@ -6,7 +6,8 @@
  * @license		MIT License, see license.txt
  */
 namespace	cs;
-use			Closure;
+use			Closure,
+			JsonSerializable;
 defined('FIXED_LANGUAGE') || define('FIXED_LANGUAGE', false);
 /**
  * Provides next triggers:
@@ -20,7 +21,7 @@ defined('FIXED_LANGUAGE') || define('FIXED_LANGUAGE', false);
  *
  * @method static \cs\Language instance($check = false)
  */
-class Language {
+class Language implements JsonSerializable {
 	use Singleton;
 
 	public		$clanguage,								//Current language
@@ -137,7 +138,7 @@ class Language {
 	 * @return string
 	 */
 	function get ($item, $language = false) {
-		if (!$language) {
+		if (!$language || $language === $this->clanguage) {
 			return isset($this->translate[$item]) ? $this->translate[$item] : ucfirst(str_replace('_', ' ', $item));
 		}
 		if ($translate = Cache::instance()->{"languages/$language"}) {
@@ -377,11 +378,11 @@ class Language {
 		return $data;
 	}
 	/**
-	 * Get all translations in JSON format
+	 * Implementation of JsonSerializable interface
 	 *
-	 * @return string
+	 * @return string[]
 	 */
-	function get_json () {
-		return _json_encode($this->translate);
+	function jsonSerialize () {
+		return $this->translate;
 	}
 }

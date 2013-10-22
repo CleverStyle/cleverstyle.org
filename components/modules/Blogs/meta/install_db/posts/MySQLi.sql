@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS `[prefix]blogs_posts_sections` (
 CREATE TABLE IF NOT EXISTS `[prefix]blogs_posts_tags` (
   `id` bigint(20) NOT NULL COMMENT 'Post id',
   `tag` bigint(20) NOT NULL COMMENT 'Tag id',
+  `lang` varchar(2) NOT NULL,
   KEY `id` (`id`),
   KEY `tag` (`tag`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

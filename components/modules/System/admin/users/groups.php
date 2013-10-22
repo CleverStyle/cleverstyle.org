@@ -12,7 +12,7 @@ use			h;
 $Config	= Config::instance();
 $L		= Language::instance();
 $Page	= Page::instance();
-$User	= User::instance();
+$Group	= Group::instance();
 $a		= Index::instance();
 $rc		= $Config->route;
 if (isset($rc[2])) {
@@ -43,7 +43,7 @@ if (isset($rc[2])) {
 			}
 			$a->apply_button		= false;
 			$a->cancel_button_back	= true;
-			$group_data				= $User->get_group($rc[3]);
+			$group_data				= $Group->get($rc[3]);
 			$Page->title(
 				$L->editing_of_group($group_data['title'])
 			);
@@ -85,7 +85,7 @@ if (isset($rc[2])) {
 			}
 			$a->buttons				= false;
 			$a->cancel_button_back	= true;
-			$group					= $User->get_group($rc[3]);
+			$group					= $Group->get($rc[3]);
 			$Page->title(
 				$L->deletion_of_group($group['title'])
 			);
@@ -107,8 +107,8 @@ if (isset($rc[2])) {
 			}
 			$a->apply_button		= false;
 			$a->cancel_button_back	= true;
-			$permissions			= $User->get_permissions_table();
-			$permission				= $User->get_group_permissions($rc[3]);
+			$permissions			= Permission::instance()->get_all();
+			$permission				= $Group->get_permissions($rc[3]);
 			$tabs					= [];
 			$tabs_content			= '';
 			$blocks					= [];
@@ -155,19 +155,17 @@ if (isset($rc[2])) {
 			unset($content, $content_, $count, $i, $permissions, $group, $list, $label, $id, $blocks);
 			$Page->title(
 				$L->permissions_for_group(
-					$User->get_group($rc[3], 'title')
+					$Group->get($rc[3], 'title')
 				)
 			);
 			$a->content(
 				h::{'p.lead.cs-center'}(
 					$L->permissions_for_group(
-						$User->get_group($rc[3], 'title')
+						$Group->get($rc[3], 'title')
 					)
 				).
-				h::{'div.cs-tabs'}(
-					h::{'ul li'}($tabs).
-					h::div($tabs_content)
-				).
+				h::{'ul.cs-tabs li'}($tabs).
+				h::div($tabs_content).
 				h::br().
 				h::{'input[type=hidden]'}([
 					'name'	=> 'id',
@@ -184,11 +182,11 @@ if (isset($rc[2])) {
 	);
 } else {
 	$a->buttons		= false;
-	$groups_ids		= $User->get_groups_list();
+	$groups_ids		= $Group->get_all();
 	$groups_list	= [];
 	foreach ($groups_ids as $id) {
 		$id				= $id['id'];
-		$group_data 	= $User->get_group($id);
+		$group_data 	= $Group->get($id);
 		$groups_list[]	= [
 			h::{'a.cs-button-compact'}(
 				h::icon('edit'),

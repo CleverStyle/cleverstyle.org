@@ -520,7 +520,7 @@ function _json_decode_nocomments ($in, $depth = 512) {
  * @return bool|int
  */
 function _preg_match ($pattern, $subject, &$matches = null, $flags = 0, $offset = 0) {
-	if (strpos('/', $pattern) === false && strpos('#', $pattern) === false) {
+	if (strpos($pattern, '/') === false && strpos($pattern, '#') === false) {
 		return false;
 	}
 	return preg_match($pattern, $subject, $matches, $flags, $offset);
@@ -538,7 +538,7 @@ function _preg_match ($pattern, $subject, &$matches = null, $flags = 0, $offset 
  * @return bool|mixed
  */
 function _preg_replace ($pattern, $replacement, $subject, $limit = -1, &$count = null) {
-	if (strpos('/', $pattern) === false && strpos('#', $pattern) === false) {
+	if (strpos($pattern, '/') === false && strpos($pattern, '#') === false) {
 		return false;
 	}
 	return preg_replace($pattern, $replacement, $subject, $limit, $count);
@@ -952,6 +952,16 @@ function xor_string ($string1, $string2) {
 		$string1[$i] = chr(ord($string1[$i]) ^ ord($string2[$pos]));
 	}
 	return $string1;
+}
+/**
+ * Checks whether string is an md5 hash
+ *
+ * @param string	$string
+ *
+ * @return bool
+ */
+function is_md5 ($string) {
+	return is_string($string) && preg_match('/^[0-9a-z]{32}$/', $string);
 }
 /**
  * Checks associativity of array

@@ -19,5 +19,6 @@ Trigger::instance()->register(
 	'Comments/instance',
 	function ($data) {
 		$data['Comments']	= Comments::instance();
+		return false;
 	}
 );

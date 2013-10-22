@@ -35,31 +35,31 @@ class Index {
 
 	public		$Content,
 
-				$menu_auto			= true,
-				$submenu_auto		= false,
-				$menumore_auto		= false,
+				$main_menu_auto			= true,
+				$main_sub_menu_auto		= false,
+				$main_menu_more_auto	= false,
 
-				$main_menu			= [],
-				$main_sub_menu		= [],
-				$main_menu_more		= [],
+				$main_menu				= [],
+				$main_sub_menu			= [],
+				$main_menu_more			= [],
 
-				$savefile			= 'save',
-				$form				= false,
-				$file_upload		= false,
-				$form_atributes		= [],
-				$action				= null,
-				$buttons			= true,
-				$save_button		= true,
-				$apply_button		= true,
-				$cancel_button		= ' disabled',
-				$cancel_button_back	= false,
-				$reset_button		= true,
-				$post_buttons		= '',
+				$savefile				= 'save',
+				$form					= false,
+				$file_upload			= false,
+				$form_atributes			= [],
+				$action					= null,
+				$buttons				= true,
+				$save_button			= true,
+				$apply_button			= true,
+				$cancel_button			= ' disabled',
+				$cancel_button_back		= false,
+				$reset_button			= true,
+				$post_buttons			= '',
 
-				$init_auto			= true,
-				$generate_auto		= true,
-				$title_auto			= true,
-				$stop				= false;	//Gives the ability to stop further processing
+				$init_auto				= true,
+				$generate_auto			= true,
+				$title_auto				= true,
+				$stop					= false;	//Gives the ability to stop further processing
 	/**
 	 * Like Config::$route property, but excludes numerical items
 	 *
@@ -109,7 +109,7 @@ class Index {
 			ADMIN &&
 			file_exists($admin_path) && (file_exists("$admin_path/index.php") || file_exists("$admin_path/index.json"))
 		) {
-			if (!($User->admin() && $User->get_user_permission($this->permission_group = 'admin/'.MODULE, 'index'))) {
+			if (!($User->admin() && $User->get_permission($this->permission_group = 'admin/'.MODULE, 'index'))) {
 				error_code(403);
 				exit;
 			}
@@ -117,14 +117,14 @@ class Index {
 			$this->form		= true;
 			$this->admin	= true;
 		} elseif (API && file_exists($api_path)) {
-			if (!$User->get_user_permission($this->permission_group = 'api/'.MODULE, 'index')) {
+			if (!$User->get_permission($this->permission_group = 'api/'.MODULE, 'index')) {
 				error_code(403);
 				exit;
 			}
 			define('MFOLDER', $api_path);
 			$this->api		= true;
 		} elseif (file_exists(MODULES.'/'.MODULE)) {
-			if (!$User->get_user_permission($this->permission_group = MODULE, 'index')) {
+			if (!$User->get_permission($this->permission_group = MODULE, 'index')) {
 				error_code(403);
 				exit;
 			}
@@ -167,10 +167,10 @@ class Index {
 	 * Initialization: loading of module structure, including of necessary module files, inclusion of save file
 	 */
 	protected function init () {
-		$Config	= Config::instance();
-		$L		= Language::instance();
-		$Page	= Page::instance();
-		$User	= User::instance();
+		$Config		= Config::instance();
+		$L			= Language::instance();
+		$Page		= Page::instance();
+		$User		= User::instance();
 		/**
 		 * Some routing preparations
 		 */
@@ -197,11 +197,11 @@ class Index {
 					if (!is_array($value)) {
 						$item	= $value;
 					}
-					if ($User->get_user_permission($this->permission_group, $item)) {
+					if ($User->get_permission($this->permission_group, $item)) {
 						$this->parts[] = $item;
 						if (isset($rc[0]) && $item == $rc[0] && is_array($value)) {
 							foreach ($value as $subpart) {
-								if ($User->get_user_permission($this->permission_group, "$item/$subpart")) {
+								if ($User->get_permission($this->permission_group, "$item/$subpart")) {
 									$this->subparts[] = $subpart;
 								} elseif (isset($rc[1]) && $rc[1] == $subpart) {
 									error_code(403);
@@ -346,7 +346,7 @@ class Index {
 				$module_data['active'] == 1 &&
 				$module != $Config->core['default_module'] &&
 				$module != 'System' &&
-				$User->get_user_permission($module, 'index') &&
+				$User->get_permission($module, 'index') &&
 				(
 					(
 						file_exists(MODULES."/$module/index.php") && filesize(MODULES."/$module/index.php")
@@ -430,9 +430,9 @@ class Index {
 			$Page->content($this->Content);
 			return;
 		}
-		$this->menu_auto		&& $this->main_menu();
-		$this->submenu_auto		&& $this->main_sub_menu();
-		$this->menumore_auto	&& $this->main_menu_more();
+		$this->main_menu_auto		&& $this->main_menu();
+		$this->main_sub_menu_auto		&& $this->main_sub_menu();
+		$this->main_menu_more_auto	&& $this->main_menu_more();
 		$this->blocks_processing();
 		if ($this->form) {
 			$Page->content(
@@ -473,9 +473,9 @@ class Index {
 								'name'			=> 'edit_settings',
 								'id'			=> 'cancel_settings',
 								'value'			=> 'cancel',
-								'data-title'	=> $this->cancel_button_back ? '' : $L->cancel_info,
+								'data-title'	=> $this->cancel_button_back ? false : $L->cancel_info,
 								'type'			=> $this->cancel_button_back ? 'button' : 'submit',
-								'onClick'		=> $this->cancel_button_back ? 'history.go(-1);' : '',
+								'onClick'		=> $this->cancel_button_back ? 'history.go(-1);' : false,
 								'add'			=> $this->cancel_button_back ? '' : (isset($Config->core['cache_not_saved']) ? '' : $this->cancel_button)
 							]
 						)
@@ -544,7 +544,7 @@ class Index {
 			}
 			if (!$Config->core['cache_compress_js_css']) {
 				$Page->js(
-					'cs.Language = '.Language::instance()->get_json().';',
+					'cs.Language = '._json_encode(Language::instance()).';',
 					'code'
 				);
 			}
@@ -558,7 +558,6 @@ class Index {
 		$Config			= Config::instance();
 		$Page			= Page::instance();
 		$Text			= Text::instance();
-		$User			= User::instance();
 		$blocks_array	= [
 			'top'		=> '',
 			'left'		=> '',
@@ -570,7 +569,7 @@ class Index {
 				!$block['active'] ||
 				($block['expire'] != 0 && $block['expire'] < TIME) ||
 				$block['start'] > TIME ||
-				!($User->get_user_permission('Block', $block['index']))
+				!(User::instance()->get_permission('Block', $block['index']))
 			) {
 				continue;
 			}
@@ -637,7 +636,7 @@ class Index {
 		$Page	= Page::instance();
 		if ($result || ($result === null && Config::instance()->save())) {
 			$this->post_title = $L->changes_saved;
-			$Page->notice($L->changes_saved);
+			$Page->success($L->changes_saved);
 			return true;
 		} else {
 			$this->post_title = $L->changes_save_error;
@@ -657,7 +656,7 @@ class Index {
 		$Page	= Page::instance();
 		if ($result || ($result === null && Config::instance()->apply())) {
 			$this->post_title = $L->changes_applied;
-			$Page->notice($L->changes_applied.$L->check_applied);
+			$Page->success($L->changes_applied.$L->check_applied);
 			return true;
 		} else {
 			$this->post_title = $L->changes_apply_error;
@@ -676,7 +675,7 @@ class Index {
 		}
 		$L					= Language::instance();
 		$this->post_title	= $L->changes_canceled;
-		Page::instance()->notice($L->changes_canceled);
+		Page::instance()->success($L->changes_canceled);
 	}
 	/**
 	 * Executes plugins processing, blocks and module page generation
@@ -716,11 +715,13 @@ class Index {
 			if ($this->title_auto) {
 				$Page->title(Language::instance()->{HOME ? 'home' : MODULE});
 			}
-		} else {
+		} elseif (!defined('ERROR_CODE') && !$this->stop) {
 			$this->init_auto	&& $this->init();
 		}
 		if ($this->generate_auto) {
-			$this->js_vars()->generate();
+			$this
+				->js_vars()
+				->generate();
 		}
 		if ($this->stop) {
 			if (!(
