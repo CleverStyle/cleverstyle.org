@@ -359,29 +359,17 @@ function get_timezones_list () {
 	return $timezones;
 }
 /**
- * Check existence and version of mcrypt
+ * Check existence of mcrypt
  *
- * @param int		$mode	<b>0</b> - existence of library (if exists, current version will be returned)<br>
- * 							<b>1</b> - is version satisfactory
- *
- * @return array
+ * @return bool
  */
-function check_mcrypt ($mode = 0) {
-	static $mcrypt_data;
-	if (!isset($mcrypt_data)) {
-		$mcrypt_version = ob_wrapper(function () {
+function check_mcrypt () {
+	return preg_match(
+		'/mcrypt support<\/th><th>enabled/',
+		ob_wrapper(function () {
 			phpinfo(INFO_MODULES);
-		});
-		preg_match(
-			'#mcrypt support.*?(enabled|disabled)(.|\n)*?Version.?</td><td class="v">(.*?)[\n]?</td></tr>#',
-			$mcrypt_version,
-			$mcrypt_version
-		);
-		$mcrypt_data[0] = isset($mcrypt_version[1]) && $mcrypt_version[1] == 'enabled' ? trim($mcrypt_version[3]) : false;
-		global $mcrypt;
-		$mcrypt_data[1] = isset($mcrypt_version[0]) && $mcrypt_data[0] ? (bool)version_compare($mcrypt_data[0], $mcrypt, '>=') : false;
-	}
-	return $mcrypt_data[$mode];
+		})
+	);
 }
 /**
  * Check existence of zlib library
@@ -728,4 +716,54 @@ function pages_buttons ($page, $total, $url = false) {
  */
 function error_code ($code) {
 	!defined('ERROR_CODE') && define('ERROR_CODE', $code);
+}
+
+/**
+ * Checks whether specified functionality available or not
+ *
+ * @param string|string[]	$functionality	One functionality or array of them
+ *
+ * @return bool								<i>true</i> if all functionality available, <i>false</i> otherwise
+ */
+function functionality ($functionality) {
+	if (is_array($functionality)) {
+		$result	= true;
+		foreach ($functionality as $f) {
+			$result	= $result && functionality($f);
+		}
+		return $result;
+	}
+	$all	= Cache::instance()->get("functionality", function () {
+		$functionality	= [];
+		$components		= Config::instance()->components;
+		foreach ($components['modules'] as $module => $module_data) {
+			if ($module_data['active'] != 1 || !file_exists(MODULES."/$module/meta.json")) {
+				continue;
+			}
+			$meta			= _json_decode(file_get_contents(MODULES."/$module/meta.json"));
+			if (!isset($meta['provide'])) {
+				continue;
+			}
+			$functionality	= array_merge(
+				$functionality,
+				(array)$meta['provide']
+			);
+		}
+		unset($module, $module_data, $meta);
+		foreach ($components['plugins'] as $plugin) {
+			if (!file_exists(PLUGINS."/$plugin/meta.json")) {
+				continue;
+			}
+			$meta			= _json_decode(file_get_contents(PLUGINS."/$plugin/meta.json"));
+			if (!isset($meta['provide'])) {
+				continue;
+			}
+			$functionality	= array_merge(
+				$functionality,
+				(array)$meta['provide']
+			);
+		}
+		return $functionality;
+	});
+	return array_search($functionality, $all) !== false;
 }

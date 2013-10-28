@@ -6,7 +6,7 @@
  * @license		MIT License, see license.txt
  */
 /**
- * Provides next triggers:<br>
+ * Provides next triggers:
  *  System/User/construct/before
  *
  *  System/User/construct/after
@@ -71,12 +71,7 @@ use			cs\Cache\Prefix,
  * @property	int		$last_login		unix timestamp
  * @property	string	$last_ip		hex value, obtained by function ip2hex()
  * @property	int		$last_online	unix timestamp
- * @property	int		$gender			0 - male, 1 - female, -1 - undefined
- * @property	int		$birthday		unix timestamp
  * @property	string	$avatar
- * @property	string	$website
- * @property	string	$skype
- * @property	string	$about
  * @property	string	$user_agent
  * @property	string	$ip
  * @property	string	$forwarded_for
@@ -271,7 +266,7 @@ class User extends Accessor {
 			if ($this->timezone && date_default_timezone_get() != $this->timezone) {
 				date_default_timezone_set($this->timezone);
 			}
-			if ($Config->core['multilingual'] && $this->language) {
+			if ($Config->core['multilingual']) {
 				Language::instance()->change($this->language);
 			}
 			if ($this->theme) {
@@ -1985,11 +1980,7 @@ class User extends Accessor {
 				$data = [];
 				foreach ($data_set as $i => &$val) {
 					if (in_array($i, $this->users_columns) && $i != 'id') {
-						if ($i == 'about') {
-							$val = xap($val, true);
-						} else {
-							$val = xap($val, false);
-						}
+						$val = xap($val, false);
 						$data[] = '`'.$i.'` = '.$this->db_prime()->s($val);
 					} elseif ($i != 'id') {
 						unset($data_set[$i]);
