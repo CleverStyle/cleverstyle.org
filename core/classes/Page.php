@@ -13,8 +13,8 @@ use			h;
  *  System/Page/get_header_info
  *  System/Page/rebuild_cache
  *  ['key'	=> &$key]		//Reference to the key, that will be appended to all css and js files, can be changed to reflect JavaScript and CSS changes
- *  System/Page/external_login_list
- *  ['list'	=> &$list]		//Reference to the list of external login systems
+ *  System/Page/external_sign_in_list
+ *  ['list'	=> &$list]		//Reference to the list of external sign in systems
  *
  * @method static \cs\Page instance($check = false)
  */
@@ -157,37 +157,23 @@ class Page {
 		 * Theme detection
 		 */
 		if (is_object($Config)) {
-			$this->theme		= in_array($this->theme, $Config->core['active_themes']) ? $this->theme : $Config->core['theme'];
-			if ($Config->core['allow_change_theme']) {
-				$theme				= _getcookie('theme');
-				if ($theme && $theme !== $this->theme && in_array($theme, $Config->core['active_themes'])) {
-					$this->theme = $theme;
-				}
-				unset($theme);
-			}
+			$this->theme		= in_array($this->theme, $Config->core['themes']) ? $this->theme : $Config->core['theme'];
 			$this->color_scheme	= in_array($this->color_scheme, $Config->core['color_schemes'][$this->theme]) ?
 									$this->color_scheme : $Config->core['color_schemes'][$this->theme][0];
-			if ($Config->core['allow_change_theme']) {
-				$color_scheme		= _getcookie('color_scheme');
-				if ($color_scheme && $color_scheme !== $this->color_scheme && in_array($color_scheme, $Config->core['color_schemes'][$this->theme])) {
-					$this->color_scheme = $color_scheme;
-				}
-				unset($color_scheme);
-			}
 		}
 		/**
 		 * Base name for cache files
 		 */
-		$this->pcache_basename	= '_'.$this->theme.'_'.$this->color_scheme.'_'.Language::instance()->clang.'.';
+		$this->pcache_basename	= "_{$this->theme}_{$this->color_scheme}_".Language::instance()->clang.'.';
 		/**
 		 * Template loading
 		 */
 		if ($this->interface) {
-			_include_once(THEMES.'/'.$this->theme.'/prepare.php', false);
+			_include_once(THEMES."/$this->theme/prepare.php", false);
 			ob_start();
 			if (
 				!(
-					file_exists(THEMES.'/'.$this->theme.'/index.html') || file_exists(THEMES.'/'.$this->theme.'/index.php')
+					file_exists(THEMES."/$this->theme/index.html") || file_exists(THEMES."/$this->theme/index.php")
 				) ||
 				(
 					!(
@@ -196,7 +182,7 @@ class Page {
 					!User::instance(true)->admin() &&
 					code_header(503) &&
 					!(
-						_include_once(THEMES.'/'.$this->theme.'/closed.php', false) || _include_once(THEMES.'/'.$this->theme.'/closed.html', false)
+						_include_once(THEMES."/$this->theme/closed.php", false) || _include_once(THEMES."/$this->theme/closed.html", false)
 					)
 				)
 			) {
@@ -204,7 +190,7 @@ class Page {
 				h::title(get_core_ml_text('closed_title')).
 				get_core_ml_text('closed_text');
 			} else {
-				_include_once(THEMES.'/'.$this->theme.'/index.php', false) || _include_once(THEMES.'/'.$this->theme.'/index.html');
+				_include_once(THEMES."/$this->theme/index.php", false) || _include_once(THEMES."/$this->theme/index.html");
 			}
 			$this->Html = ob_get_clean();
 		}
@@ -1142,7 +1128,7 @@ class Page {
 		if (!defined('ERROR_CODE')) {
 			error_code(500);
 		}
-		if (!API && ERROR_CODE == 403 && _getcookie('logout')) {
+		if (!API && ERROR_CODE == 403 && _getcookie('sign_out')) {
 			header('Location: '.Config::instance()->base_url(), true, 302);
 			$this->Content	= '';
 			exit;
@@ -1176,7 +1162,7 @@ class Page {
 		exit;
 	}
 	/**
-	 * Substitutes header information about user, login/registration forms, etc.
+	 * Substitutes header information about user, sign in/sign up forms, etc.
 	 *
 	 * @return Page
 	 */
@@ -1188,11 +1174,11 @@ class Page {
 			$this->header_info = h::{'div.cs-header-user-block'}(
 				h::b(
 					"$L->hello, ".$User->username().'! '.
-					h::{'icon.cs-header-logout-process'}(
+					h::{'icon.cs-header-sign-out-process'}(
 						'power-off',
 						[
 							'style'			=> 'cursor: pointer;',
-							'data-title'	=> $L->log_out
+							'data-title'	=> $L->sign_out
 						]
 					)
 				).
@@ -1217,7 +1203,7 @@ class Page {
 		} else {
 			$external_systems_list		= '';
 			Trigger::instance()->run(
-				'System/Page/external_login_list',
+				'System/Page/external_sign_in_list',
 				[
 					'list'	=> &$external_systems_list
 				]
@@ -1225,9 +1211,9 @@ class Page {
 			$this->header_info			= h::{'div.cs-header-guest-form'}(
 				h::b("$L->hello, $L->guest!").
 				h::div(
-					h::{'button.cs-header-login-slide.cs-button-compact.uk-icon-signin'}($L->log_in).
+					h::{'button.cs-header-sign-in-slide.cs-button-compact.uk-icon-signin'}($L->sign_in).
 					h::{'button.cs-header-registration-slide.cs-button-compact.uk-icon-pencil'}(
-						$L->registration,
+						$L->sign_up,
 						[
 							'data-title'	=> $L->quick_registration_form
 						]
@@ -1259,7 +1245,7 @@ class Page {
 					'autocorrect'		=> 'off'
 				]).
 				h::br().
-				h::{'button.cs-header-registration-process.cs-button-compact.uk-icon-pencil[tabindex=2]'}($L->registration).
+				h::{'button.cs-header-registration-process.cs-button-compact.uk-icon-pencil[tabindex=2]'}($L->sign_up).
 				h::{'button.cs-button-compact.cs-header-back[tabindex=4]'}(
 					h::icon('chevron-down'),
 					[
@@ -1270,8 +1256,8 @@ class Page {
 					'style'	=> 'display: none;'
 				]
 			).
-			h::{'div.cs-header-login-form'}(
-				h::{'input.cs-no-ui.cs-header-login-email[tabindex=1]'}([
+			h::{'div.cs-header-sign-in-form'}(
+				h::{'input.cs-no-ui.cs-header-sign-in-email[tabindex=1]'}([
 					'placeholder'		=> $L->login_or_email,
 					'autocapitalize'	=> 'off',
 					'autocorrect'		=> 'off'
@@ -1280,7 +1266,7 @@ class Page {
 					'placeholder'	=> $L->password
 				]).
 				h::br().
-				h::{'button.cs-header-login-process.cs-button-compact.uk-icon-signin[tabindex=3]'}($L->log_in).
+				h::{'button.cs-header-sign-in-process.cs-button-compact.uk-icon-signin[tabindex=3]'}($L->sign_in).
 				h::{'button.cs-button-compact.cs-header-back[tabindex=5]'}(
 					h::icon('chevron-down'),
 					[

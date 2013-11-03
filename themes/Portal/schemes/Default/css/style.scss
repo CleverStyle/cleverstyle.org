@@ -5,8 +5,7 @@
  * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
-@import "../../../css/config";
-@import "../../../css/mixins";
+@import "../../../css/common_config";
 
 body {
 	background-color : $base-background-color;
@@ -49,17 +48,6 @@ h6 {
 	color : $base-color;
 	a {
 		border-bottom-width : .08em;
-	}
-}
-
-.cs-form-element {
-	background : $form-element-background-color;
-	color      : $base-color;
-
-	&:hover,
-	&:focus {
-		background : $form-element-background-color_;
-		color      : $form-element-color;
 	}
 }
 

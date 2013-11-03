@@ -16,7 +16,7 @@
     var auth_list, list_items, login_field;
     auth_list = $('.cs-hybrid-auth-providers-list');
     if (auth_list.length) {
-      login_field = $('.cs-header-login-email');
+      login_field = $('.cs-header-sign-in-email');
       list_items = auth_list.children(':not(:first-child)');
       auth_list.addClass('uk-nav uk-nav-dropdown');
       login_field.wrap('<span/>').parent().append($('<div/>').append(auth_list.detach()).addClass('uk-dropdown uk-dropdown-small')).addClass('uk-button-dropdown').attr('data-uk-dropdown', '');

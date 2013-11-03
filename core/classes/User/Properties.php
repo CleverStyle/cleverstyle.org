@@ -18,14 +18,13 @@ use			cs\User;
  * @property	string	$email
  * @property	string	$email_hash		sha224 hash
  * @property	string	$language
- * @property	string	$theme
  * @property	string	$timezone
  * @property	int		$reg_date		unix timestamp
  * @property	string	$reg_ip			hex value, obtained by function ip2hex()
  * @property	string	$reg_key		random md5 hash, generated during registration
  * @property	int		$status			'-1' - not activated (for example after registration), 0 - inactive, 1 - active
  * @property	int		$block_until	unix timestamp
- * @property	int		$last_login		unix timestamp
+ * @property	int		$last_sign_in	unix timestamp
  * @property	string	$last_ip		hex value, obtained by function ip2hex()
  * @property	int		$last_online	unix timestamp
  * @property	string	$avatar

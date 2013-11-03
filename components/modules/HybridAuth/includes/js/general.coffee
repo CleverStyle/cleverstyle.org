@@ -9,7 +9,7 @@
 $ ->
 	auth_list	= $('.cs-hybrid-auth-providers-list')
 	if auth_list.length
-		login_field	= $('.cs-header-login-email')
+		login_field	= $('.cs-header-sign-in-email')
 		list_items	= auth_list.children(':not(:first-child)')
 		auth_list.addClass('uk-nav uk-nav-dropdown')
 		login_field

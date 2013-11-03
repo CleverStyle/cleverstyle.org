@@ -18,8 +18,9 @@ use			cs\Trigger,
 /**
  * @method static \cs\modules\Blogs\Blogs instance($check = false)
  */
-class Blogs extends Accessor {
-	use Singleton;
+class Blogs {
+	use Accessor,
+		Singleton;
 
 	/**
 	 * @var Prefix
@@ -114,7 +115,7 @@ class Blogs extends Accessor {
 		/**
 		 * @var \cs\modules\Comments\Comments $Comments
 		 */
-		$data['comments_count']	= Config::instance()->module('Blogs')->enable_comments && $Comments ? $Comments->count($data['id']) : 0;
+		$data['comments_count']	= (int)(Config::instance()->module('Blogs')->enable_comments && $Comments ? $Comments->count($data['id']) : 0);
 		return $data;
 	}
 	/**

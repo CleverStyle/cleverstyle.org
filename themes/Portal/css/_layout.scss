@@ -5,8 +5,7 @@
  * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
-@import "config";
-@import "mixins";
+@import "common_config";
 
 html {
 	font       : {
@@ -27,8 +26,6 @@ body {
 	width       : 100%;
 	> {
 		header {
-			@include box-sizing(border-box);
-
 			height  : 10.6rem;
 			padding : .5rem;
 			width   : 100%;
@@ -53,8 +50,6 @@ body {
 
 //Inner body with content
 #cs-body {
-	@include box-sizing(border-box);
-
 	margin-right   : $right-column + 2rem;
 	min-height     : 100%;
 	padding-bottom : $footer-height;
@@ -67,8 +62,6 @@ body {
 }
 //Right blocks
 #cs-right-blocks {
-	@include box-sizing(border-box);
-
 	height         : 100%;
 	overflow-y     : auto;
 	padding-bottom : 10.6rem;
@@ -85,8 +78,6 @@ body {
 //Top, bottom blocks
 #cs-top-blocks,
 #cs-bottom-blocks {
-	@include box-sizing(border-box);
-
 	padding : 1rem;
 }
 

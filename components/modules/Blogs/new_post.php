@@ -14,16 +14,21 @@ use			h,
 			cs\Page,
 			cs\User;
 $Config						= Config::instance();
+$module_data				= $Config->module('Blogs');
 $L							= Language::instance();
 $Page						= Page::instance();
 $User						= User::instance();
 $Page->title($L->new_post);
+if (!$User->admin() && $module_data->new_posts_only_from_admins) {
+	error_code(403);
+	return;
+}
 if (!$User->user()) {
 	if ($User->bot()) {
 		error_code(403);
 		return;
 	} else {
-		$Page->warning($L->for_reistered_users_only);
+		$Page->warning($L->for_registered_users_only);
 		return;
 	}
 }
@@ -56,7 +61,7 @@ if (isset($_POST['title'], $_POST['sections'], $_POST['content'], $_POST['tags']
 				$id		= $Blogs->add($_POST['title'], null, $_POST['content'], $_POST['sections'], _trim(explode(',', $_POST['tags'])), $draft);
 				if ($id) {
 					interface_off();
-					header('Location: '.$Config->base_url().'/'.$module.'/'.$Blogs->get($id)['path'].':'.$id);
+					header('Location: '.$Config->base_url()."/$module/".$Blogs->get($id)['path'].":$id");
 					return;
 				} else {
 					$Page->warning($L->post_adding_error);
@@ -67,22 +72,24 @@ if (isset($_POST['title'], $_POST['sections'], $_POST['content'], $_POST['tags']
 }
 $Index						= Index::instance();
 $Index->form				= true;
-$Index->action				= $module.'/new_post';
+$Index->action				= "$module/new_post";
 $Index->buttons				= false;
 $Index->cancel_button_back	= true;
 $disabled					= [];
-$max_sections				= $Config->module('Blogs')->max_sections;
+$max_sections				= $module_data->max_sections;
+$content					= uniqid('post_content');
+$Page->replace($content, isset($_POST['content']) ? $_POST['content'] : '');
 $Index->content(
 	h::{'p.lead.cs-center'}(
 		$L->new_post
 	).
 	h::{'div.cs-blogs-post-preview-content'}().
-	h::{'table.cs-table-borderless.cs-left-even.cs-right-odd tr| td'}(
+	h::{'table.cs-table-borderless.cs-left-even.cs-right-odd.cs-blogs-post-form tr| td'}(
 		[
 			$L->post_title,
-			h::{'input.cs-blogs-new-post-title[name=title][required]'}([
-				'value'		=> isset($_POST['title']) ? $_POST['title'] : false
-			])
+			h::{'h1.cs-blogs-new-post-title.SIMPLEST_INLINE_EDITOR'}(
+				isset($_POST['title']) ? $_POST['title'] : ''
+			)
 		],
 		[
 			$L->post_section,
@@ -99,8 +106,12 @@ $Index->content(
 		],
 		[
 			$L->post_content,
-			h::{'textarea.cs-blogs-new-post-content.EDITOR[name=content][required]'}(
-				isset($_POST['content']) ? $_POST['content'] : ''
+			(
+				functionality('inline_editor') ? h::{'div.cs-blogs-new-post-content.INLINE_EDITOR'}(
+					$content
+				) : h::{'textarea.cs-blogs-new-post-content.EDITOR[name=content][required]'}(
+					isset($_POST['content']) ? $_POST['content'] : ''
+				)
 			).
 			h::br().
 			$L->post_use_pagebreak

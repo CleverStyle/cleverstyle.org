@@ -28,15 +28,14 @@ use			cs\Cache\Prefix,
  *
  * @method static \cs\Group instance($check = false)
  */
-class Group extends Accessor {
-	use	Singleton,
+class Group {
+	use	Accessor,
+		Singleton,
 		Any;
-
 	/**
 	 * @var Prefix
 	 */
 	protected	$cache;
-
 	/**
 	 * Returns database index
 	 *

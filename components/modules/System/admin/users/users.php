@@ -70,14 +70,14 @@ if (isset($rc[2], $rc[3])) {
 			);
 		break;
 		case 'edit_raw':
-			if ($is_bot || $rc[3] == 1 || $rc[3] == 2) {
+			if ($is_bot || $rc[3] == User::GUEST_ID || $rc[3] == User::ROOT_ID) {
 				break;
 			}
 			$a->apply_button		= false;
 			$a->cancel_button_back	= true;
 			$content				= $content_ = '';
 			$user_data				= $User->get($search_columns, $rc[3]);
-			$last					= count($search_columns)-1;
+			$last					= count($search_columns) - 1;
 			foreach ($search_columns as $i => $column) {
 				$content_ .= h::th($column).
 				h::td(
@@ -126,7 +126,7 @@ if (isset($rc[2], $rc[3])) {
 			$a->apply_button		= false;
 			$a->cancel_button_back	= true;
 			if (!$is_bot) {
-				if ($rc[3] == 1 || $rc[3] == 2) {
+				if ($rc[3] == User::GUEST_ID || $rc[3] == User::ROOT_ID) {
 					break;
 				}
 				$user_data				= $User->get(
@@ -135,13 +135,12 @@ if (isset($rc[2], $rc[3])) {
 						'username',
 						'email',
 						'language',
-						'theme',
 						'timezone',
 						'reg_date',
 						'reg_ip',
 						'status',
 						'block_until',
-						'last_login',
+						'last_sign_in',
 						'last_ip',
 						'last_online',
 						'avatar'
@@ -151,18 +150,6 @@ if (isset($rc[2], $rc[3])) {
 				$timezones				= get_timezones_list();
 				$reg_ip					= hex2ip($user_data['reg_ip'], 10);
 				$last_ip				= hex2ip($user_data['last_ip'], 10);
-				$themes					= [
-					"$L->system_default ({$Config->core['theme']} - {$Config->core['color_scheme']})" => ''
-				];
-				foreach ($Config->core['active_themes'] as $theme) {
-					foreach ($Config->core['color_schemes'][$theme] as $color_scheme) {
-						$themes["$theme - $color_scheme"] = _json_encode([
-							'theme'			=> $theme,
-							'color_scheme'	=> $color_scheme
-						]);
-					}
-				}
-				unset($theme, $color_scheme);
 				$Page->title(
 					$L->editing_of_user_information($User->username($rc[3]))
 				);
@@ -176,7 +163,7 @@ if (isset($rc[2], $rc[3])) {
 						row('id', $rc[3]),
 						row($L->registration_date, $user_data['reg_date'] ? date($L->_date, $user_data['reg_date']) : $L->undefined),
 						row($L->registration_ip, $reg_ip[0] ? $reg_ip[0].($reg_ip[1] ? h::br().$reg_ip[1] : '') : $L->undefined),
-						row($L->last_login, $user_data['last_login'] ? date($L->_datetime, $user_data['last_login']) : $L->undefined),
+						row($L->last_sign_in, $user_data['last_sign_in'] ? date($L->_datetime, $user_data['last_sign_in']) : $L->undefined),
 						row($L->last_ip, $last_ip[0] ? $last_ip[0].($last_ip[1] ? h::br().$last_ip[1] : '') : $L->undefined),
 						row($L->last_online, $user_data['last_online'] ? date($L->_datetime, $user_data['last_online']) : $L->undefined),
 						row($L->login, h::input([
@@ -209,17 +196,6 @@ if (isset($rc[2], $rc[3])) {
 								'size'		=> 5
 							]
 						)),
-						row($L->theme, h::select(
-							[
-								'in'		=> array_keys($themes),
-								'value'		=> array_values($themes)
-							],
-							[
-								'name'		=> 'user[theme]',
-								'selected'	=> $user_data['theme'],
-								'size'		=> 5
-							]
-						)),
 						row($L->timezone, h::select(
 							[
 								'in'		=> array_merge(["$L->system_default ({$Config->core['timezone']})"], array_keys($timezones)),
@@ -234,7 +210,7 @@ if (isset($rc[2], $rc[3])) {
 						row($L->status, h::{'input[type=radio]'}([
 							'name'		=> 'user[status]',
 							'checked'	=> $user_data['status'],
-							'value'		=> [-1, 0, 1],
+							'value'		=> [User::STATUS_NOT_ACTIVATED, User::STATUS_INACTIVE, User::STATUS_ACTIVE],
 							'in'		=> [$L->is_not_activated, $L->inactive, $L->active]
 						])),
 						row(h::info('block_until'), h::{'input[type=datetime-local]'}([
@@ -300,7 +276,7 @@ if (isset($rc[2], $rc[3])) {
 			}
 		break;
 		case 'deactivate':
-			if ($rc[3] == 1 || $rc[3] == 2) {
+			if ($rc[3] == User::GUEST_ID || $rc[3] == User::ROOT_ID) {
 				break;
 			}
 			$a->buttons				= false;
@@ -318,7 +294,7 @@ if (isset($rc[2], $rc[3])) {
 			);
 		break;
 		case 'activate':
-			if ($rc[3] == 1 || $rc[3] == 2) {
+			if ($rc[3] == User::GUEST_ID || $rc[3] == User::ROOT_ID) {
 				break;
 			}
 			$a->buttons				= false;
@@ -336,7 +312,7 @@ if (isset($rc[2], $rc[3])) {
 			);
 		break;
 		case 'permissions':
-			if (!isset($rc[3]) || $rc[3] == 2) {
+			if (!isset($rc[3]) || $rc[3] == User::ROOT_ID) {
 				break;
 			}
 			$a->apply_button		= false;
@@ -410,7 +386,7 @@ if (isset($rc[2], $rc[3])) {
 			);
 		break;
 		case 'groups':
-			if (!isset($rc[3]) || $rc[3] == 2 || $is_bot) {
+			if (!isset($rc[3]) || $rc[3] == User::ROOT_ID || $is_bot) {
 				break;
 			}
 			$a->apply_button		= false;
@@ -439,7 +415,7 @@ if (isset($rc[2], $rc[3])) {
 			}
 			if (is_array($all_groups) && !empty($all_groups)) {
 				foreach ($all_groups as $group) {
-					if ($group['id'] == 3 || in_array($group['id'], $user_groups)) {
+					if ($group['id'] == User::BOT_GROUP_ID || in_array($group['id'], $user_groups)) {
 						continue;
 					}
 					$groups_list	.= h::{'li.uk-button-default'}(
@@ -494,9 +470,9 @@ if (isset($rc[2], $rc[3])) {
 	$columns		= isset($_POST['columns']) && $_POST['columns'] ? explode(';', $_POST['columns']) : [
 		'id', 'login', 'username', 'email'
 	];
-	$limit			= isset($_POST['search_limit'])	? (int)$_POST['search_limit']	: 20;
-	$start			= isset($_POST['search_start'])	? (int)$_POST['search_start']-1	: 0;
-	$search_text	= isset($_POST['search_text'])	? $_POST['search_text']			: '';
+	$limit			= isset($_POST['search_limit'])	? (int)$_POST['search_limit']		: 20;
+	$start			= isset($_POST['search_start'])	? (int)$_POST['search_start'] - 1	: 0;
+	$search_text	= isset($_POST['search_text'])	? $_POST['search_text']				: '';
 	$columns_list	= '';
 	$search_modes	= [
 		'=', '!=', '>', '<', '>=', '<=',
@@ -567,35 +543,41 @@ if (isset($rc[2], $rc[3])) {
 				break;
 		}
 	}
-	$results_count	= $users_db->qfs(
+	$results_count	= $users_db->qfs([
 		"SELECT COUNT(`id`)
 		FROM `[prefix]users`
 		WHERE
 			(
 				$where
 			) AND
-			`status` != '-1'"
-	);
+			`status` != '%s'",
+		User::STATUS_NOT_ACTIVATED
+	]);
 	if ($results_count) {
 		$from		= $start * $limit;
-		$users_ids	= $users_db->qfas(
+		$users_ids	= $users_db->qfas([
 			"SELECT `id`
 			FROM `[prefix]users`
 			WHERE
 				(
 					$where
 				) AND
-				`status` != '-1'
+				`status` != '%s'
 			ORDER BY `id`
-			LIMIT $from, $limit"
-		);
+			LIMIT $from, $limit",
+			User::STATUS_NOT_ACTIVATED
+		]);
 		unset($from);
 	}
 	$users_list				= [];
 	if (isset($users_ids) && is_array($users_ids)) {
 		foreach ($users_ids as $id) {
+			$is_guest		= $id == User::GUEST_ID;
+			$is_root		= $id == User::ROOT_ID;
 			$groups			= (array)$User->get_groups($id);
-			$buttons		= ($id != 1 && $id != 2 && !in_array(3, $groups) ?
+			$is_bot			= in_array(User::BOT_GROUP_ID, $groups);
+			$is_active		= $User->get('status', $id) == User::STATUS_ACTIVE;
+			$buttons		= (!$is_guest && !$is_root && !$is_bot ?
 				h::{'a.cs-button-compact'}(
 					h::icon('pencil'),
 					[
@@ -604,24 +586,25 @@ if (isset($rc[2], $rc[3])) {
 					]
 				) : ''
 			).
-			($id != 1 && $id != 2 && (!in_array(3, $groups) || !$Config->core['simple_admin_mode']) ?
+			(!$is_guest && !$is_root && (!$is_bot || !$Config->core['simple_admin_mode']) ?
 				h::{'a.cs-button-compact'}(
 					h::icon('edit'),
 					[
 						'href'			=> "$a->action/edit/$id",
-						'data-title'	=> $L->{in_array(3, $groups) ? 'edit_bot_information' : 'edit_user_information'}
+						'data-title'	=> $L->{$is_bot ? 'edit_bot_information' : 'edit_user_information'}
 					]
 				) : ''
 			).
-			($id != 1 && $id != 2 ?
+			(!$is_guest && !$is_root ?
 				h::{'a.cs-button-compact'}(
-					h::icon($User->get('status', $id) == 1 ? 'check-minus' : 'check'),
+					h::icon($is_active ? 'check-minus' : 'check'),
 					[
-						'href'			=> "$a->action/".($User->get('status', $id) == 1 ? 'deactivate' : 'activate')."/$id",
-						'data-title'	=> $L->{($User->get('status', $id) == 1 ? 'de' : '').'activate_'.(in_array(3, $groups) ? 'bot' : 'user')}
+						'href'			=> "$a->action/".($is_active ? 'deactivate' : 'activate')."/$id",
+						'data-title'	=> $L->{($is_active ? 'de' : '').'activate_'.($is_bot ? 'bot' : 'user')}
 					]
 				) : ''
-			).($id != 1 && $id != 2 && !in_array(3, $groups) ?
+			).
+			(!$is_guest && !$is_root && !$is_bot ?
 				h::{'a.cs-button-compact'}(
 					h::icon('group'),
 					[
@@ -629,17 +612,18 @@ if (isset($rc[2], $rc[3])) {
 						'data-title'	=> $L->edit_user_groups
 					]
 				) : ''
-			).($id != 2  ?
+			).
+			(!$is_root  ?
 				h::{'a.cs-button-compact'}(
 					h::icon('key'),
 					[
 						'href'			=> "$a->action/permissions/$id",
-						'data-title'	=> $L->{in_array(3, $groups) ? 'edit_bot_permissions' : 'edit_user_permissions'}
+						'data-title'	=> $L->{$is_bot ? 'edit_bot_permissions' : 'edit_user_permissions'}
 					]
 				) : '-'
 			);
 			$user_data		= $User->get($columns, $id);
-			if ($id == 2 && isset($user_data['password_hash'])) {
+			if ($is_root && isset($user_data['password_hash'])) {
 				$user_data['password_hash'] = '*****';
 			}
 			if (isset($user_data['reg_ip'])) {
@@ -658,11 +642,11 @@ if (isset($rc[2], $rc[3])) {
 					$user_data['last_ip'] = $user_data['last_ip'][0];
 				}
 			}
-			if (in_array(1, $groups)) {
+			if (in_array(User::ADMIN_GROUP_ID, $groups)) {
 				$type = h::info('a');
-			} elseif (in_array(2, $groups)) {
+			} elseif (in_array(User::USER_GROUP_ID, $groups)) {
 				$type = h::info('u');
-			} elseif (in_array(3, $groups)) {
+			} elseif ($is_bot) {
 				$type = h::info('b');
 			} else {
 				$type = h::info('g');
@@ -670,7 +654,7 @@ if (isset($rc[2], $rc[3])) {
 			$users_list[]	= array_values([$buttons, $type]+$user_data);
 		}
 	}
-	unset($id, $buttons, $user_data, $users_ids);
+	unset($id, $buttons, $user_data, $users_ids, $is_guest, $is_root, $is_bot);
 	$a->content(
 		h::{'ul.cs-tabs li'}(
 			$L->search,

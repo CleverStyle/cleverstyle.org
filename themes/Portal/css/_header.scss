@@ -5,15 +5,14 @@
  * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
-@import "config";
-@import "mixins";
+@import "common_config";
 
 .cs-header-main-menu {
 	font-size   : 4rem;
 	line-height : 4rem;
 
 	> li {
-		@include transition(padding .3s, color .3s);
+		transition: padding .3s, color .3s;
 
 		display         : block;
 		padding         : .1em 0;
@@ -37,8 +36,6 @@
 }
 //User block container
 .cs-header-user {
-	@include box-sizing(border-box);
-
 	border-radius : .6rem;
 	height        : 9rem;
 	margin-top    : 1rem;
@@ -70,13 +67,17 @@
 		float         : left;
 		margin        : 0 0 .35rem;
 		padding       : .1rem;
-		width         : $right-column - 10.45rem;
+		width         : 100%;
 
 		&:hover,
 		&:focus {
-			background : $form-element-background-color_;
+			background : $form-element-background-color-hover;
 			color      : $form-element-color;
 		}
+	}
+
+	button[class*="uk-icon-"]::before {
+		margin-right: 0.5rem;
 	}
 
 	.actions {
@@ -84,14 +85,14 @@
 	}
 }
 //Login form
-.cs-header-login-slide {
+.cs-header-sign-in-slide {
 	margin-top : .5rem;
 }
-.cs-header-login-form {
+.cs-header-sign-in-form {
 	height   : 7.5rem;
 	position : relative;
 }
-.cs-header-login-process {
+.cs-header-sign-in-process {
 	bottom   : 0;
 	left     : 0;
 	position : absolute !important;
@@ -99,31 +100,31 @@
 }
 //Registration form
 .cs-header-registration-slide {
-	@extend .cs-header-login-slide;
+	@extend .cs-header-sign-in-slide;
 }
 .cs-header-registration-process {
-	@extend .cs-header-login-process;
+	@extend .cs-header-sign-in-process;
 }
 .cs-header-registration-form {
-	@extend .cs-header-login-form;
+	@extend .cs-header-sign-in-form;
 }
 //Password restoration
 .cs-header-restore-password-slide {
-	@extend .cs-header-login-process;
+	@extend .cs-header-sign-in-process;
 
 	left         : auto;
 	margin-right : 16px !important;
 	right        : 3rem;
 }
 .cs-header-restore-password-process {
-	@extend .cs-header-login-process;
+	@extend .cs-header-sign-in-process;
 }
 .cs-header-restore-password-form {
-	@extend .cs-header-login-form;
+	@extend .cs-header-sign-in-form;
 }
 //Back button
 .cs-header-back {
-	@extend .cs-header-login-process;
+	@extend .cs-header-sign-in-process;
 
 	left  : auto;
 	right : 0;

@@ -13,8 +13,12 @@ use			cs\DB\Accessor,
 			cs\Config,
 			cs\Language,
 			cs\Text;
-class Static_pages extends Accessor {
-	use	Singleton;
+/**
+ * @method static \cs\modules\Static_pages\Static_pages instance($check = false)
+ */
+class Static_pages {
+	use	Accessor,
+		Singleton;
 
 	/**
 	 * @var Prefix

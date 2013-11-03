@@ -90,14 +90,14 @@ class Index {
 		$Config		= Config::instance();
 		$User		= User::instance();
 		/**
-		 * If site is closed, user is not admin, and it is not request for log in
+		 * If site is closed, user is not admin, and it is not request for sign in
 		 */
 		if (
 			!$Config->core['site_mode'] &&
 			!(
 				$User->admin() ||
 				(
-					API && $Config->route === ['user', 'login']
+					API && $Config->route === ['user', 'sign_in']
 				)
 			)
 		) {
@@ -689,14 +689,14 @@ class Index {
 		$Config		= Config::instance();
 		$Page		= Page::instance();
 		/**
-		 * If site is closed, user is not admin, and it is not request for log in
+		 * If site is closed, user is not admin, and it is not request for sign in
 		 */
 		if (
 			!$Config->core['site_mode'] &&
 			!(
 				User::instance()->admin() ||
 				(
-					API && $Config->route === ['user', 'login']
+					API && $Config->route === ['user', 'sign_in']
 				)
 			)
 		) {
@@ -727,10 +727,10 @@ class Index {
 			if (!(
 				API &&
 				MODULE == 'System' &&
-				_getcookie('logout') &&
-				$Config->route == ['user', 'logout']
+				_getcookie('sign_out') &&
+				$Config->route == ['user', 'sign_out']
 			)) {
-				_setcookie('logout', '');
+				_setcookie('sign_out', '');
 			}
 			return;
 		}
@@ -739,10 +739,10 @@ class Index {
 		} elseif (!(
 			API &&
 			MODULE == 'System' &&
-			_getcookie('logout') &&
-			$Config->route == ['user', 'logout']
+			_getcookie('sign_out') &&
+			$Config->route == ['user', 'sign_out']
 		)) {
-			_setcookie('logout', '');
+			_setcookie('sign_out', '');
 		}
 		Trigger::instance()->run('System/Index/postload');
 	}

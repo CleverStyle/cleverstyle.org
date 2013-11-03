@@ -1,0 +1,72 @@
+/**
+ * @package		CleverStyle CMS
+ * @subpackage	CleverStyle theme
+ * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
+ * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @license		MIT License, see license.txt
+ */
+@import "common/style";
+@import "layout";
+@import "header";
+
+.uk-button,
+.uk-form input,
+.uk-form select,
+.uk-form textarea {
+	background    : #555 !important;
+	border        : none !important;
+	color         : #eee !important;
+	text-shadow   : none !important;
+
+	&:hover,
+	&:focus,
+	&.uk-active {
+		background : #555 !important;
+		color      : #6EBC00 !important;
+	}
+}
+
+a {
+	transition: color .3s, border .3s;
+
+	&:hover {
+		text-decoration : none;
+	}
+}
+
+p {
+	margin: .5rem 0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+	font-family : $heading-font-family;
+	font-size   : 4rem;
+	font-weight : 300;
+	margin: .2em 0;
+}
+
+h2 {
+	font-size : 3rem;
+}
+
+h3 {
+	font-size : 2.5rem;
+}
+
+h4 {
+	font-size : 2.2rem;
+}
+
+h5 {
+	font-size : 2rem;
+}
+
+h6 {
+	font-size : 2rem;
+}
+
+hr {
+	border           : 0;
+	background-color : #9e9e9e;
+	height           : 1px;
+}
