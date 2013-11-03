@@ -12,7 +12,7 @@
 	line-height : 4rem;
 
 	> li {
-		transition: padding .3s, color .3s;
+		transition      : padding .3s, color .3s;
 
 		display         : block;
 		padding         : .1em 0;
@@ -62,10 +62,12 @@
 	[type=email],
 	[type=password] {
 		background    : $form-element-background-color;
+		border        : none;
 		border-radius : 4px;
 		color         : $base-color;
 		float         : left;
 		margin        : 0 0 .35rem;
+		outline       : none;
 		padding       : .1rem;
 		width         : 100%;
 
@@ -77,7 +79,7 @@
 	}
 
 	button[class*="uk-icon-"]::before {
-		margin-right: 0.5rem;
+		margin-right : 0.5rem;
 	}
 
 	.actions {
