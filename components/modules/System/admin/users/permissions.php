@@ -4,7 +4,7 @@
  * @subpackage	System module
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs;
@@ -123,30 +123,25 @@ if (isset($rc[2])) {
 			++$count;
 			$permissions_list[] = h::{'td.cs-left-all'}([
 				h::{'a.cs-button-compact'}(
-					h::icon('edit'),
+					h::icon('pencil'),
 					[
 						'href'			=> "$a->action/edit/$id",
 						'data-title'	=> $L->edit
 					]
 				).
 				h::{'a.cs-button-compact'}(
-					h::icon('trash'),
+					h::icon('trash-o'),
 					[
 						'href'			=> "$a->action/delete/$id",
 						'data-title'	=> $L->delete
 					]
 				),
 				$id,
-				h::span(
-					$group,
-					[
-						'data-title'	=> $L->{"permissions_group_$group"}
-					]
-				),
+				h::span($group),
 				h::span(
 					$label,
 					[
-						'data-title'	=> $group != 'Block' ? $L->{"permission_label_$label"} : $blocks[$label]
+						'data-title'	=> $group == 'Block' ? Text::instance()->process($Config->module('System')->db('texts'), $blocks[$label]) : false
 					]
 				)
 			]);

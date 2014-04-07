@@ -3,7 +3,7 @@
 /**
  * @package		UIkit Helper
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2013-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
 */
 
@@ -107,11 +107,11 @@
               return li.wrapInner('<a />');
             }
           }).first().addClass('uk-active');
-          $this.data("tab", new UI.tab($this, {
+          $this.data('tab', new UI.tab($this, {
             connect: content
           }));
           content.addClass('uk-switcher uk-margin').children(':first').addClass('uk-active');
-          return content.data("switcher", new UI.switcher(content));
+          return content.data('switcher', new UI.switcher(content));
         });
       },
       /**
@@ -121,11 +121,9 @@
       */
 
       tooltip: function() {
-        var UI;
         if (!this.length) {
           return this;
         }
-        UI = $.UIkit;
         return this.each(function() {
           var $this, pos;
           $this = $(this);
@@ -133,11 +131,11 @@
             $this.attr('title', $this.data('title')).attr('data-title', '');
           }
           pos = $this.data('pos');
-          return $this.data('tooltip', new UI.tooltip($this, UI.Utils.options({
+          return $this.attr('data-uk-tooltip', cs.json_encode({
             pos: pos ? pos : 'top',
             animation: true,
             delay: 200
-          })));
+          }));
         });
       },
       /**
@@ -158,7 +156,6 @@
           var $this, content, modal;
           $this = $(this);
           if (!$this.data('modal')) {
-            $this.addClass('uk-modal').data('modal', new UI.modal.Modal($this));
             content = $this.children();
             if (!content.length) {
               content = $this.wrapInner('<div />').children();
@@ -173,6 +170,7 @@
             if (content.attr('title')) {
               $('<h3 />').html(content.attr('title')).prependTo(content);
             }
+            $this.addClass('uk-modal').data('modal', new UI.modal.Modal($this));
           }
           modal = $this.data('modal');
           switch (mode) {
@@ -209,6 +207,27 @@
         })(method);
       }
       return public_helpers;
+    };
+    return $.cs = {
+      /**
+      		 * Simple wrapper around $(...).cs().modal() with inner form
+      		 *
+      		 * All content will be inserted into modal form, optionally it is possible to add close button and set width
+      		 *
+      		 * @return jQuery Root modal element, it is possible to use .cs().modal() on it and listen for events
+      */
+
+      simple_modal: function(content, close, width) {
+        var style;
+        if (close == null) {
+          close = false;
+        }
+        style = width ? ' style="width:' + width + 'px; margin-left:-' + (width / 2) + 'px"' : '';
+        close = close ? "<a class=\"uk-modal-close uk-close\"></a>" : '';
+        return $("<div>\n	<div class=\"uk-form\"" + style + ">\n		" + close + "\n		" + content + "\n	</div>\n</div>").appendTo('body').cs().modal('show').on('uk.modal.hide', function() {
+          return $(this).remove();
+        });
+      }
     };
   })(jQuery);
 

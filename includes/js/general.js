@@ -3,7 +3,7 @@
 /**
  * @package		CleverStyle CMS
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
 */
 
@@ -12,6 +12,8 @@
   var __hasProp = {}.hasOwnProperty;
 
   $(function() {
+    var L;
+    L = cs.Language;
     cs.async_call([
       function() {
         window.session_id = cs.getcookie('session');
@@ -19,11 +21,17 @@
           type: 'post',
           data: {
             session: session_id
+          },
+          error: function(xhr) {
+            if (xhr.responseText) {
+              return alert(cs.json_decode(xhr.responseText).error_description);
+            } else {
+              return alert(L.connection_error);
+            }
           }
         });
       }, function() {
-        var L, key, translation;
-        L = cs.Language;
+        var key, translation;
         for (key in L) {
           if (!__hasProp.call(L, key)) continue;
           translation = L[key];
@@ -55,15 +63,13 @@
       }, function() {
         return $(':button:not(.cs-no-ui), .cs-button, .cs-button-compact').addClass('uk-button').disableSelection();
       }, function() {
-        return $('.cs-dialog').cs().modal();
-      }, function() {
         return $('textarea:not(.cs-no-ui)').not('.cs-no-resize, .EDITOR, .SIMPLE_EDITOR').autosize({
           append: "\n"
         });
       }, function() {
         return $('.SIMPLEST_INLINE_EDITOR').prop('contenteditable', true);
       }, function() {
-        return $('.cs-info').cs().tooltip();
+        return $('[data-title]').cs().tooltip();
       }, function() {
         return $('.cs-tabs').cs().tabs();
       }, function() {
@@ -82,18 +88,14 @@
           $('.cs-header-restore-password-form').show('medium');
           return $('.cs-header-restore-password-email').focus();
         });
-        $('.cs-header-sign-in-email, .cs-header-user-password').keyup(function(event) {
-          if (event.which === 13) {
-            return $('.cs-header-sign-in-process').click();
-          }
-        });
         $('.cs-header-registration-email').keyup(function(event) {
           if (event.which === 13) {
             return $('.cs-header-registration-process').click();
           }
         });
-        $('.cs-header-sign-in-process').click(function() {
-          return cs.sign_in($('.cs-header-sign-in-email').val(), $('.cs-header-user-password').val());
+        $('.cs-header-sign-in-form').submit(function() {
+          cs.sign_in($('.cs-header-sign-in-email').val(), $('.cs-header-user-password').val());
+          return false;
         });
         $('.cs-header-sign-out-process').click(function() {
           return cs.sign_out();
@@ -104,10 +106,10 @@
           pass_input = $this.parent().next().children('input');
           if (pass_input.prop('type') === 'password') {
             pass_input.prop('type', 'text');
-            return $this.addClass('uk-icon-unlock').removeClass('uk-icon-lock');
+            return $this.addClass('uk-icon-unlock-alt').removeClass('uk-icon-lock');
           } else {
             pass_input.prop('type', 'password');
-            return $this.addClass('uk-icon-lock').removeClass('uk-icon-unlock');
+            return $this.addClass('uk-icon-lock').removeClass('uk-icon-unlock-alt');
           }
         });
         $('#current_password').click(function() {
@@ -116,10 +118,10 @@
           password = $('.cs-profile-current-password');
           if (password.prop('type') === 'password') {
             password.prop('type', 'text');
-            return $this.addClass('uk-icon-unlock').removeClass('uk-icon-lock');
+            return $this.addClass('uk-icon-unlock-alt').removeClass('uk-icon-lock');
           } else {
             password.prop('type', 'password');
-            return $this.addClass('uk-icon-lock').removeClass('uk-icon-unlock');
+            return $this.addClass('uk-icon-lock').removeClass('uk-icon-unlock-alt');
           }
         });
         $('#new_password').click(function() {
@@ -128,15 +130,14 @@
           password = $('.cs-profile-new-password');
           if (password.prop('type') === 'password') {
             password.prop('type', 'text');
-            return $this.addClass('uk-icon-unlock').removeClass('uk-icon-lock');
+            return $this.addClass('uk-icon-unlock-alt').removeClass('uk-icon-lock');
           } else {
             password.prop('type', 'password');
-            return $this.addClass('uk-icon-lock').removeClass('uk-icon-unlock');
+            return $this.addClass('uk-icon-lock').removeClass('uk-icon-unlock-alt');
           }
         });
         $('.cs-header-registration-process').click(function() {
-          var L, modal;
-          L = cs.Language;
+          var modal;
           if (!cs.rules_text) {
             cs.registration($('.cs-header-registration-email').val());
             return;

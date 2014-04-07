@@ -2,7 +2,7 @@
  * @package		CleverStyle CMS
  * @subpackage	CleverStyle theme
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 @import "../common_config";
@@ -50,7 +50,7 @@ a {
 button, input, select, textarea {
 	color     : inherit;
 	font-size : 100%;
-	margin    : 0 0 1px;
+	margin    : 0;
 }
 
 .cs-table-borderless {
@@ -60,11 +60,6 @@ button, input, select, textarea {
 
 .cs-button-compact {
 	padding : .2em .3em !important;
-}
-
-.cs-dialog {
-	display    : none;
-	text-align : left;
 }
 
 @include cs-align(left);

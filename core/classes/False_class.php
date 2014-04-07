@@ -2,7 +2,7 @@
 /**
  * @package		CleverStyle CMS
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs;
@@ -16,6 +16,8 @@ use			ArrayAccess,
  * Access to anything of this class instance will be casted to boolean <i>false</i>
  *
  * Inherits SimpleXMLElement in order to be casted from object to boolean as <i>false</i>
+ *
+ * @property string	$error
  */
 class False_class extends SimpleXMLElement implements ArrayAccess {
 	/**

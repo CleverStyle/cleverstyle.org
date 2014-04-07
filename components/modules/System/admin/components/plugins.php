@@ -4,7 +4,7 @@
  * @subpackage	System module
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs\modules\System;
@@ -55,14 +55,14 @@ if (isset($rc[2], $rc[3]) && !empty($rc[2]) && !empty($rc[3])) {
 					break;
 				}
 				$rc[3]		= $plugin;
-				if (!file_exists("$tmp_dir/meta.json") || _json_decode(file_get_contents("$tmp_dir/meta.json"))['category'] != 'plugins') {
+				if (!file_exists("$tmp_dir/meta.json") || file_get_json("$tmp_dir/meta.json")['category'] != 'plugins') {
 					$Page->warning($L->this_is_not_plugin_installer_file);
 					unlink($tmp_file);
 					break;
 				}
 				if (in_array($plugin, $Config->components['plugins'])) {
-					$current_version		= _json_decode(file_get_contents(PLUGINS."/$plugin/meta.json"))['version'];
-					$new_version			= _json_decode(file_get_contents("$tmp_dir/meta.json"))['version'];
+					$current_version		= file_get_json(PLUGINS."/$plugin/meta.json")['version'];
+					$new_version			= file_get_json("$tmp_dir/meta.json")['version'];
 					if (!version_compare($current_version, $new_version, '<')) {
 						$Page->warning($L->update_plugin_impossible_older_version($plugin));
 						unlink($tmp_file);
@@ -104,7 +104,7 @@ if (isset($rc[2], $rc[3]) && !empty($rc[2]) && !empty($rc[3])) {
 					unlink($tmp_file);
 					break;
 				}
-				$fs				= _json_decode(file_get_contents("$tmp_dir/fs.json"));
+				$fs				= file_get_json("$tmp_dir/fs.json");
 				$extract		= array_product(
 					array_map(
 						function ($index, $file) use ($tmp_dir, $plugin) {
@@ -120,7 +120,7 @@ if (isset($rc[2], $rc[3]) && !empty($rc[2]) && !empty($rc[3])) {
 						array_keys($fs)
 					)
 				);
-				file_put_contents(PLUGINS."/$plugin/fs.json", _json_encode(array_keys($fs)));
+				file_put_json(PLUGINS."/$plugin/fs.json", array_keys($fs));
 				unset($tmp_dir);
 				if (!$extract) {
 					$Page->warning($L->plugin_files_unpacking_error);
@@ -166,7 +166,7 @@ if (isset($rc[2], $rc[3]) && !empty($rc[2]) && !empty($rc[3])) {
 					break;
 				}
 				if (file_exists(PLUGINS."/$rc[3]/meta.json")) {
-					$meta	= _json_decode(file_get_contents(PLUGINS."/$rc[3]/meta.json"));
+					$meta	= file_get_json(PLUGINS."/$rc[3]/meta.json");
 					if (isset($meta['optional'])) {
 						$Page->success(
 							$L->for_complete_feature_set(
@@ -245,9 +245,9 @@ if (!empty($plugins)) {
 				$tag = 'div';
 			}
 			$uniqid			= uniqid('module_info_');
-			$Page->replace($uniqid, $tag == 'pre' ? filter(file_get_contents($file)) : file_get_contents($file));
-			$addition_state .= h::{'div.cs-dialog'}(
-				h::$tag($uniqid),
+			$Page->replace($uniqid, $tag == 'pre' ? prepare_attr_value(file_get_contents($file)) : file_get_contents($file));
+			$addition_state .= h::{'div.uk-modal.cs-left'}(
+				h::{"$tag.uk-modal-dialog-large"}($uniqid),
 				[
 					'id'			=> "{$plugin}_readme",
 					'title'			=> "$plugin -> $L->information_about_plugin"
@@ -272,8 +272,8 @@ if (!empty($plugins)) {
 			} else {
 				$tag = 'div';
 			}
-			$addition_state .= h::{'div.cs-dialog'}(
-				h::$tag($tag == 'pre' ? filter(file_get_contents($file)) : file_get_contents($file)),
+			$addition_state .= h::{'div.uk-modal.cs-left'}(
+				h::{"$tag.uk-modal-dialog-large"}($tag == 'pre' ? prepare_attr_value(file_get_contents($file)) : file_get_contents($file)),
 				[
 					'id'			=> "{$plugin}_license",
 					'title'			=> "$plugin -> $L->license"
@@ -290,7 +290,7 @@ if (!empty($plugins)) {
 		unset($tag, $file);
 		$state = in_array($plugin, $Config->components['plugins']);
 		$action .= h::{'a.cs-button-compact'}(
-			h::icon($state ? 'check-minus' : 'check'),
+			h::icon($state ? 'minus' : 'check'),
 			[
 				'href'			=> $a->action.($state ? '/disable/' : '/enable/').$plugin,
 				'data-title'	=> $state ? $L->disable : $L->enable
@@ -298,7 +298,7 @@ if (!empty($plugins)) {
 		);
 		$plugin_info	= false;
 		if (file_exists(PLUGINS."/$plugin/meta.json")) {
-			$plugin_meta	= _json_decode(file_get_contents(PLUGINS."/$plugin/meta.json"));
+			$plugin_meta	= file_get_json(PLUGINS."/$plugin/meta.json");
 			$plugin_info	= $L->plugin_info(
 				$plugin_meta['package'],
 				$plugin_meta['version'],
@@ -318,13 +318,13 @@ if (!empty($plugins)) {
 		unset($plugin_meta);
 		$plugins_list[]	= [
 			h::span(
-				$plugin,
+				$L->$plugin,
 				[
 					'data-title'	=> $plugin_info
 				]
 			),
 			h::icon(
-				$state ? 'ok' : 'minus',
+				$state ? 'check' : 'minus',
 				[
 					'data-title'	=> $state ? $L->enabled : $L->disabled
 				]
@@ -350,7 +350,7 @@ $a->content(
 			'style'	=> 'position: relative;'
 		]).
 		h::{'button[type=submit]'}(
-			$L->upload_and_install_update_plugin,
+			h::icon('upload').$L->upload_and_install_update_plugin,
 			[
 				'formaction'	=>  "$a->action/enable/upload"
 			]

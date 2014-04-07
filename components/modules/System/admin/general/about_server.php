@@ -4,28 +4,34 @@
  * @subpackage	System module
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs\modules\System\general\about_server;
 use			h,
-			cs\Config,
 			cs\Core,
 			cs\DB,
 			cs\Index,
 			cs\Language;
-$Config			= Config::instance();
 $Core			= Core::instance();
 $Index			= Index::instance();
 $L				= Language::instance();
-if (isset($Config->route[2]) && $Config->route[2] == 'phpinfo') {
+if (isset($Index->route_path[2])) {
 	interface_off();
-	ob_start();
-	phpinfo();
-	$Index->content(ob_get_clean());
+	$Index->form	= false;
+	switch ($Index->route_path[2]) {
+		case 'phpinfo':
+			$Index->Content	= ob_wrapper(function () {
+				phpinfo();
+			});
+		break;
+		case 'readme.html':
+			$Index->Content	= file_get_contents(DIR.'/readme.html');
+	}
 	$Index->stop;
 	return;
 }
+$hhvm_version	= defined('HHVM_VERSION') ? HHVM_VERSION : false;
 $Index->form	= false;
 $Index->content(
 	h::{'table.cs-table-borderless.cs-left-even.cs-right-odd tr| td'}(
@@ -39,10 +45,10 @@ $Index->content(
 			h::{'a.cs-button[target=_blank]'}(
 				$L->information_about_system,
 				[
-				'href'	=> 'readme.html'
+					'href'	=> "$Index->action/readme.html"
 				]
 			).
-			h::{'div#cs-system-license.cs-dialog pre'}(
+			h::{'div#cs-system-license.uk-modal pre.uk-modal-dialog-large'}(
 				file_get_contents(DIR.'/license.txt'),
 				[
 					'title'			=> "$L->system » $L->license"
@@ -72,9 +78,13 @@ $Index->content(
 		] : false,
 		preg_match('/nginx/i', $_SERVER['SERVER_SOFTWARE']) ? [
 			$L->version_of('Nginx').':',
-			$_SERVER['SERVER_SOFTWARE']
+			explode('/', $_SERVER['SERVER_SOFTWARE'])[1]
 		] : false,
-		[
+		$hhvm_version ? [
+			$L->version_of('HHVM').':',
+			$hhvm_version
+		] : false,
+		$hhvm_version ? false : [
 			"$L->available_ram:",
 			str_replace(
 				['K', 'M', 'G'],
@@ -187,35 +197,35 @@ $Index->content(
 						]
 					]
 				],
-				[
+				$hhvm_version ? false : [
 					"$L->max_file_uploads:",
 					ini_get('max_file_uploads')
 				],
 				[
 					"$L->upload_limit:",
-					str_replace(
+					format_filesize(str_replace(
 						['K', 'M', 'G'],
 						[" $L->KB", " $L->MB", " $L->GB"],
 						ini_get('upload_max_filesize')
-					)
+					))
 				],
 				[
 					"$L->post_max_size:",
-					str_replace(
+					format_filesize(str_replace(
 						['K', 'M', 'G'],
 						[" $L->KB", " $L->MB", " $L->GB"],
 						ini_get('post_max_size')
-					)
+					))
 				],
-				[
+				$hhvm_version ? false : [
 					"$L->max_execution_time:",
 					format_time(ini_get('max_execution_time'))
 				],
-				[
+				$hhvm_version ? false : [
 					"$L->max_input_time:",
 					format_time(ini_get('max_input_time'))
 				],
-				[
+				$hhvm_version ? false : [
 					"$L->default_socket_timeout:",
 					format_time(ini_get('default_socket_timeout'))
 				],
@@ -250,12 +260,15 @@ function state ($state) {
  * @return string
  */
 function server_api () {
-	$tmp = ob_wrapper(function () {
-		phpinfo(INFO_GENERAL);
+	$phpinfo = ob_wrapper(function () {
+		phpinfo();
 	});
-	preg_match('/Server API <\/td><td class="v">(.*?) <\/td><\/tr>/', $tmp, $tmp);
-	if ($tmp[1]) {
-		return $tmp[1];
+	if (preg_match('/apache/i', $_SERVER['SERVER_SOFTWARE'])) {
+		return 'Apache'.(preg_match('/mod_php/i', $phpinfo) ? ' + mod_php' : '');
+	} elseif (preg_match('/nginx/i', $_SERVER['SERVER_SOFTWARE'])) {
+		return 'Nginx'.(preg_match('/php-fpm/i', $phpinfo) ? ' + PHP-FPM' : '');
+	} elseif (defined('HHVM_VERSION')) {
+		return 'HipHop Virtual Machine';
 	} else {
 		return Language::instance()->indefinite;
 	}

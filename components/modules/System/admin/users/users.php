@@ -4,7 +4,7 @@
  * @subpackage	System module
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs\modules\System\users\users;
@@ -328,7 +328,7 @@ if (isset($rc[2], $rc[3])) {
 			unset($block);
 			foreach ($permissions as $group => $list) {
 				$tabs[]		= h::a(
-					$L->{"permissions_group_$group"},
+					$group,
 					[
 						'href'	=> '#permissions_group_'.strtr($group, '/', '_')
 					]
@@ -336,7 +336,7 @@ if (isset($rc[2], $rc[3])) {
 				$content	= [];
 				foreach($list as $label => $id) {
 					$content[] = h::th(
-						$group != 'Block' ? $L->{"permission_label_$label"} : Text::instance()->process($Config->module('System')->db('texts'), $blocks[$label])
+						$group != 'Block' ? $label : Text::instance()->process($Config->module('System')->db('texts'), $blocks[$label])
 					).
 					h::{'td input[type=radio]'}([
 						'name'			=> "permission[$id]",
@@ -588,7 +588,7 @@ if (isset($rc[2], $rc[3])) {
 			).
 			(!$is_guest && !$is_root && (!$is_bot || !$Config->core['simple_admin_mode']) ?
 				h::{'a.cs-button-compact'}(
-					h::icon('edit'),
+					h::icon('pencil-square-o'),
 					[
 						'href'			=> "$a->action/edit/$id",
 						'data-title'	=> $L->{$is_bot ? 'edit_bot_information' : 'edit_user_information'}
@@ -597,7 +597,7 @@ if (isset($rc[2], $rc[3])) {
 			).
 			(!$is_guest && !$is_root ?
 				h::{'a.cs-button-compact'}(
-					h::icon($is_active ? 'check-minus' : 'check'),
+					h::icon($is_active ? 'minus' : 'check'),
 					[
 						'href'			=> "$a->action/".($is_active ? 'deactivate' : 'activate')."/$id",
 						'data-title'	=> $L->{($is_active ? 'de' : '').'activate_'.($is_bot ? 'bot' : 'user')}

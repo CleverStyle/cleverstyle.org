@@ -2,7 +2,7 @@
 /**
  * @package		CleverStyle CMS
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs;
@@ -10,8 +10,6 @@ use			h;
 /**
  * Core class.
  * Provides loading of base system configuration, API requests sending
- *
- * @method static \cs\Core instance($check = false)
  */
 class Core {
 	use Singleton;
@@ -23,12 +21,24 @@ class Core {
 	 */
 	protected function construct () {
 		if (!file_exists(CONFIG.'/main.json')) {
-			code_header(404);
+			error_code(500);
+			Page::instance()->error(
+				h::p('Config file not found, is system installed properly?').
+				h::a(
+					'How to install CleverStyle CMS',
+					[
+						'href'	=> 'https://github.com/nazar-pc/CleverStyle-CMS/wiki/Installation'
+					]
+				)
+			);
 			exit;
 		}
-		$this->config	= _json_decode_nocomments(file_get_contents(CONFIG.'/main.json'));
-		if (file_exists(CACHE.'/languages/clangs')) {
-			$clangs			= _json_decode(file_get_contents(CACHE.'/languages/clangs'));
+		$this->config	= file_get_json_nocomments(CONFIG.'/main.json');
+		_include_once(CONFIG.'/main.php', false);
+		defined('DEBUG') || define('DEBUG', false);
+		define('DOMAIN', $this->config['domain']);
+		date_default_timezone_set($this->config['timezone']);
+		if ($clangs = Cache::instance()->{'languages/clangs'}) {
 			if (is_array($clangs) && !empty($clangs)) {
 				$clang	= explode('/', trim($_SERVER['REQUEST_URI'], '/'), 2)[0];
 				if (in_array($clang, $clangs)) {
@@ -37,12 +47,8 @@ class Core {
 				}
 				unset($clang);
 			}
-			unset($clangs);
 		}
-		_include_once(CONFIG.'/main.php', false);
-		defined('DEBUG') || define('DEBUG', false);
-		define('DOMAIN', $this->config['domain']);
-		date_default_timezone_set($this->config['timezone']);
+		unset($clangs);
 		if (!is_dir(STORAGE)) {
 			@mkdir(STORAGE, 0755);
 			file_put_contents(
@@ -57,8 +63,19 @@ class Core {
 			@mkdir(PCACHE, 0755);
 			file_put_contents(
 				PCACHE.'/.htaccess',
-				"Allow From All\r\nAddEncoding gzip .js\n".
-				"AddEncoding gzip .css"
+				'<FilesMatch "\.(css|js)$">
+	Allow From All
+</FilesMatch>
+<ifModule mod_expires.c>
+	ExpiresActive On
+	ExpiresDefault "access plus 1 month"
+</ifModule>
+<ifModule mod_headers.c>
+	Header set Cache-Control "max-age=2592000, public"
+</ifModule>
+AddEncoding gzip .js
+AddEncoding gzip .css
+'
 			);
 		}
 		if (!is_dir(LOGS)) {

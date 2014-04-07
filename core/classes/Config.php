@@ -2,7 +2,7 @@
 /**
  * @package		CleverStyle CMS
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace cs;
@@ -13,8 +13,6 @@ namespace cs;
  *
  *  System/Config/routing_replace
  *  ['rc'	=> <i>&$rc</i>]		//Reference to string with current route, this string can be changed
- *
- * @method static \cs\Config instance($check = false)
  */
 class Config {
 	use	Singleton;
@@ -37,7 +35,7 @@ class Config {
 					'server'		=> [						//Array of some address data about mirrors and current address properties
 						'raw_relative_address'		=> '',		//Raw page url (in browser's address bar)
 						'host'						=> '',		//Current domain
-						'relative_address'			=> '',		//Corrected full page address (recommended for usage)
+						'relative_address'			=> '',		//Corrected page address (recommended for usage)
 						'protocol'					=> '',		//Page protocol (http/https)
 						'base_url'					=> '',		//Address of the main page of current mirror, including prefix (http/https)
 						'mirrors'					=> [		//Array of all domains, which allowed to access the site
@@ -52,7 +50,7 @@ class Config {
 							'local'		=> false
 						],
 						'ajax'						=> false,	//Is this page request via AJAX
-						'mirror_index'				=> -1		//Index of current domain in mirrors list ('-1' - main domain, not mirror)
+						'mirror_index'				=> 0		//Index of current domain in mirrors list ('0' - main domain)
 					],
 					'can_be_admin'		=> true					//Allows to check ability to be admin user (can be limited by IP)
 				],
@@ -112,8 +110,6 @@ class Config {
 		$Page	= Page::instance();
 		$Page->init(
 			get_core_ml_text('name'),
-			get_core_ml_text('keywords'),
-			get_core_ml_text('description'),
 			$this->core['theme'],
 			$this->core['color_scheme']
 		);
@@ -172,74 +168,41 @@ class Config {
 		$server['raw_relative_address']	= null_byte_filter($server['raw_relative_address']);
 		$server['host']					= $_SERVER['HTTP_HOST'];
 		$server['protocol']				= isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on' ? 'https' : 'http';
-		$core_url						= explode('://', $this->core['url'], 2);
-		$core_url[1]					= explode(';', $core_url[1]);
-		/**
-		 * $core_url = [0 => protocol, 1 => [list of domain and IP addresses]]
-		 * Check, whether it is main domain
-		 */
-		$current_mirror	= false;
-		if ($core_url[0] == $server['protocol']) {
-			foreach ($core_url[1] as $url) {
-				if (mb_strpos($server['raw_relative_address'], $url) === 0) {
-					$server['base_url']	= "$server[protocol]://$url";
-					$current_mirror		= $url;
-					break;
-				}
-			}
-		}
-		$server['mirrors'][$core_url[0]] = array_merge($server['mirrors'][$core_url[0]], $core_url[1]);
-		unset($core_url, $url);
 		/**
 		 * If it  is not the main domain - try to find match in mirrors
 		 */
-		if ($current_mirror === false && !empty($this->core['mirrors_url'])) {
-			$mirrors_url = $this->core['mirrors_url'];
-			foreach ($mirrors_url as $i => $mirror_url) {
-				$mirror_url		= explode('://', $mirror_url, 2);
-				$mirror_url[1]	= explode(';', $mirror_url[1]);
-				/**
-				 * $mirror_url = [0 => protocol, 1 => [list of domain and IP addresses]]
-				 */
-				if ($mirror_url[0] == $server['protocol']) {
-					foreach ($mirror_url[1] as $url) {
-						if (mb_strpos($server['raw_relative_address'], $url) === 0) {
-							$server['base_url']		= "$server[protocol]://$url";
-							$current_mirror			= $url;
-							$server['mirror_index']	= $i;
-							break 2;
-						}
+		foreach ((array)$this->core['url'] as $i => $address) {
+			list($protocol, $urls)			= explode('://', $address, 2);
+			$urls							= explode(';', $urls);
+			$server['mirrors'][$protocol]	= array_merge(
+				isset($server['mirrors'][$protocol]) ? $server['mirrors'][$protocol] : [],
+				[$urls[0]]
+			);
+			/**
+			 * $url = [0 => protocol, 1 => [list of domain and IP addresses]]
+			 */
+			if ($protocol == $server['protocol']) {
+				foreach ($urls as $url) {
+					if (mb_strpos($server['raw_relative_address'], $url) === 0) {
+						$server['base_url']			= "$server[protocol]://$url";
+						$current_mirror_base_url	= $url;
+						$server['mirror_index']		= $i;
+						break 2;
 					}
 				}
+				unset($url);
 			}
-			unset($mirrors_url, $mirror_url, $url, $i);
-			/**
-			 * If match in mirrors was not found - mirror is not allowed!
-			 */
-			if ($server['mirror_index'] == -1) {
-				$server['base_url'] = '';
-				code_header(400);
-				trigger_error($L->mirror_not_allowed, E_USER_ERROR);
-			}
+		}
+		unset($address, $i, $urls, $protocol);
+		$server['mirrors']['count'] = count($server['mirrors']['http']) + count($server['mirrors']['https']);
 		/**
 		 * If match was not found - mirror is not allowed!
 		 */
-		} elseif ($current_mirror === false) {
+		if (!isset($current_mirror_base_url)) {
 			$server['base_url'] = '';
 			code_header(400);
 			trigger_error($L->mirror_not_allowed, E_USER_ERROR);
-		}
-		if (!empty($this->core['mirrors_url'])) {
-			$mirrors_url = $this->core['mirrors_url'];
-			foreach ($mirrors_url as $mirror_url) {
-				$mirror_url							= explode('://', $mirror_url, 2);
-				$server['mirrors'][$mirror_url[0]]	= array_merge(
-					isset($server['mirrors'][$mirror_url[0]]) ? $server['mirrors'][$mirror_url[0]] : [],
-					isset($mirror_url[1]) ? explode(';', $mirror_url[1]) : []
-				);
-			}
-			$server['mirrors']['count'] = count($server['mirrors']['http']) + count($server['mirrors']['https']);
-			unset($mirrors_url, $mirror_url);
+			exit;
 		}
 		/**
 		 * Referer detection
@@ -258,92 +221,110 @@ class Config {
 		/**
 		 * Preparing page url without basic path
 		 */
-		$server['raw_relative_address']	= trim(mb_substr($server['raw_relative_address'], mb_strlen($current_mirror)), ' /\\');
-		unset($current_mirror);
-		$r								= &$this->routing;
-		$rc								= &$this->route;
-		$rc								= trim($server['raw_relative_address'], '/');
+		$server['raw_relative_address']	= trim(mb_substr($server['raw_relative_address'], mb_strlen($current_mirror_base_url)), ' /\\');
+		unset($current_mirror_base_url);
+		$this->route					= trim($server['raw_relative_address'], '/');
 		/**
 		 * Redirection processing
 		 */
-		if (mb_strpos($rc, 'redirect/') === 0) {
+		if (mb_strpos($this->route, 'redirect/') === 0) {
 			if ($server['referer']['local']) {
-				header('Location: '.substr($rc, 9));
+				header('Location: '.substr($this->route, 9));
 			} else {
-				error_code(404);
+				error_code(400);
 				Page::instance()->error();
 			}
+			define('STOP', true);
 			exit;
 		}
+		$processed_route	= $this->process_route($server['raw_relative_address']);
+		if (!$processed_route) {
+			error_code(403);
+			Page::instance()->error();
+			return;
+		}
+		$this->route				= $processed_route['route'];
+		$server['relative_address']	= $processed_route['relative_address'];
+		!defined('ADMIN')	&& define('ADMIN', $processed_route['ADMIN']);
+		!defined('API')		&& define('API', $processed_route['API']);
+		!defined('MODULE')	&& define('MODULE', $processed_route['MODULE']);
+		!defined('HOME')	&& define('HOME', $processed_route['HOME']);
+		if (API) {
+			header('Content-Type: application/json', true);
+			interface_off();
+		}
+		$server['ajax']				= isset($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] == 'XMLHttpRequest';
+	}
+	/**
+	 * Process raw relative route.
+	 *
+	 * As result returns current route in system in form of array, corrected page address, detects MODULE, that responsible for processing this url,
+	 * whether this is API call, ADMIN page, or HOME page
+	 *
+	 * @param string			$raw_relative_address
+	 *
+	 * @return bool|string[]							Relative address or <i>false</i> if access denied (occurs when admin access is limited by IP)
+	 *                    								Array contains next elements: route, relative_address, ADMIN, API, MODULE, HOME
+	 */
+	function process_route ($raw_relative_address) {
+		$rc	= trim($raw_relative_address, '/');
 		/**
 		 * Routing replacing
 		 */
-		Trigger::instance()->run(
-			'System/Config/pre_routing_replace',
-			[
-				'rc'	=> &$rc
-			]
-		);
+		Trigger::instance()->run('System/Config/pre_routing_replace', [
+			'rc'	=> &$rc
+		]);
 		if ($rc && strpos($rc, 'api/') === 0) {
 			$rc	= explode('?', $rc, 2)[0];
 		}
-		if (!empty($r['in'])) {
-			errors_off();
-			foreach ($r['in'] as $i => $search) {
-				$rc = _preg_replace($search, $r['out'][$i], $rc) ?: str_replace($search, $r['out'][$i], $rc);
+		if (!empty($this->routing['in'])) {
+			foreach ($this->routing['in'] as $i => $search) {
+				$rc = _preg_replace($search, $this->routing['out'][$i], $rc) ?: str_replace($search, $this->routing['out'][$i], $rc);
 			}
-			errors_on();
 			unset($i, $search);
 		}
-		unset($r);
-		Trigger::instance()->run(
-			'System/Config/routing_replace',
-			[
-				'rc'	=> &$rc
-			]
-		);
+		Trigger::instance()->run('System/Config/routing_replace', [
+			'rc'	=> &$rc
+		]);
 		/**
 		 * Obtaining page path in form of array
 		 */
-		$rc										= $rc ? explode('/', $rc) : [];
+		$rc	= $rc ? explode('/', $rc) : [];
 		/**
 		 * If url looks like admin page
 		 */
 		if (isset($rc[0]) && mb_strtolower($rc[0]) == 'admin') {
 			if ($this->core['ip_admin_list_only'] && !$this->check_ip($this->core['ip_admin_list'])) {
-				error_code(403);
-				Page::instance()->error();
-				return;
+				return false;
 			}
-			if (!defined('ADMIN')) {
-				define('ADMIN', true);
-			}
+			$ADMIN	= true;
 			array_shift($rc);
 		/**
 		 * If url looks like API page
 		 */
 		} elseif (isset($rc[0]) && mb_strtolower($rc[0]) == 'api') {
-			if (!defined('API')) {
-				define('API', true);
-			}
+			$API	= true;
 			array_shift($rc);
-			header('Content-Type: application/json', true);
-			interface_off();
 		}
 		if ($this->core['ip_admin_list_only'] && !$this->check_ip($this->core['ip_admin_list'])) {
 			$this->can_be_admin = false;
 		}
-		!defined('ADMIN')	&& define('ADMIN', false);
-		!defined('API')		&& define('API', false);
+		if (!isset($ADMIN)) {
+			$ADMIN	= false;
+		}
+		if (!isset($API)) {
+			$API	= false;
+		}
 		/**
 		 * Module detection
 		 */
 		$modules	= array_keys(array_filter(
 			$this->components['modules'],
-			function ($module_data) {
-			   return ADMIN || $module_data['active'] == 1;
+			function ($module_data) use ($ADMIN) {
+			   return $ADMIN || $module_data['active'] == 1;
 			}
 		));
+		$L			= Language::instance();
 		$modules	= array_combine(
 			array_map(
 				function ($module) use ($L) {
@@ -353,27 +334,30 @@ class Config {
 			),
 			$modules
 		);
-		if (!defined('MODULE')) {
-			if (isset($rc[0]) && in_array($rc[0], array_values($modules))) {
-				define('MODULE', array_shift($rc));
-			} elseif (isset($rc[0]) && isset($modules[$rc[0]])) {
-				define('MODULE', $modules[array_shift($rc)]);
-			} else {
-				define('MODULE', ADMIN || API || isset($rc[0]) ? 'System' : $this->core['default_module']);
-				if (!ADMIN && !API && !isset($rc[1])) {
-					define('HOME', true);
-				}
+		if (isset($rc[0]) && in_array($rc[0], array_values($modules))) {
+			$MODULE	= array_shift($rc);
+		} elseif (isset($rc[0]) && isset($modules[$rc[0]])) {
+			$MODULE	= $modules[array_shift($rc)];
+		} else {
+			$MODULE	= $ADMIN || $API || isset($rc[0]) ? 'System' : $this->core['default_module'];
+			if (!$ADMIN && !$API && !isset($rc[1])) {
+				$HOME	= true;
 			}
 		}
-		!defined('HOME')	&& define('HOME', false);
-		/**
-		 * Corrected full page address (recommended for usage)
-		 */
-		$server['relative_address']	= trim(
-			(ADMIN ? 'admin/' : '').MODULE.(API ? 'api/' : '').'/'.implode('/', $rc),
-			'/'
-		);
-		$server['ajax']				= isset($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] == 'XMLHttpRequest';
+		if (!isset($HOME)) {
+			$HOME	= false;
+		}
+		return [
+			'route'				=> $rc,
+			'relative_address'	=> trim(
+				($ADMIN ? 'admin/' : '').($API ? 'api/' : '').$MODULE.'/'.implode('/', $rc),
+				'/'
+			),
+			'ADMIN'				=> $ADMIN,
+			'API'				=> $API,
+			'MODULE'			=> $MODULE,
+			'HOME'				=> $HOME
+		];
 	}
 	/**
 	 * Updating information about set of available themes
@@ -412,37 +396,29 @@ class Config {
 	/**
 	 * Load and save clangs of all languages in cache for multilingual functionality.
 	 * Used by system
+	 *
+	 * @return array	clangs
 	 */
 	function update_clangs () {
 		$clangs		= [];
 		foreach ($this->core['active_languages'] as $language) {
-			$clangs[$language]	= _json_decode_nocomments(file_get_contents(LANGUAGES."/$language.json"))['clang'];
+			$clangs[$language]	= file_get_json_nocomments(LANGUAGES."/$language.json")['clang'];
 		}
 		unset($language);
-		$Cache							= Cache::instance();
-		$Cache->{"languages/clangs"}	= $clangs;
-		$core_urls						= explode('//', $this->core['url']);
-		$core_urls[1]					= explode(';', $core_urls[1]);
-		$last_url						= $core_urls[1][count($core_urls[1]) - 1];
-		$update							= false;
-		foreach ($clangs as $clang) {
-			if (!in_array("$last_url/$clang", $core_urls[1])) {
-				array_unshift($core_urls[1], "$last_url/$clang");
-				$update	= true;
+		Cache::instance()->{"languages/clangs"}	= $clangs;
+		foreach ($this->core['url'] as &$url) {
+			$url_aliases		= explode('//', $url);
+			$url_aliases[1]		= explode(';', $url_aliases[1]);
+			$last_url			= $url_aliases[1][count($url_aliases[1]) - 1];
+			foreach ($clangs as $clang) {
+				if (!in_array("$last_url/$clang", $url_aliases[1])) {
+					array_unshift($url_aliases[1], "$last_url/$clang");
+					$url	= "$url_aliases[0]//".implode(';', $url_aliases[1]);
+					$this->save();
+				}
 			}
 		}
-		unset($clangs, $clang, $last_url);
-		if ($update) {
-			$this->core['url']	= implode(
-				'//',
-				[
-					$core_urls[0],
-					implode(';', $core_urls[1])
-				]
-			);
-			$this->save();
-		}
-		unset($update, $core_urls);
+		return $clangs;
 	}
 	/**
 	 * Reloading of settings cache

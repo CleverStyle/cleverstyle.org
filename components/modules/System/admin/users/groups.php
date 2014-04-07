@@ -4,7 +4,7 @@
  * @subpackage	System module
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs;
@@ -108,7 +108,7 @@ if (isset($rc[2])) {
 			$a->apply_button		= false;
 			$a->cancel_button_back	= true;
 			$permissions			= Permission::instance()->get_all();
-			$permission				= $Group->get_permissions($rc[3]);
+			$group_permissions		= $Group->get_permissions($rc[3]);
 			$tabs					= [];
 			$tabs_content			= '';
 			$blocks					= [];
@@ -118,7 +118,7 @@ if (isset($rc[2])) {
 			unset($block);
 			foreach ($permissions as $group => $list) {
 				$tabs[]		= h::a(
-					$L->{"permissions_group_$group"},
+					$group,
 					[
 						'href'	=> '#permissions_group_'.strtr($group, '/', '_')
 					]
@@ -126,11 +126,11 @@ if (isset($rc[2])) {
 				$content	= [];
 				foreach($list as $label => $id) {
 					$content[] = h::th(
-						$group != 'Block' ? $L->{"permission_label_$label"} : Text::instance()->process($Config->module('System')->db('texts'), $blocks[$label])
+						$group == 'Block' ? Text::instance()->process($Config->module('System')->db('texts'), $blocks[$label]) : $label
 					).
 					h::{'td input[type=radio]'}([
 						'name'			=> "permission[$id]",
-						'checked'		=> isset($permission[$id]) ? $permission[$id] : -1,
+						'checked'		=> isset($group_permissions[$id]) ? $group_permissions[$id] : -1,
 						'value'			=> [-1, 0, 1],
 						'in'			=> [$L->not_specified, $L->deny, $L->allow]
 					]);
@@ -189,14 +189,14 @@ if (isset($rc[2])) {
 		$group_data 	= $Group->get($id);
 		$groups_list[]	= [
 			h::{'a.cs-button-compact'}(
-				h::icon('edit'),
+				h::icon('pencil'),
 				[
 					'href'			=> "$a->action/edit/$id",
 					'data-title'	=> $L->edit_group_information
 				]
 			).
 			($id != User::ADMIN_GROUP_ID && $id != User::USER_GROUP_ID && $id != User::BOT_GROUP_ID ? h::{'a.cs-button-compact'}(
-				h::icon('trash'),
+				h::icon('trash-o'),
 				[
 					'href'			=> "$a->action/delete/$id",
 					'data-title'	=> $L->delete

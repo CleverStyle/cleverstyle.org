@@ -4,7 +4,7 @@
  * @subpackage	System module
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs;
@@ -157,14 +157,14 @@ if (isset($rc[2])) {
 				[
 					($i ?
 					h::{'a.cs-button-compact'}(
-						h::icon('edit'),
+						h::icon('pencil'),
 						[
 							'href'			=> "$a->action/edit/$i",
 							'data-title'	=> "$L->edit $L->storage"
 						]
 					).
 					h::{'a.cs-button-compact'}(
-						h::icon('trash'),
+						h::icon('trash-o'),
 						[
 							'href'			=> "$a->action/delete/$i",
 							'data-title'	=> "$L->delete $L->storage"
@@ -218,7 +218,7 @@ if (isset($rc[2])) {
 	unset($storage_list);
 }
 $test_dialog && $a->content(
-	h::{'div#cs-storage-test.cs-dialog div'}(
+	h::{'div#cs-storage-test.uk-modal div'}(
 		h::h3($L->test_connection).
 		h::div()
 	)

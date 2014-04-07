@@ -4,12 +4,12 @@
  * @subpackage	System module
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs;
 $rc			= &Config::instance()->route;
-$subparts	= _json_decode(file_get_contents(MFOLDER.'/index.json'))[$rc[0]];
+$subparts	= file_get_json(MFOLDER.'/index.json')[$rc[0]];
 $User		= User::instance();
 if (
 	(

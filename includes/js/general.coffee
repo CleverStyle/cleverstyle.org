@@ -1,10 +1,11 @@
 ###*
  * @package		CleverStyle CMS
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
 ###
 $ ->
+	L	= cs.Language
 	cs.async_call [
 		->
 			window.session_id	= cs.getcookie('session')
@@ -12,8 +13,12 @@ $ ->
 				type	: 'post'
 				data	:
 					session	: session_id
+				error	: (xhr) ->
+					if xhr.responseText
+						alert(cs.json_decode(xhr.responseText).error_description)
+					else
+						alert(L.connection_error)
 		->
-			L			= cs.Language
 			L[key]		= (do (translation) ->
 				result	= ->
 					vsprintf translation, Array::slice.call(arguments)
@@ -39,8 +44,6 @@ $ ->
 				.addClass('uk-button')
 				.disableSelection()
 		->
-			$('.cs-dialog').cs().modal()
-		->
 			$('textarea:not(.cs-no-ui)')
 				.not('.cs-no-resize, .EDITOR, .SIMPLE_EDITOR')
 				.autosize
@@ -49,7 +52,7 @@ $ ->
 			$('.SIMPLEST_INLINE_EDITOR')
 				.prop('contenteditable', true)
 		->
-			$('.cs-info').cs().tooltip()
+			$('[data-title]').cs().tooltip()
 		->
 			$('.cs-tabs').cs().tabs()
 		->
@@ -65,14 +68,12 @@ $ ->
 				$('.cs-header-sign-in-form, .cs-header-registration-form').hide('medium')
 				$('.cs-header-restore-password-form').show('medium')
 				$('.cs-header-restore-password-email').focus()
-			$('.cs-header-sign-in-email, .cs-header-user-password').keyup (event) ->
-				if event.which == 13
-					$('.cs-header-sign-in-process').click()
 			$('.cs-header-registration-email').keyup (event) ->
 				if event.which == 13
 					$('.cs-header-registration-process').click()
-			$('.cs-header-sign-in-process').click ->
+			$('.cs-header-sign-in-form').submit ->
 				cs.sign_in($('.cs-header-sign-in-email').val(), $('.cs-header-user-password').val())
+				return false
 			$('.cs-header-sign-out-process').click ->
 				cs.sign_out()
 			$('.cs-show-password').click ->
@@ -84,41 +85,40 @@ $ ->
 				if pass_input.prop('type') == 'password'
 					pass_input.prop('type', 'text')
 					$this
-						.addClass('uk-icon-unlock')
+						.addClass('uk-icon-unlock-alt')
 						.removeClass('uk-icon-lock')
 				else
 					pass_input.prop('type', 'password')
 					$this
 						.addClass('uk-icon-lock')
-						.removeClass('uk-icon-unlock')
+						.removeClass('uk-icon-unlock-alt')
 			$('#current_password').click ->
 				$this		= $(this)
 				password	= $('.cs-profile-current-password')
 				if password.prop('type') == 'password'
 					password.prop('type', 'text')
 					$this
-						.addClass('uk-icon-unlock')
+						.addClass('uk-icon-unlock-alt')
 						.removeClass('uk-icon-lock')
 				else
 					password.prop('type', 'password')
 					$this
 						.addClass('uk-icon-lock')
-						.removeClass('uk-icon-unlock')
+						.removeClass('uk-icon-unlock-alt')
 			$('#new_password').click ->
 				$this		= $(this)
 				password	= $('.cs-profile-new-password')
 				if password.prop('type') == 'password'
 					password.prop('type', 'text')
 					$this
-						.addClass('uk-icon-unlock')
+						.addClass('uk-icon-unlock-alt')
 						.removeClass('uk-icon-lock')
 				else
 					password.prop('type', 'password')
 					$this
 						.addClass('uk-icon-lock')
-						.removeClass('uk-icon-unlock')
+						.removeClass('uk-icon-unlock-alt')
 			$('.cs-header-registration-process').click ->
-				L		= cs.Language
 				if !cs.rules_text
 					cs.registration $('.cs-header-registration-email').val()
 					return

@@ -2,7 +2,7 @@
  * @package		CleverStyle CMS
  * @subpackage	CleverStyle theme
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 
@@ -166,12 +166,6 @@ a {
 .uk-table table:not(.uk-table) th,
 .uk-table table:not(.uk-table) td {
 	border-bottom : none;
-}
-
-.uk-modal-dialog {
-	margin-left : -40%;
-	top         : 5%;
-	width       : 80%;
 }
 
 .uk-tooltip {

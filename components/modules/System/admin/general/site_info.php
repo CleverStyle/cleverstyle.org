@@ -4,7 +4,7 @@
  * @subpackage	System module
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs\modules\System;
@@ -17,47 +17,10 @@ $sa			= $Config->core['simple_admin_mode'];
 Index::instance()->content(
 	h::{'table.cs-table-borderless.cs-left-even.cs-right-odd tr| td'}(
 		core_input('name', 'text', 'site_name'),
-		!$sa ? core_input('url') : false,
-		!$sa ? core_input('cookie_domain') : false,
-		!$sa ? core_input('cookie_path') : false,
+		!$sa ? core_textarea('url') : false,
+		!$sa ? core_textarea('cookie_domain') : false,
+		!$sa ? core_textarea('cookie_path') : false,
 		!$sa ? core_input('cookie_prefix') : false,
-		!$sa ? [
-			h::info('mirrors'),
-			h::{'table.cs-table-borderless tr| td'}(
-				[
-					h::info('mirrors_url'),
-					h::info('mirrors_cookie_domain'),
-					h::info('mirrors_cookie_path')
-				],
-				[
-					[
-						h::textarea(
-							$Config->core['mirrors_url'],
-							[
-								'name' => 'core[mirrors_url]'
-							]
-						),
-						h::textarea(
-							$Config->core['mirrors_cookie_domain'],
-							[
-								'name' => 'core[mirrors_cookie_domain]'
-							]
-						),
-						h::textarea(
-							$Config->core['mirrors_cookie_path'],
-							[
-								'name' => 'core[mirrors_cookie_path]'
-							]
-						)
-					],
-					[
-						'id'	=> 'site_info_config_mirrors'
-					]
-				]
-			)
-		] : false,
-		core_input('keywords'),
-		core_input('description'),
 		[
 			h::info('timezone'),
 			h::select(
@@ -72,7 +35,6 @@ Index::instance()->content(
 				]
 			)
 		],
-		core_input('admin_email', 'email'),
-		core_input('admin_phone', 'tel')
+		core_input('admin_email', 'email')
 	)
 );

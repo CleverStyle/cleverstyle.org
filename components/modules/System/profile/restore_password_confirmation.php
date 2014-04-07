@@ -4,7 +4,7 @@
  * @subpackage	System module
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs;
@@ -38,7 +38,7 @@ if (Mail::instance()->send_to(
 	$L->restore_password_success_mail_body(
 		$User->username($result['id']),
 		get_core_ml_text('name'),
-		$Config->core_url().'/profile/'.$User->get('login', $result['id']),
+		$Config->core_url().'/profile/settings',
 		$User->get('login', $result['id']),
 		$result['password']
 	)

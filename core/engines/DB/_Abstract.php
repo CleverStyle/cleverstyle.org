@@ -2,7 +2,7 @@
 /**
  * @package		CleverStyle CMS
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs\DB;
@@ -360,7 +360,7 @@ abstract class _Abstract {
 		}
 		if ($join) {
 			$query		= explode('VALUES', $query, 2);
-			$query[1]	= explode(')', $query[1]);
+			$query[1]	= explode(')', $query[1], 2);
 			$query		= [
 				$query[0],
 				$query[1][0].')',

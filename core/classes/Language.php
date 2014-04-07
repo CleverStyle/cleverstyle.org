@@ -2,7 +2,7 @@
 /**
  * @package		CleverStyle CMS
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs;
@@ -18,8 +18,6 @@ defined('FIXED_LANGUAGE') || define('FIXED_LANGUAGE', false);
  *   'cregion'			=> cregion
  *   'clanguage_en'		=> clanguage_en
  *  ]
- *
- * @method static \cs\Language instance($check = false)
  */
 class Language implements JsonSerializable {
 	use Singleton;
@@ -27,11 +25,13 @@ class Language implements JsonSerializable {
 	public		$clanguage,								//Current language
 				$time					= null;			//Closure for time processing
 	protected	$init					= false,		//For single initialization
-				$translate				= [];			//Local cache of translations
+				$translate				= [],			//Local cache of translations
+				$fixed_language			= false;
 	/**
 	 * Set basic language
 	 */
 	protected function construct () {
+		$this->fixed_language	= FIXED_LANGUAGE;
 		$this->change(Core::instance()->language);
 	}
 	/**
@@ -90,10 +90,13 @@ class Language implements JsonSerializable {
 			return isset($translate[$item]) ? $translate[$item] : ucfirst(str_replace('_', ' ', $item));
 		}
 		unset($translate);
-		$current_language	= $this->clanguage;
+		$current_language		= $this->clanguage;
+		$current_fixed_language	= $this->fixed_language;
+		$this->fixed_language	= false;
 		$this->change($language);
 		$return				= isset($this->translate[$item]) ? $this->translate[$item] : ucfirst(str_replace('_', ' ', $item));
 		$this->change($current_language);
+		$this->fixed_language	= $current_fixed_language;
 		return $return;
 	}
 	/**
@@ -143,7 +146,7 @@ class Language implements JsonSerializable {
 	 */
 	function change ($language) {
 		static $changed_once = false;
-		if (FIXED_LANGUAGE && $changed_once) {
+		if ($this->fixed_language && $changed_once) {
 			return false;
 		}
 		$changed_once	= true;
@@ -158,6 +161,7 @@ class Language implements JsonSerializable {
 		}
 		if (
 			!$Config ||
+			$language == $Config->core['language'] ||
 			(
 				$Config->core['multilingual'] &&
 				in_array($language, $Config->core['active_languages'])
@@ -179,7 +183,7 @@ class Language implements JsonSerializable {
 				/**
 				 * Set system translations
 				 */
-				$this->set(_json_decode_nocomments(file_get_contents(LANGUAGES."/$this->clanguage.json")));
+				$this->set(file_get_json_nocomments(LANGUAGES."/$this->clanguage.json"));
 				$translate				= &$this->translate;
 				$translate['clanguage']	= $this->clanguage;
 				if (!isset($translate['clang'])) {
@@ -197,7 +201,7 @@ class Language implements JsonSerializable {
 				foreach (get_files_list(MODULES, false, 'd') as $module) {
 					if (file_exists(MODULES."/$module/languages/$this->clanguage.json")) {
 						$this->set(
-							_json_decode_nocomments(file_get_contents(MODULES."/$module/languages/$this->clanguage.json")) ?: []
+							file_get_json_nocomments(MODULES."/$module/languages/$this->clanguage.json") ?: []
 						);
 					}
 				}
@@ -208,7 +212,7 @@ class Language implements JsonSerializable {
 				foreach (get_files_list(PLUGINS, false, 'd') as $plugin) {
 					if (file_exists(PLUGINS."/$plugin/languages/$this->clanguage.json")) {
 						$this->set(
-							_json_decode_nocomments(file_get_contents(PLUGINS."/$plugin/languages/$this->clanguage.json")) ?: []
+							file_get_json_nocomments(PLUGINS."/$plugin/languages/$this->clanguage.json") ?: []
 						);
 					}
 				}

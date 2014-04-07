@@ -2,7 +2,7 @@
  * @package		Tenebris
  * @category	themes
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2013-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 
@@ -30,6 +30,10 @@ h1, h2, h3, h4, h5, h6 {
 
 	input {
 		margin : 5px 0;
+	}
+
+	button {
+		height : 2rem;
 	}
 
 	button[class*=uk-icon-]:before {

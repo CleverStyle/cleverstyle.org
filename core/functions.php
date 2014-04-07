@@ -2,7 +2,7 @@
 /**
  * @package		CleverStyle CMS
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 /**
@@ -24,6 +24,7 @@ use	cs\Cache,
  * Auto Loading of classes
  */
 spl_autoload_register(function ($class) {
+	$class	= ltrim($class, '\\');
 	if (substr($class, 0, 3) == 'cs\\') {
 		$class	= substr($class, 3);
 	}
@@ -32,15 +33,15 @@ spl_autoload_register(function ($class) {
 		'namespace'	=> count($class) > 1 ? implode('/', array_slice($class, 0, -1)) : '',
 		'name'		=> array_pop($class)
 	];
-	return	_require_once(CLASSES."/$class[namespace]/$class[name].php", false) ||
-			_require_once(TRAITS."/$class[namespace]/$class[name].php", false) ||
-			_require_once(ENGINES."/$class[namespace]/$class[name].php", false) ||
-			(
-				mb_strpos($class['namespace'], "modules/") === 0 && _require_once(MODULES."/../$class[namespace]/$class[name].php", false)
-			) ||
-			(
-				mb_strpos($class['namespace'], "plugins/") === 0 && _require_once(PLUGINS."/../$class[namespace]/$class[name].php", false)
-			);
+	/**
+	 * Try to load classes from different places. If not found in one place - try in another.
+	 */
+	return
+		_require_once(CLASSES."/$class[namespace]/$class[name].php", false) ||		//Core classes
+		_require_once(THIRDPARTY."/$class[namespace]/$class[name].php", false) ||	//Third party classes
+		_require_once(TRAITS."/$class[namespace]/$class[name].php", false) ||		//Core traits
+		_require_once(ENGINES."/$class[namespace]/$class[name].php", false) ||		//Core engines
+		_require_once(MODULES."/../$class[namespace]/$class[name].php", false);		//Classes in modules and plugins
 }, true, true);
 /**
  * Correct termination
@@ -144,6 +145,9 @@ function clean_pcache () {
  * @return string
  */
 function format_time ($time) {
+	if (!is_numeric($time)) {
+		return $time;
+	}
 	$L		= Language::instance();
 	$res	= [];
 	if ($time >= 31536000) {
@@ -185,6 +189,9 @@ function format_time ($time) {
  * @return float|string
  */
 function format_filesize ($size, $round = false) {
+	if (!is_numeric($size)) {
+		return $size;
+	}
 	$L		= Language::instance();
 	$unit	= '';
 	if($size >= 1099511627776) {
@@ -202,87 +209,32 @@ function format_filesize ($size, $round = false) {
 	} else {
 		$size = "$size $L->Bytes";
 	}
-	return $round ? round($size, $round).$unit : $size;
+	return $round ? round($size, $round).$unit : $size.$unit;
 }
 /**
  * Function for setting cookies on all mirrors and taking into account cookies prefix. Parameters like in system function, but $path, $domain and $secure
  * are skipped, they are detected automatically, and $api parameter added in the end.
  *
- * @param string     $name
- * @param string     $value
- * @param int        $expire
- * @param bool       $httponly
- * @param bool       $api		Is this cookie setting during api request (in most cases it is not necessary to change this parameter)
+ * @param string	$name
+ * @param string	$value
+ * @param int		$expire
+ * @param bool		$httponly
  *
  * @return bool
  */
-function _setcookie ($name, $value, $expire = 0, $httponly = false, $api = false) {
+function _setcookie ($name, $value, $expire = 0, $httponly = false) {
 	static $path, $domain, $prefix, $secure;
 	$Config					= Config::instance(true);
 	if (!isset($prefix) && $Config) {
-		$prefix		= $Config->core['cookie_prefix'];
-		$secure		= $Config->server['protocol'] == 'https';
-		if (
-			$Config->server['mirror_index'] == -1 ||
-			!isset(
-				$Config->core['mirrors_cookie_domain'][$Config->server['mirror_index']],
-				$Config->core['mirrors_cookie_path'][$Config->server['mirror_index']]
-			)
-		) {
-			$domain	= $Config->core['cookie_domain'];
-			$path	= $Config->core['cookie_path'];
-		} else {
-			$domain	= $Config->core['mirrors_cookie_domain'][$Config->server['mirror_index']];
-			$path	= $Config->core['mirrors_cookie_path'][$Config->server['mirror_index']];
-		}
+		$prefix	= $Config->core['cookie_prefix'];
+		$secure	= $Config->server['protocol'] == 'https';
+		$domain	= $Config->core['cookie_domain'][$Config->server['mirror_index']];
+		$path	= $Config->core['cookie_path'][$Config->server['mirror_index']];
 	}
 	if (!isset($prefix)) {
 		$prefix	= '';
 	}
 	$_COOKIE[$prefix.$name] = $value;
-	if (!$api && $Config->core['cookie_sync']) {
-		$data = [
-			'name'		=> $name,
-			'value'		=> $value,
-			'expire'	=> $expire,
-			'httponly'	=> $httponly
-		];
-		Trigger::instance()->register(
-			'System/Index/preload',
-			function () use ($prefix, $data, $domain) {
-				$Config	= Config::instance();
-				$Key	= Key::instance();
-				$User	= User::instance();
-				if (count($Config->core['mirrors_cookie_domain'])) {
-					$mirrors_url			= $Config->core['mirrors_url'];
-					$mirrors_cookie_domain	= $Config->core['mirrors_cookie_domain'];
-					$database				= DB::instance()->{$Config->module('System')->db('keys')}();
-					$data['check']			= md5($User->ip.$User->forwarded_for.$User->client_ip.$User->user_agent._json_encode($data));
-					$urls					= [];
-					if ($Config->server['mirror_index'] != -1 && $domain != $Config->core['cookie_domain']) {
-						$url	= $Config->core_url();
-						if ($Key->add($database, $key = $Key->generate($database), $data)) {
-							$urls[] = $url."/api/System/user/setcookie/$key";
-						}
-						unset($url);
-					}
-					foreach ($mirrors_cookie_domain as $i => $d) {
-						$mirrors_url[$i] = explode(';', $mirrors_url[$i], 2)[0];
-						if ($d && $d != $domain) {
-							if ($Key->add($database, $key = $Key->generate($database), $data)) {
-								$urls[]	= $mirrors_url[$i]."/api/System/user/setcookie/$key";
-							}
-						}
-					}
-					if (!empty($urls)) {
-						$setcookie	= isset($_COOKIE[$prefix.'setcookie']) ? (_json_decode($_COOKIE[$prefix.'setcookie']) ?: []) : [];
-						$setcookie	= array_merge($setcookie, $urls);
-						setcookie($prefix.'setcookie', $_COOKIE[$prefix.'setcookie'] = _json_encode($setcookie));
-					}
-				}
-			}
-		);
-	}
 	if (isset($domain)) {
 		return setcookie(
 			$prefix.$name,
@@ -442,12 +394,28 @@ function pages ($page, $total, $url, $head_links = false) {
 	}
 	$Page	= Page::instance();
 	$output	= [];
+	if ($url instanceof Closure) {
+		$url_func	= $url;
+	} else {
+		$original_url	= $url;
+		$url_func		= function ($page) use ($original_url) {
+			return sprintf($original_url, $page);
+		};
+	}
+	$base_url	= Config::instance()->base_url();
+	$url		= function ($page) use ($url_func, $base_url) {
+		$url	= $url_func($page);
+		if (is_string($url) && strpos($url, 'http') !== 0) {
+			$url	= $base_url.'/'.ltrim($url, '/');
+		}
+		return $url;
+	};
 	if ($total <= 11) {
 		for ($i = 1; $i <= $total; ++$i) {
 			$output[]	= [
 				$i,
 				[
-					'href'	=> $i == $page ? false : ($url instanceof Closure ? $url($i) : sprintf($url, $i)),
+					'href'	=> $i == $page ? false : $url($i),
 					'class'	=> $i == $page ? 'cs-button uk-button-primary uk-frozen' : 'cs-button'
 				]
 			];
@@ -464,7 +432,7 @@ function pages ($page, $total, $url, $head_links = false) {
 				$output[]	= [
 					$i,
 					[
-						'href'	=> $i == $page ? false : ($url instanceof Closure ? $url($i) : sprintf($url, $i)),
+						'href'	=> $i == $page ? false : $url($i),
 						'class'	=> $i == $page ? 'cs-button uk-button-primary uk-frozen' : 'cs-button'
 					]
 				];
@@ -510,7 +478,7 @@ function pages ($page, $total, $url, $head_links = false) {
 				$output[]	= [
 					$i,
 					[
-						'href'	=> $i == $page ? false : ($url instanceof Closure ? $url($i) : sprintf($url, $i)),
+						'href'	=> $i == $page ? false : $url($i),
 						'class'	=> $i == $page ? 'cs-button uk-button-primary uk-frozen' : 'cs-button'
 					]
 				];
@@ -541,7 +509,7 @@ function pages ($page, $total, $url, $head_links = false) {
 				$output[]	= [
 					$i,
 					[
-						'href'	=> $i == $page ? false : ($url instanceof Closure ? $url($i) : sprintf($url, $i)),
+						'href'	=> $i == $page ? false : $url($i),
 						'class'	=> $i == $page ? 'cs-button uk-button-primary uk-frozen' : 'cs-button'
 					]
 				];
@@ -588,12 +556,18 @@ function pages_buttons ($page, $total, $url = false) {
 		return false;
 	}
 	$output	= [];
+	if (!($url instanceof Closure)) {
+		$original_url	= $url;
+		$url			= function ($page) use ($original_url) {
+			return sprintf($original_url, $page);
+		};
+	}
 	if ($total <= 11) {
 		for ($i = 1; $i <= $total; ++$i) {
 			$output[]	= [
 				$i,
 				[
-					'formaction'	=> $i == $page || $url === false ? false : ($url instanceof Closure ? $url($i) : sprintf($url, $i)),
+					'formaction'	=> $i == $page || $url === false ? false : $url($i),
 					'value'			=> $i,
 					'type'			=> $i == $page ? 'button' : 'submit',
 					'class'			=> $i == $page ? 'uk-button-primary uk-frozen' : false
@@ -606,7 +580,7 @@ function pages_buttons ($page, $total, $url = false) {
 				$output[]	= [
 					$i,
 					[
-						'formaction'	=> $i == $page || $url === false ? false : ($url instanceof Closure ? $url($i) : sprintf($url, $i)),
+						'formaction'	=> $i == $page || $url === false ? false : $url($i),
 						'value'			=> $i == $page ? false : $i,
 						'type'			=> $i == $page ? 'button' : 'submit',
 						'class'			=> $i == $page ? 'uk-button-primary uk-frozen' : false
@@ -652,7 +626,7 @@ function pages_buttons ($page, $total, $url = false) {
 				$output[]	= [
 					$i,
 					[
-						'formaction'	=> $i == $page || $url === false ? false : ($url instanceof Closure ? $url($i) : sprintf($url, $i)),
+						'formaction'	=> $i == $page || $url === false ? false : $url($i),
 						'value'			=> $i == $page ? false : $i,
 						'type'			=> $i == $page ? 'button' : 'submit',
 						'class'			=> $i == $page ? 'uk-button-primary uk-frozen' : false
@@ -681,7 +655,7 @@ function pages_buttons ($page, $total, $url = false) {
 				$output[]	= [
 					$i,
 					[
-						'formaction'	=> $i == $page || $url === false ? false : ($url instanceof Closure ? $url($i) : sprintf($url, $i)),
+						'formaction'	=> $i == $page || $url === false ? false : $url($i),
 						'value'			=> $i == $page ? false : $i,
 						'type'			=> $i == $page ? 'button' : 'submit',
 						'class'			=> $i == $page ? 'uk-button-primary uk-frozen' : false
@@ -717,7 +691,6 @@ function pages_buttons ($page, $total, $url = false) {
 function error_code ($code) {
 	!defined('ERROR_CODE') && define('ERROR_CODE', $code);
 }
-
 /**
  * Checks whether specified functionality available or not
  *
@@ -740,7 +713,7 @@ function functionality ($functionality) {
 			if ($module_data['active'] != 1 || !file_exists(MODULES."/$module/meta.json")) {
 				continue;
 			}
-			$meta			= _json_decode(file_get_contents(MODULES."/$module/meta.json"));
+			$meta			= file_get_json(MODULES."/$module/meta.json");
 			if (!isset($meta['provide'])) {
 				continue;
 			}
@@ -754,7 +727,7 @@ function functionality ($functionality) {
 			if (!file_exists(PLUGINS."/$plugin/meta.json")) {
 				continue;
 			}
-			$meta			= _json_decode(file_get_contents(PLUGINS."/$plugin/meta.json"));
+			$meta			= file_get_json(PLUGINS."/$plugin/meta.json");
 			if (!isset($meta['provide'])) {
 				continue;
 			}

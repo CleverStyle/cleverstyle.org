@@ -2,7 +2,7 @@
 /**
  * @package		CleverStyle CMS
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2013-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs\DB;
@@ -30,7 +30,7 @@ trait Accessor {
 		/**
 		 * Save reference for faster access
 		 */
-		$this->db = DB::instance()->{$this->cdb()}();
+		$this->db = DB::instance()->{(string)$this->cdb()}();
 		return $this->db;
 	}
 	/**
@@ -45,7 +45,7 @@ trait Accessor {
 		/**
 		 * Save reference for faster access
 		 */
-		$this->db_prime = DB::instance()->{$this->cdb()}();
+		$this->db_prime = DB::instance()->{(string)$this->cdb()}();
 		return $this->db_prime;
 	}
 	/**

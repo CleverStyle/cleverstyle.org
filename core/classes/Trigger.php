@@ -2,7 +2,7 @@
 /**
  * @package		CleverStyle CMS
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs;
@@ -11,8 +11,6 @@ use			Closure;
  * Trigger class
  *
  * Provides triggers registering and running.
- *
- * @method static \cs\Trigger instance($check = false)
  */
 class Trigger {
 	use Singleton;

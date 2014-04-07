@@ -2,7 +2,7 @@
 /**
  * @package		CleverStyle CMS
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2013-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 /**
@@ -21,12 +21,9 @@
 namespace	cs;
 use			cs\Cache\Prefix,
 			cs\DB\Accessor,
-			cs\Permission\Any,
-			h;
+			cs\Permission\Any;
 /**
  * Class for groups manipulating
- *
- * @method static \cs\Group instance($check = false)
  */
 class Group {
 	use	Accessor,
@@ -95,7 +92,7 @@ class Group {
 	function add ($title, $description) {
 		$title			= xap($title, false);
 		$description	= xap($description, false);
-		if (!$title || !$description) {
+		if (!$title) {
 			return false;
 		}
 		if ($this->db_prime()->q(
