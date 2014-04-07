@@ -3,7 +3,7 @@
  * @package		Blogs
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs\modules\Blogs;
@@ -30,6 +30,24 @@ $disabled					= [];
 $max_sections				= $Config->module('Blogs')->max_sections;
 $content					= uniqid('post_content');
 $Page->replace($content, isset($_POST['content']) ? $_POST['content'] : $post['content']);
+$sections					= get_sections_select_post($disabled);
+if (count($sections['in']) > 1) {
+	$sections	= [
+		$L->post_section,
+		h::{'select.cs-blogs-new-post-sections[size=7][required]'}(
+			get_sections_select_post($disabled),
+			[
+				'name'		=> 'sections[]',
+				'disabled'	=> $disabled,
+				'selected'	=> isset($_POST['sections']) ? $_POST['sections'] : $post['sections'],
+				$max_sections < 1 ? 'multiple' : false
+			]
+		).
+		($max_sections > 1 ? h::br().$L->select_sections_num($max_sections) : '')
+	];
+} else {
+	$sections	= false;
+}
 $Index->content(
 	h::{'p.lead.cs-center'}(
 		$L->editing_of_post($post['title'])
@@ -42,19 +60,7 @@ $Index->content(
 				isset($_POST['title']) ? $_POST['title'] : $post['title']
 			)
 		],
-		[
-			$L->post_section,
-			h::{'select.cs-blogs-new-post-sections[size=7][required]'}(
-				get_sections_select_post($disabled),
-				[
-					'name'		=> 'sections[]',
-					'disabled'	=> $disabled,
-					'selected'	=> isset($_POST['sections']) ? $_POST['sections'] : $post['sections'],
-					$max_sections < 1 ? 'multiple' : false
-				]
-			).
-			($max_sections > 1 ? h::br().$L->select_sections_num($max_sections) : '')
-		],
+		$sections,
 		[
 			$L->post_content,
 			(
@@ -70,13 +76,20 @@ $Index->content(
 		[
 			$L->post_tags,
 			h::{'input.cs-blogs-new-post-tags[name=tags][required]'}([
-				'value'		=> isset($_POST['tags']) ? $_POST['tags'] : implode(', ', $Blogs->get_tag($post['tags']))
+				'value'			=> htmlspecialchars_decode(
+					isset($_POST['tags']) ? $_POST['tags'] : implode(', ', $Blogs->get_tag($post['tags'])),
+					ENT_QUOTES | ENT_HTML5 | ENT_DISALLOWED | ENT_SUBSTITUTE
+				),
+				'placeholder'	=> 'CleverStyle, CMS, Open Source'
 			])
 		]
 	).
 	h::{'input[type=hidden][name=id]'}([
 		'value'	=> $post['id']
 	]).
+	(
+		!$sections ? h::{'input[type=hidden][name=sections[]][value=0]'}() : ''
+	).
 	h::{'button.cs-blogs-post-preview'}(
 		$L->preview,
 		[

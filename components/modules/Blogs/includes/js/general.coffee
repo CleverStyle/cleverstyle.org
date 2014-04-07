@@ -2,11 +2,16 @@
  * @package		Blogs
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
 ###
 $ ->
+	if cs.module != 'Blogs'
+		return
 	title	= $('.cs-blogs-new-post-title')
+	if title.length
+		window.onbeforeunload	= ->
+			true
 	content	= $('.cs-blogs-new-post-content')
 	$('.cs-blogs-post-preview').mousedown ->
 		data =
@@ -29,8 +34,6 @@ $ ->
 						scrollTop	: preview.offset().top
 						500
 					)
-			error	: (xhr) ->
-				alert if xhr.responseText then cs.json_decode(xhr.responseText).error_description else cs.Language.post_preview_connection_error
 	$('.cs-blogs-post-form')
 		.parents('form')
 		.submit ->

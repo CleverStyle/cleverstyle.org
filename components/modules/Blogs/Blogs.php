@@ -3,7 +3,7 @@
  * @package		Blogs
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs\modules\Blogs;
@@ -15,9 +15,7 @@ use			cs\Trigger,
 			cs\User,
 			cs\DB\Accessor,
 			cs\Singleton;
-/**
- * @method static \cs\modules\Blogs\Blogs instance($check = false)
- */
+
 class Blogs {
 	use Accessor,
 		Singleton;
@@ -46,6 +44,12 @@ class Blogs {
 	 * @return array|bool
 	 */
 	function get ($id) {
+		if (is_array($id)) {
+			foreach ($id as &$i) {
+				$i	= $this->get($i);
+			}
+			return $id;
+		}
 		$L			= Language::instance();
 		$id			= (int)$id;
 		$data		= $this->cache->get("posts/$id/$L->clang", function () use($id, $L) {
@@ -79,12 +83,12 @@ class Blogs {
 					WHERE `id` = $id"
 				);
 				$data['tags']								= $this->db()->qfas([
-					"SELECT `tag`
+					"SELECT DISTINCT `tag`
 					FROM `[prefix]blogs_posts_tags`
 					WHERE
 						`id`	= $id AND
 						`lang`	= '%s'",
-					$L->cang
+					$L->clang
 				]);
 				if (!$data['tags']) {
 					$l				= $this->db()->qfs(
@@ -94,7 +98,7 @@ class Blogs {
 						LIMIT 1"
 					);
 					$data['tags']	= $this->db()->qfas(
-						"SELECT `tag`
+						"SELECT DISTINCT `tag`
 						FROM `[prefix]blogs_posts_tags`
 						WHERE
 							`id`	= $id AND
@@ -213,17 +217,18 @@ class Blogs {
 		if (empty($tags) || empty($content)) {
 			return false;
 		}
-		$Config		= Config::instance();
-		$L			= Language::instance();
-		$id			= (int)$id;
-		$path		= path($path ?: $title);
-		$title		= xap(trim($title));
-		$content	= xap($content, true);
-		$sections	= array_intersect(
+		$Config			= Config::instance();
+		$L				= Language::instance();
+		$id				= (int)$id;
+		$path			= path(trim($path ?: $title));
+		$title			= xap(trim($title));
+		$module_data	= $Config->module('Blogs');
+		$content		= xap($content, true, $module_data->allow_iframes_without_content);
+		$sections		= array_intersect(
 			array_keys($this->get_sections_list()),
 			$sections
 		);
-		if (empty($sections) || count($sections) > $Config->module('Blogs')->max_sections) {
+		if (empty($sections) || count($sections) > $module_data->max_sections) {
 			return false;
 		}
 		$sections	= implode(
@@ -243,9 +248,9 @@ class Blogs {
 			array_unique(
 				array_map(
 					function ($tag) use ($id, $L) {
-						return "($id, $tag, '{$L->clang}')";
+						return "($id, $tag, '$L->clang')";
 					},
-					$this->process_tags($tags)
+					$processed = $this->process_tags($tags)
 				)
 			)
 		);
@@ -269,7 +274,7 @@ class Blogs {
 				"DELETE FROM `[prefix]blogs_posts_tags`
 				WHERE
 					`id`	= '%5\$s' AND
-					`lang`	= '{$L->clang}'",
+					`lang`	= '$L->clang'",
 				"INSERT INTO `[prefix]blogs_posts_tags`
 					(`id`, `tag`, `lang`)
 				VALUES
@@ -283,7 +288,7 @@ class Blogs {
 		)) {
 			return false;
 		}
-		if ($add) {
+		if ($add && $Config->core['multilingual']) {
 			foreach ($Config->core['active_languages'] as $lang) {
 				if ($lang != $L->clanguage) {
 					$lang	= $L->get('clang', $lang);
@@ -292,7 +297,9 @@ class Blogs {
 							(`id`, `tag`, `lang`)
 						SELECT `id`, `tag`, '$lang'
 						FROM `[prefix]blogs_posts_tags`
-						WHERE `id` = $id"
+						WHERE
+							`id`	= $id AND
+							`lang`	= '$L->clang'"
 					);
 				}
 			}
@@ -476,7 +483,7 @@ class Blogs {
 		$structure['sections']	= [];
 		if (!empty($sections)) {
 			foreach ($sections as $section) {
-				$structure['sections'][$section['path']]	= $this->get_sections_structure_internal($section['id']);
+				$structure['sections'][$this->ml_process($section['path'])]	= $this->get_sections_structure_internal($section['id']);
 			}
 		}
 		return $structure;
@@ -489,6 +496,12 @@ class Blogs {
 	 * @return array|bool
 	 */
 	function get_section ($id) {
+		if (is_array($id)) {
+			foreach ($id as &$i) {
+				$i	= $this->get_section($i);
+			}
+			return $id;
+		}
 		$L		= Language::instance();
 		$id		= (int)$id;
 		return $this->cache->get("sections/$id/$L->clang", function () use ($id) {
@@ -658,7 +671,7 @@ class Blogs {
 		}
 	}
 	private function ml_process ($text, $auto_translation = true) {
-		return Text::instance()->process($this->cdb(), $text, $auto_translation);
+		return Text::instance()->process($this->cdb(), $text, $auto_translation, true);
 	}
 	private function ml_set ($group, $label, $text) {
 		return Text::instance()->set($this->cdb(), $group, $label, $text);
@@ -668,6 +681,8 @@ class Blogs {
 	}
 	/**
 	 * Get array of tags list in form [<i>id</i> => <i>text</i>]
+	 *
+	 * @TODO remove method, add find_tag() instead
 	 *
 	 * @return array
 	 */
@@ -719,7 +734,11 @@ class Blogs {
 	 */
 	private function add_tag ($tag, $clean_cache = true) {
 		$tag	= trim(xap($tag));
-		if (($id = array_search($tag, $this->get_tags_list())) === false) {
+		$id		= array_search(
+			mb_strtolower($tag),
+			_mb_strtolower($this->get_tags_list())
+		);
+		if ($id === false) {
 			if ($this->db_prime()->q(
 				"INSERT INTO `[prefix]blogs_tags`
 					(`text`)

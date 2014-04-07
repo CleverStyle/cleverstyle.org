@@ -3,7 +3,7 @@
  * @package		Blogs
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs\modules\Blogs;
@@ -18,16 +18,12 @@ $Index					= Index::instance();
 $Page					= Page::instance();
 $rc						= array_slice($Config->route, 1);
 $structure				= Blogs::instance()->get_sections_structure();
-$keywords				= [];
-$description			= [];
 $path					= [];
 foreach ($rc as $path_) {
 	if ($structure['posts']	== 0 && isset($structure['sections'][$path_])) {
 		array_shift($rc);
 		$structure		= $structure['sections'][$path_];
 		$Page->title($structure['title']);
-		$keywords[]		= $structure['title'];
-		$description[]	= $structure['title'];
 		$path[]			= $path_;
 	} else {
 		break;
@@ -43,8 +39,6 @@ if (isset($structure['id'])) {
 }
 $L						= Language::instance();
 $Page->title($L->latest_posts);
-$Page->Keywords			= keywords("$L->Blogs ".implode(' ', $keywords)." $L->latest_posts").", $Page->Keywords";
-$Page->Description		= description("$L->Blogs - ".implode(' - ', $description)." - $L->latest_posts. $Page->Description");
 $Page->og('type', 'blog');
 $module					= path($L->Blogs);
 /**

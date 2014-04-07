@@ -3,7 +3,7 @@
  * @package		Blogs
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs\modules\Blogs;
@@ -49,6 +49,15 @@ $Index->content(
 				'value'		=> [0, 1],
 				'in'		=> [$L->no, $L->yes],
 				'checked'	=> $module_data->new_posts_only_from_admins
+			])
+		],
+		[
+			h::info('allow_iframes_without_content'),
+			h::{'input[type=radio]'}([
+				'name'		=> 'general[allow_iframes_without_content]',
+				'value'		=> [0, 1],
+				'in'		=> [$L->no, $L->yes],
+				'checked'	=> $module_data->allow_iframes_without_content
 			])
 		]
 	).

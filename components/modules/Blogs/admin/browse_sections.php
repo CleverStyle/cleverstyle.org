@@ -3,7 +3,7 @@
  * @package		Blogs
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 
@@ -17,7 +17,7 @@ $L				= Language::instance();
 $Index->buttons	= false;
 Page::instance()->title($L->browse_sections);
 $Index->content(
-	h::{'table.cs-left-all.cs-table-borderless'}(
+	h::{'table.cs-left-all.cs-table'}(
 		h::{'thead tr th'}(
 			[
 				$L->blogs_sections,

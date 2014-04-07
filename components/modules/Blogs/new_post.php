@@ -3,7 +3,7 @@
  * @package		Blogs
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs\modules\Blogs;
@@ -79,6 +79,24 @@ $disabled					= [];
 $max_sections				= $module_data->max_sections;
 $content					= uniqid('post_content');
 $Page->replace($content, isset($_POST['content']) ? $_POST['content'] : '');
+$sections					= get_sections_select_post($disabled);
+if (count($sections['in']) > 1) {
+	$sections	= [
+		$L->post_section,
+		h::{'select.cs-blogs-new-post-sections[size=7][required]'}(
+			$sections,
+			[
+				'name'		=> 'sections[]',
+				'disabled'	=> $disabled,
+				'selected'	=> isset($_POST['sections']) ? $_POST['sections'] : (isset($Config->route[1]) ? $Config->route[1] : []),
+				$max_sections < 1 ? 'multiple' : false
+			]
+		).
+		($max_sections > 1 ? h::br().$L->select_sections_num($max_sections) : '')
+	];
+} else {
+	$sections	= false;
+}
 $Index->content(
 	h::{'p.lead.cs-center'}(
 		$L->new_post
@@ -87,23 +105,11 @@ $Index->content(
 	h::{'table.cs-table-borderless.cs-left-even.cs-right-odd.cs-blogs-post-form tr| td'}(
 		[
 			$L->post_title,
-			h::{'h1.cs-blogs-new-post-title.SIMPLEST_INLINE_EDITOR'}(
-				isset($_POST['title']) ? $_POST['title'] : ''
+			h::{'h1.cs-blogs-new-post-title.SIMPLEST_INLINE_EDITOR[level=0]'}(
+				isset($_POST['title']) ? $_POST['title'] : '<br>'
 			)
 		],
-		[
-			$L->post_section,
-			h::{'select.cs-blogs-new-post-sections[size=7][required]'}(
-				get_sections_select_post($disabled),
-				[
-					'name'		=> 'sections[]',
-					'disabled'	=> $disabled,
-					'selected'	=> isset($_POST['sections']) ? $_POST['sections'] : (isset($Config->route[1]) ? $Config->route[1] : []),
-					$max_sections < 1 ? 'multiple' : false
-				]
-			).
-			($max_sections > 1 ? h::br().$L->select_sections_num($max_sections) : '')
-		],
+		$sections,
 		[
 			$L->post_content,
 			(
@@ -119,9 +125,13 @@ $Index->content(
 		[
 			$L->post_tags,
 			h::{'input.cs-blogs-new-post-tags[name=tags][required]'}([
-				'value'		=> isset($_POST['tags']) ? $_POST['tags'] : false
+				'value'			=> isset($_POST['tags']) ? $_POST['tags'] : false,
+				'placeholder'	=> 'CleverStyle, CMS, Open Source'
 			])
 		]
+	).
+	(
+		!$sections ? h::{'input[type=hidden][name=sections[]][value=0]'}() : ''
 	).
 	h::{'button.cs-blogs-post-preview'}(
 		$L->preview

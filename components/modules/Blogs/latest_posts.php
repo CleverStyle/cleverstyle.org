@@ -3,7 +3,7 @@
  * @package		Blogs
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs\modules\Blogs;
@@ -18,8 +18,6 @@ $Index					= Index::instance();
 $L						= Language::instance();
 $Page					= Page::instance();
 $Page->title($L->latest_posts);
-$Page->Keywords			= keywords("$L->Blogs $L->latest_posts").", $Page->Keywords";
-$Page->Description		= description("$L->Blogs - $L->latest_posts. $Page->Description");
 $module					= path($L->Blogs);
 /**
  * Show administration, new post, draft actions

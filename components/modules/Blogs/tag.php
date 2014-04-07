@@ -3,7 +3,7 @@
  * @package		Blogs
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs\modules\Blogs;
@@ -45,7 +45,7 @@ $tag					= $cdb->qfs([
 	FROM  `[prefix]blogs_tags`
 	WHERE `text` = '%s'
 	LIMIT 1",
-	$rc[0]
+	trim(xap($rc[0]))
 ]);
 if (!$tag) {
 	error_code(404);
@@ -57,8 +57,6 @@ $tag					= [
 ];;
 $Page->title($tag['text']);
 $Page->title($L->latest_posts);
-$Page->Keywords			= keywords("$L->Blogs $tag[text] $L->latest_posts").", $Page->Keywords";
-$Page->Description		= description("$L->Blogs - $tag[text] - $L->latest_posts. $Page->Description");
 $posts_count			= $cdb->qfs([
 	"SELECT COUNT(`t`.`id`)
 	FROM `[prefix]blogs_posts_tags` AS `t`

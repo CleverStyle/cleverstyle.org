@@ -3,7 +3,7 @@
  * @package		Blogs
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs\modules\Blogs;
@@ -58,7 +58,8 @@ if (isset($_POST['id'])) {
 		'comments_count'	=> 0
 	];
 }
-$module	= path($L->Blogs);
+$module			= path($L->Blogs);
+$module_data	= $Config->module('Blogs');
 $Page->json(
 	h::{'section.cs-blogs-post[level=0] article[level=0]'}(
 		h::header(
@@ -82,7 +83,7 @@ $Page->json(
 				)
 			) : '')
 		).
-		"$_POST[content]\n".
+		xap($_POST['content'], true, $module_data->allow_iframes_without_content)."\n".
 		h::footer(
 			h::p(
 				h::icon('tags').
@@ -118,7 +119,7 @@ $Page->json(
 					]
 				).
 				(
-					$Config->module('Blogs')->enable_comments ? h::icon('comments').$post['comments_count'] : ''
+				$module_data->enable_comments ? h::icon('comments').$post['comments_count'] : ''
 				)
 			)
 		)

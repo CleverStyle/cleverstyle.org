@@ -3,7 +3,7 @@
  * @package		Blogs
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs\modules\Blogs;
@@ -24,13 +24,6 @@ $Page
 $rc						= Config::instance()->route;
 $Index->main_sub_menu	= [
 	[
-		$L->general,
-		[
-			'href'	=> 'admin/Blogs',
-			'class'	=> !isset($rc[0]) || $rc[0] == 'general' ? 'uk-active' : false
-		]
-	],
-	[
 		$L->browse_sections,
 		[
 			'href'	=> 'admin/Blogs/browse_sections',
@@ -42,6 +35,13 @@ $Index->main_sub_menu	= [
 		[
 			'href'	=> 'admin/Blogs/browse_posts',
 			'class'	=> isset($rc[0]) && $rc[0] == 'browse_posts' ? 'uk-active' : false
+		]
+	],
+	[
+		$L->general,
+		[
+			'href'	=> 'admin/Blogs',
+			'class'	=> !isset($rc[0]) || $rc[0] == 'general' ? 'uk-active' : false
 		]
 	]
 ];
@@ -84,14 +84,14 @@ function get_sections_rows ($structure = null, $level = 0, &$content = null) {
 		).
 		(!$root ? h::{'a.cs-button-compact'}(
 			[
-				h::icon('edit'),
+				h::icon('pencil'),
 				[
 					'href'			=> "admin/Blogs/edit_section/$structure[id]",
 					'data-title'	=> $L->edit
 				]
 			],
 			[
-				h::icon('trash'),
+				h::icon('trash-o'),
 				[
 					'href'			=> "admin/Blogs/delete_section/$structure[id]",
 					'data-title'	=> $L->delete
@@ -222,14 +222,14 @@ function get_posts_rows ($page = 1) {
 				date($L->_datetime, $post['date']),
 				h::{'a.cs-button-compact'}(
 					[
-						h::icon('edit'),
+						h::icon('pencil'),
 						[
 							'href'			=> "admin/Blogs/edit_post/$post[id]",
 							'data-title'	=> $L->edit
 						]
 					],
 					[
-						h::icon('trash'),
+						h::icon('trash-o'),
 						[
 							'href'			=> "admin/Blogs/delete_post/$post[id]",
 							'data-title'	=> $L->delete

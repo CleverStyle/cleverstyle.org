@@ -3,7 +3,7 @@
  * @package		Blogs
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs\modules\Blogs;
@@ -49,7 +49,6 @@ if ($post['path'] != mb_substr($rc[1], 0, mb_strrpos($rc[1], ':'))) {
 }
 $Page->title($post['title']);
 $tags				= $Blogs->get_tag($post['tags']);
-$Page->Keywords		= keywords("$post[title] ".implode(' ', $tags));
 $Page->Description	= description($post['short_content']);
 $Page->canonical_url(
 	"{$Config->base_url()}/$module/$post[path]:$post[id]"
@@ -83,22 +82,22 @@ Index::instance()->content(
 				$User->get_permission('admin/Blogs', 'index') &&
 				$User->get_permission('admin/Blogs', 'edit_post') ? ' '.h::{'a.cs-button'}(
 					[
-						h::icon('edit'),
+						h::icon('pencil'),
 						[
 							'href'			=> "$module/edit_post/$post[id]",
 							'data-title'	=> $L->edit
 						]
 					],
 					[
-						h::icon('trash'),
+						h::icon('trash-o'),
 						[
 							'href'			=> "admin/Blogs/delete_post/$post[id]",
 							'data-title'	=> $L->delete
 						]
 					]
 				) : (
-					$User->id == $post['user'] && !$module_data->new_posts_only_from_admins ? ' '.h::{'a.cs-button-compact'}(
-						h::icon('edit'),
+					$User->id == $post['user'] ? ' '.h::{'a.cs-button-compact'}(
+						h::icon('pencil'),
 						[
 							'href'			=> "$module/edit_post/$post[id]",
 							'data-title'	=> $L->edit
@@ -139,11 +138,10 @@ Index::instance()->content(
 					', ',
 					array_map(
 						function ($tag) use ($L, $module) {
-							return h::a(
+							return h::{'a[level=0][rel=tag]'}(
 								$tag,
 								[
-									'href'	=> "$module/".path($L->tag)."/$tag",
-									'rel'	=> 'tag'
+									'href'	=> "$module/".path($L->tag)."/$tag"
 								]
 							);
 						},
