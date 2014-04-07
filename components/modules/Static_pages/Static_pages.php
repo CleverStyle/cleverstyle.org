@@ -3,7 +3,7 @@
  * @package		Static Pages
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs\modules\Static_pages;
@@ -13,9 +13,7 @@ use			cs\DB\Accessor,
 			cs\Config,
 			cs\Language,
 			cs\Text;
-/**
- * @method static \cs\modules\Static_pages\Static_pages instance($check = false)
- */
+
 class Static_pages {
 	use	Accessor,
 		Singleton;
