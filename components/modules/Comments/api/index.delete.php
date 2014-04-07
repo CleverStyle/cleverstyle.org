@@ -3,7 +3,7 @@
  * @package		Comments
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs\modules\Comments;
@@ -68,7 +68,7 @@ if (!is_object($Comments)) {
  * @var Comments $Comments
  */
 if ($result = $Comments->del($Config->route[0])) {
-	$Page->json($delete_parent ? h::{'icon.cs-comments-comment-delete.cs-pointer'}('trash') : '');
+	$Page->json($delete_parent ? h::{'icon.cs-comments-comment-delete.cs-pointer'}('trash-o') : '');
 } else {
 	error_code(500);
 	$Page->error($L->comment_deleting_server_error);
