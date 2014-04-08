@@ -153,6 +153,33 @@ class Comments {
 				'lang'		=> $L->clang
 			];
 		}
+		echo sprintf("INSERT INTO `[prefix]comments`
+				(
+					`parent`,
+					`module`,
+					`item`,
+					`user`,
+					`date`,
+					`text`,
+					`lang`
+				)
+			VALUES
+				(
+					'%s',
+					'%s',
+					'%s',
+					'%s',
+					'%s',
+					'%s',
+					'%s'
+				)",
+					 $parent,
+					 $this->module,
+					 $item,
+					 $User->id,
+					 TIME,
+					 $text,
+					 $L->clang);
 		return false;
 	}
 	/**
