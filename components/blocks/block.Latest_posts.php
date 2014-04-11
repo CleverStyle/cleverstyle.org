@@ -36,10 +36,10 @@ echo h::{'section.uk-panel.uk-panel-box.uk-panel-header.uk-margin-bottom'}(
 			'href'	=> $module
 		]
 	).
-	implode('<hr>',
+	implode(h::{'hr.uk-hidden-small'}(),
 		array_map(
 			function ($post) use ($module) {
-				return h::{'article.cs-block-latest-posts'}(
+				return h::{'article.cs-block-latest-posts.uk-hidden-small'}(
 					h::{'h3 a'}(
 						$post['title'],
 						[
