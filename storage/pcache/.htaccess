@@ -8,3 +8,5 @@
 <ifModule mod_headers.c>
 	Header set Cache-Control "max-age=2592000, public"
 </ifModule>
+AddEncoding gzip .js
+AddEncoding gzip .css
