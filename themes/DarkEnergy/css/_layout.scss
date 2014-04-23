@@ -17,14 +17,20 @@ body {
 	font-family : $base-font-family;
 	margin-left : -5px !important;
 	width       : 100%;
-}
 
-body > footer {
-	text-align : center;
+	@media (max-width : 959px) {
+		> aside:first-child > :nth-child(n+2) {
+			display : none;
+		}
+	}
 
-	strong {
-		display     : block;
-		font-weight : normal;
+	> footer {
+		text-align : center;
+
+		strong {
+			display     : block;
+			font-weight : normal;
+		}
 	}
 }
 
