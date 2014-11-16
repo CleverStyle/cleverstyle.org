@@ -9,6 +9,7 @@
 namespace	cs;
 use			h;
 $content	= uniqid('Profile_block_');
+include_once THEMES.'/CleverStyle/functions.php';
 echo $content;
 Trigger::instance()->register(
 	'System/Page/display',
@@ -18,9 +19,9 @@ Trigger::instance()->register(
 			$content,
 			h::{'div.uk-text-center.uk-form'}(
 				h::{'img.uk-thumbnail'}([
-					'src'	=> $Page->user_avatar_image
+					'src'	=> User::instance()->avatar(128)
 				]).
-				$Page->header_info
+				\cs\themes\CleverStyle\get_header_info()
 			),
 			$Page->Html
 		);
