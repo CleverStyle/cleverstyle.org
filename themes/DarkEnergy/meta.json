@@ -1,7 +1,8 @@
 {
-	"package"				: "CleverStyle",
+	"package"				: "DarkEnergy",
 	"category"				: "themes",
-	"description"			: "Stock theme for CleverStyle CMS",
+	"version"				: "1.2.4+build-9",
+	"description"			: "Dark responsive theme for CleverStyle CMS",
 	"author"				: "Nazar Mokrynskyi",
 	"website"				: "cleverstyle.org/cms",
 	"license"				: "MIT License"
