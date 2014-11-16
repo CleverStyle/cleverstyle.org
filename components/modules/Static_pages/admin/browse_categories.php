@@ -14,8 +14,8 @@ $Index			= Index::instance();
 $L				= Language::instance();
 $Index->buttons	= false;
 $Index->content(
-	h::{'table.cs-left-all.cs-table'}(
-		h::{'thead tr th'}(
+	h::{'cs-table[list][with-header]'}(
+		h::{'cs-table-row cs-table-cell'}(
 			[
 				$L->pages_category,
 				[
@@ -24,12 +24,12 @@ $Index->content(
 			],
 			$L->action
 		).
-		h::{'tbody tr| td'}(
+		h::{'cs-table-row| cs-table-cell'}(
 			get_categories_rows()
 		)
 	).
 	h::{'p.cs-left'}($L->index_page_path).
-	h::{'p.cs-left a.cs-button'}(
+	h::{'p.cs-left a.uk-button'}(
 		[
 			$L->add_category,
 			[
@@ -41,12 +41,6 @@ $Index->content(
 			[
 				'href'	=> 'admin/Static_pages/add_page'
 			]
-		]/*,
-		[
-			$L->add_page_live,
-			[
-				'href'	=> 'admin/Static_pages/add_page_live'
-			]
-		]*/
+		]
 	)
 );

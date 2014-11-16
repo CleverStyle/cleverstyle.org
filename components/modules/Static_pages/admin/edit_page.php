@@ -21,17 +21,17 @@ $Index->apply_button		= false;
 $Index->cancel_button_back	= true;
 $Index->action				= 'admin/Static_pages';
 $Index->content(
-	h::{'p.lead.cs-center'}(
+	h::{'h2.cs-center'}(
 		$L->editing_of_page($data['title'])
 	).
-	h::{'table.cs-table-borderless.cs-center-all'}(
-		h::{'thead tr th'}(
+	h::{'cs-table[center][with-header] cs-table-row| cs-table-cell'}(
+		[
 			$L->category,
 			$L->page_title,
 			h::info('page_path'),
 			h::info('page_interface')
-		),
-		h::{'tbody tr td'}(
+		],
+		[
 			h::{'select[name=category][size=5]'}(
 				get_categories_list(),
 				[
@@ -44,24 +44,22 @@ $Index->content(
 			h::{'input[name=path]'}([
 				'value'	=> $data['path']
 			]),
-			h::{'div input[type=radio][name=interface]'}([
+			h::{'div radio[name=interface]'}([
 				'checked'	=> $data['interface'],
 				'value'		=> [0, 1],
 				'in'		=> [$L->off, $L->on]
 			])
-		)
+		]
 	).
-	h::{'table.cs-table-borderless.cs-center-all'}(
-		h::{'thead tr th'}(
-			$L->content
-		),
-		h::{'tbody tr td textarea[name=content]'}(
+	h::{'cs-table[center][with-header] cs-table-row| cs-table-cell'}([
+		$L->content,
+		h::{'textarea[name=content]'}(
 			$data['content'],
 			[
 				'class'	=> $data['interface'] ? 'EDITOR' : ''
 			]
 		)
-	).
+	]).
 	h::{'input[type=hidden][name=id]'}([
 		'value'	=> $id
 	]).

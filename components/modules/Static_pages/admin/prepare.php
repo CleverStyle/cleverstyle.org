@@ -8,28 +8,13 @@
  * @license		  MIT License, see license.txt
  */
 namespace	cs\modules\Static_pages;
-use			h,
-			cs\Config,
-			cs\Index,
-			cs\Language,
-			cs\Page;
-$Config					= Config::instance();
-$Index					= Index::instance();
-$L						= Language::instance();
-$Page					= Page::instance();
-$Index->title_auto		= false;
-$Page->title($L->administration);
-$Page->title($L->Static_pages);
+use
+	h,
+	cs\Config,
+	cs\Language,
+	cs\Page;
+$Page	= Page::instance();
 $Page->css('components/modules/Static_pages/includes/css/style.css');
-$Index->main_sub_menu	= [
-	[
-		$L->browse_page_categories,
-		[
-			'href'	=> 'admin/Static_pages',
-			'class'	=> !isset($Config->route[0]) || $Config->route[0] == 'browse_sections' ? 'uk-active' : false
-		]
-	]
-];
 function get_categories_rows ($structure = null, $level = 0, $parent_categories = []) {
 	$L						= Language::instance();
 	$root					= false;
@@ -57,7 +42,7 @@ function get_categories_rows ($structure = null, $level = 0, $parent_categories 
 				'class'	=> "cs-static-pages-padding-left-$level"
 			]
 		],
-		h::{'a.cs-button-compact'}(
+		h::{'a.uk-button.cs-button-compact'}(
 			[
 				h::icon('plus'),
 				[
@@ -71,16 +56,9 @@ function get_categories_rows ($structure = null, $level = 0, $parent_categories 
 					'href'			=> "admin/Static_pages/add_page/$structure[id]",
 					'data-title'	=> $L->add_page
 				]
-			]/*,
-			[
-				h::icon('document'),
-				[
-					'href'			=> "admin/Static_pages/add_page_live/$structure[id]",
-					'data-title'	=> $L->add_page_live
-				]
-			]*/
+			]
 		).
-		(!$root ? h::{'a.cs-button-compact'}(
+		(!$root ? h::{'a.uk-button.cs-button-compact'}(
 			[
 				h::icon('pencil'),
 				[
@@ -163,21 +141,14 @@ function get_pages_rows () {
 						'class'	=> 'cs-static-pages-padding-left-0'
 					]
 				],
-				h::{'a.cs-button-compact'}(
+				h::{'a.uk-button.cs-button-compact'}(
 					[
 						h::icon('file-text'),
 						[
 							'href'			=> "admin/Static_pages/edit_page/$page[id]",
 							'data-title'	=> $L->edit
 						]
-					]/*,
-					$page['interface'] ? [
-						h::icon('document'),
-						[
-							'href'			=> "admin/Static_pages/edit_page_live/$page[id]",
-							'data-title'	=> $L->edit_page_live
-						]
-					] : false*/,
+					],
 					[
 						h::icon('trash-o'),
 						[
