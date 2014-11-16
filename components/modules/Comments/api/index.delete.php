@@ -7,12 +7,13 @@
  * @license		MIT License, see license.txt
  */
 namespace	cs\modules\Comments;
-use			h,
-			cs\Config,
-			cs\Language,
-			cs\Page,
-			cs\Trigger,
-			cs\User;
+use
+	h,
+	cs\Config,
+	cs\Language,
+	cs\Page,
+	cs\Trigger,
+	cs\User;
 /**
  * Provides next triggers:<br>
  *  api/Comments/delete<code>
@@ -28,15 +29,7 @@ if (!$Config->module('Comments')->active()) {
 	error_code(404);
 	return;
 }
-/**
- * If AJAX request from local referer, user is not guest - allow
- */
-if (!(
-	$Config->server['referer']['local'] &&
-	$Config->server['ajax'] &&
-	User::instance()->user()
-)) {
-	sleep(1);
+if (!User::instance()->user()) {
 	error_code(403);
 	return;
 }
@@ -58,10 +51,8 @@ Trigger::instance()->run(
 $L				= Language::instance();
 $Page			= Page::instance();
 if (!is_object($Comments)) {
-	if (!defined('ERROR_CODE')) {
-		error_code(500);
-		$Page->error($L->comment_deleting_server_error);
-	}
+	error_code(500);
+	$Page->error($L->comment_deleting_server_error);
 	return;
 }
 /**

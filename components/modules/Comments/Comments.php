@@ -14,6 +14,10 @@ use			cs\DB\Accessor,
 			cs\Language,
 			cs\User,
 			cs\Singleton;
+
+/**
+ * @method static Comments instance($check = false)
+ */
 class Comments {
 	use	Accessor,
 		Singleton;
@@ -32,7 +36,7 @@ class Comments {
 	public		$avatar_size	= 36;
 
 	protected function construct () {
-		$this->module	= MODULE;
+		$this->module	= current_module();
 		$this->cache	= new Prefix("Comments/$this->module");
 	}
 	/**
@@ -153,33 +157,6 @@ class Comments {
 				'lang'		=> $L->clang
 			];
 		}
-		echo sprintf("INSERT INTO `[prefix]comments`
-				(
-					`parent`,
-					`module`,
-					`item`,
-					`user`,
-					`date`,
-					`text`,
-					`lang`
-				)
-			VALUES
-				(
-					'%s',
-					'%s',
-					'%s',
-					'%s',
-					'%s',
-					'%s',
-					'%s'
-				)",
-					 $parent,
-					 $this->module,
-					 $item,
-					 $User->id,
-					 TIME,
-					 $text,
-					 $L->clang);
 		return false;
 	}
 	/**
@@ -460,16 +437,16 @@ class Comments {
 					]
 				).
 				h::br().
-				h::{'button.cs-comments-comment-write-send'}(
+				h::{'button.uk-button.cs-comments-comment-write-send'}(
 					$L->send_comment
 				).
-				h::{'button.cs-comments-comment-write-edit'}(
+				h::{'button.uk-button.cs-comments-comment-write-edit'}(
 					$L->save,
 					[
 						'style'	=>	'display: none'
 					]
 				).
-				h::{'button.cs-comments-comment-write-cancel'}(
+				h::{'button.uk-button.cs-comments-comment-write-cancel'}(
 					$L->cancel,
 					[
 						'style'	=>	'display: none'
