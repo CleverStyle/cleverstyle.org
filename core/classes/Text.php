@@ -7,9 +7,11 @@
  */
 namespace cs;
 
+/**
+ * @method static Text instance($check = false)
+ */
 class Text {
 	use Singleton;
-
 	/**
 	 * Gets text on current language
 	 *
@@ -17,15 +19,12 @@ class Text {
 	 * @param string		$group
 	 * @param string		$label
 	 * @param int|null		$id					Getting may be done with group and label or with id
-	 * @param bool			$auto_translation	If <b>false</b> - automatic translation will be disabled,
-	 * 											even in case, when it is enabled in system configuration
 	 * @param bool			$store_in_cache		If <b>true</b> - text will be stored in cache
 	 *
 	 * @return bool|string
 	 */
-	function get ($database, $group, $label, $id = null, $auto_translation = true, $store_in_cache = false) {
+	function get ($database, $group, $label, $id = null, $store_in_cache = false) {
 		$Cache		= Cache::instance();
-		$Config		= Config::instance();
 		$L			= Language::instance();
 		$id			= (int)$id;
 		$cache_key	= "texts/$database/".($id ?: md5($group).md5($label))."_$L->clang";
@@ -102,25 +101,6 @@ class Text {
 		}
 		if (!$text) {
 			return false;
-		}
-		if ($text['lang'] != $L->clang && $auto_translation && $Config->core['multilingual'] && $Config->core['auto_translation']) {
-			$engine_class	= '\\cs\\Text\\'.$Config->core['auto_translation_engine']['name'];
-			$text['text']	= $engine_class::translate($text['text'], $text['lang'], $L->clang);
-			$db->$database()->q(
-				"INSERT INTO `[prefix]texts_data`
-					(
-						`id`,
-						`lang`,
-						`text`
-					) VALUES (
-						'%s',
-						'%s',
-						'%s'
-					)",
-				$text['id'],
-				$L->clang,
-				$text['text']
-			);
 		}
 		if ($store_in_cache) {
 			$Cache->$cache_key	= $text['text'];
@@ -285,7 +265,8 @@ class Text {
 			FROM `[prefix]texts`
 			WHERE
 				`group`	= '%s' AND
-				`label`	= '%s'",
+				`label`	= '%s'
+			LIMIT 1",
 			$group,
 			$label
 		]);
@@ -313,13 +294,11 @@ class Text {
 	 *
 	 * @param int					$database
 	 * @param string|string[]		$data
-	 * @param bool					$auto_translation	If <b>false</b> - automatic translation will be disabled,
-	 * 													even in case, when it is enabled in system configuration
 	 * @param bool					$store_in_cache		If <b>true</b> - text will be stored in cache
 	 *
 	 * @return bool|string|string[]
 	 */
-	function process ($database, $data, $auto_translation = true, $store_in_cache = false) {
+	function process ($database, $data, $store_in_cache = false) {
 		if (empty($data)) {
 			return '';
 		}
@@ -331,8 +310,8 @@ class Text {
 		}
 		return preg_replace_callback(
 			'/^\{¶([0-9]+)\}$/',
-			function ($input) use ($database, $auto_translation, $store_in_cache) {
-				return $this->get($database, null, null, $input[1], $auto_translation, $store_in_cache);
+			function ($input) use ($database, $store_in_cache) {
+				return $this->get($database, null, null, $input[1], $store_in_cache);
 			},
 			$data
 		);

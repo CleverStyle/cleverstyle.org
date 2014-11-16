@@ -15,7 +15,7 @@ use			h,
 $Config	= Config::instance();
 $L		= Language::instance();
 Index::instance()->content(
-	h::{'table.cs-table-borderless.cs-left-even.cs-right-odd tr| td'}(
+	h::{'cs-table[right-left] cs-table-row| cs-table-cell'}(
 		core_input('session_expire', 'number', null, false, 1, false, $L->seconds),
 		core_input('online_time', 'number', null, false, 1, false, $L->seconds),
 		[
@@ -36,10 +36,10 @@ Index::instance()->content(
 		],
 		core_input('remember_user_ip', 'radio'),
 		core_input('password_min_length', 'number', null, false, 4),
-		core_input('password_min_strength', 'range', null, false, 0, 7),
+		core_input('password_min_strength', 'number', null, false, 0, 7),
 		[
 			h::info('allow_user_registration'),
-			h::{'input[type=radio]'}([
+			h::radio([
 				'name'		=> 'core[allow_user_registration]',
 				'checked'	=> $Config->core['allow_user_registration'],
 				'value'		=> [0, 1],
@@ -54,7 +54,7 @@ Index::instance()->content(
 		[
 			[
 				h::info('require_registration_confirmation'),
-				h::{'input[type=radio]'}([
+				h::radio([
 					'name'			=> 'core[require_registration_confirmation]',
 					'checked'		=> $Config->core['require_registration_confirmation'],
 					'value'			=> [0, 1],

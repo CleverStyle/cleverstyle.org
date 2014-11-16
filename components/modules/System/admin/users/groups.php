@@ -22,18 +22,18 @@ if (isset($rc[2])) {
 			$a->cancel_button_back	= true;
 			$Page->title($L->adding_a_group);
 			$a->content(
-				h::{'p.lead.cs-center'}(
+				h::{'h2.cs-center'}(
 					$L->adding_a_group
 				).
-				h::{'table.cs-table-borderless.cs-center-all tr'}(
-					h::{'thead tr th'}(
+				h::{'cs-table[center][with-header] cs-table-row| cs-table-cell'}(
+					[
 						$L->group_name,
-						$L->description
-					),
-					h::{'tbody tr td'}(
+						$L->group_description
+					],
+					[
 						h::{'input[name=group[title]]'}(),
 						h::{'input[name=group[description]]'}()
-					)
+					]
 				)
 			);
 		break;
@@ -48,17 +48,17 @@ if (isset($rc[2])) {
 				$L->editing_of_group($group_data['title'])
 			);
 			$a->content(
-				h::{'p.lead.cs-center'}(
+				h::{'h2.cs-center'}(
 					$L->editing_of_group($group_data['title'])
 				).
-				h::{'table.cs-table-borderless.cs-center-all tr'}(
-					h::{'thead tr th'}(
+				h::{'cs-table[center][with-header] cs-table-row| cs-table-cell'}(
+					[
 						'&nbsp;id&nbsp;',
 						$L->group_name,
-						$L->description,
+						$L->group_description,
 						'data'
-					),
-					h::{'tbody tr td'}(
+					],
+					[
 						$rc[3],
 						h::input([
 							'name'		=> 'group[title]',
@@ -71,7 +71,7 @@ if (isset($rc[2])) {
 						h::{'textarea[name=group[data]]'}(
 							$group_data['data']
 						)
-					)
+					]
 				).
 				h::{'input[type=hidden]'}([
 					'name'	=> 'group[id]',
@@ -90,14 +90,14 @@ if (isset($rc[2])) {
 				$L->deletion_of_group($group['title'])
 			);
 			$a->content(
-				h::{'p.lead.cs-center'}(
+				h::{'h2.cs-center'}(
 					$L->sure_delete_group($group['title'])
 				).
 				h::{'input[type=hidden]'}([
 					'name'	=> 'id',
 					'value'	=> $rc[3]
 				]).
-				h::{'button[type=submit]'}($L->yes)
+				h::{'button.uk-button[type=submit]'}($L->yes)
 			);
 			$Page->warning($L->changing_settings_warning);
 		break;
@@ -125,31 +125,31 @@ if (isset($rc[2])) {
 				);
 				$content	= [];
 				foreach($list as $label => $id) {
-					$content[] = h::th(
-						$group == 'Block' ? Text::instance()->process($Config->module('System')->db('texts'), $blocks[$label]) : $label
-					).
-					h::{'td input[type=radio]'}([
-						'name'			=> "permission[$id]",
-						'checked'		=> isset($group_permissions[$id]) ? $group_permissions[$id] : -1,
-						'value'			=> [-1, 0, 1],
-						'in'			=> [$L->not_specified, $L->deny, $L->allow]
-					]);
+					$content[] = h::cs_table_cell(
+						$group == 'Block' ? Text::instance()->process($Config->module('System')->db('texts'), $blocks[$label]) : $label,
+						h::radio([
+							'name'			=> "permission[$id]",
+							'checked'		=> isset($group_permissions[$id]) ? $group_permissions[$id] : -1,
+							'value'			=> [-1, 0, 1],
+							'in'			=> [$L->not_specified, $L->deny, $L->allow]
+						])
+					);
 				}
 				if (count($list) % 2) {
-					$content[] = h::{'td[colspan=2]'}();
+					$content[] = h::cs_table_cell().h::cs_table_cell();
 				}
 				$count		= count($content);
 				$content_	= [];
 				for ($i = 0; $i < $count; $i += 2) {
 					$content_[]	= $content[$i].$content[$i+1];
 				}
-				$tabs_content .= h::{'div#permissions_group_'.strtr($group, '/', '_').' table.cs-table-borderless.cs-center-all tr'}(
-					h::{'td.cs-left-all[colspan=4]'}(
-						h::{'button.cs-permissions-invert'}($L->invert).
-						h::{'button.cs-permissions-deny-all'}($L->deny_all).
-						h::{'button.cs-permissions-allow-all'}($L->allow_all)
-					),
-					$content_
+				$tabs_content .= h::{'div#permissions_group_'.strtr($group, '/', '_')}(
+					h::{'p.cs-left'}(
+						h::{'button.uk-button.cs-permissions-invert'}($L->invert).
+						h::{'button.uk-button.cs-permissions-deny-all'}($L->deny_all).
+						h::{'button.uk-button.cs-permissions-allow-all'}($L->allow_all)
+					).
+					h::{'cs-table[right-left] cs-table-row'}($content_)
 				);
 			}
 			unset($content, $content_, $count, $i, $permissions, $group, $list, $label, $id, $blocks);
@@ -159,7 +159,7 @@ if (isset($rc[2])) {
 				)
 			);
 			$a->content(
-				h::{'p.lead.cs-center'}(
+				h::{'h2.cs-center'}(
 					$L->permissions_for_group(
 						$Group->get($rc[3], 'title')
 					)
@@ -188,21 +188,21 @@ if (isset($rc[2])) {
 		$id				= $id['id'];
 		$group_data 	= $Group->get($id);
 		$groups_list[]	= [
-			h::{'a.cs-button-compact'}(
+			h::{'a.uk-button.cs-button-compact'}(
 				h::icon('pencil'),
 				[
 					'href'			=> "$a->action/edit/$id",
 					'data-title'	=> $L->edit_group_information
 				]
 			).
-			($id != User::ADMIN_GROUP_ID && $id != User::USER_GROUP_ID && $id != User::BOT_GROUP_ID ? h::{'a.cs-button-compact'}(
+			($id != User::ADMIN_GROUP_ID && $id != User::USER_GROUP_ID && $id != User::BOT_GROUP_ID ? h::{'a.uk-button.cs-button-compact'}(
 				h::icon('trash-o'),
 				[
 					'href'			=> "$a->action/delete/$id",
 					'data-title'	=> $L->delete
 				]
 			) : '').
-			h::{'a.cs-button-compact'}(
+			h::{'a.uk-button.cs-button-compact'}(
 				h::icon('key'),
 				[
 					'href'			=> "$a->action/permissions/$id",
@@ -216,16 +216,16 @@ if (isset($rc[2])) {
 	}
 	unset($id, $group_data, $groups_ids);
 	$a->content(
-		h::{'table.cs-table.cs-center-all'}(
-			h::{'thead tr th'}(
+		h::{'cs-table[center][list][with-header] cs-table-row| cs-table-cell'}(
+			[
 				$L->action,
 				'id',
 				$L->group_name,
-				$L->description
-			).
-			h::{'tbody tr| td'}($groups_list)
+				$L->group_description
+			],
+			$groups_list
 		).
-		h::{'p.cs-left a.cs-button'}(
+		h::{'p.cs-left a.uk-button'}(
 			$L->add_group,
 			[
 				'href' => "admin/System/$rc[0]/$rc[1]/add"

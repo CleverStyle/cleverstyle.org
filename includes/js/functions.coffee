@@ -6,15 +6,6 @@
 ###
 L							= cs.Language
 ###*
- * Get value by name
- *
- * @param {string}	name
- *
- * @return {string}
-###
-value_by_name				= (name) ->
-	document.getElementsByName(name).item(0).value
-###*
  * Adds method for symbol replacing at specified position
  *
  * @param {int}		index
@@ -24,146 +15,6 @@ value_by_name				= (name) ->
 ###
 String::replaceAt			= (index, symbol) ->
 	this.substr(0, index) + symbol + this.substr(index + symbol.length)
-###*
- * Debug window opening
-###
-cs.debug_window				= -> $('#cs-debug').cs().modal('show')
-###*
- * Cache cleaning
- *
- * @param 			element
- * @param {string}	action
-###
-cs.admin_cache				= (element, action) ->
-	$(element).html """
-		<div class="uk-progress uk-progress-striped uk-active">
-			<div class="uk-progress-bar" style="width:100%"></div>
-		</div>
-	"""
-	$.ajax
-		url		: action,
-		success	: (result) ->
-			$(element).html(result)
-	return
-###*
- * Send request for db connection testing
- *
- * @param {string}	url
- * @param {bool}	added
-###
-cs.db_test					= (url, added) ->
-	db_test	= $('#cs-db-test')
-	db_test.find('h3 + *').replaceWith """
-		<div class="uk-progress uk-progress-striped uk-active">
-			<div class="uk-progress-bar" style="width:100%"></div>
-		</div>
-	"""
-	db_test.cs().modal('show')
-	if added
-		$.ajax
-			url		: url,
-			success	: (result) ->
-				db_test.find('h3 + *').replaceWith(result)
-			error	: ->
-				db_test.find('h3 + *').replaceWith('<p class="cs-test-result">' + L.failed + '</p>')
-	else
-		db = cs.json_encode(
-			type		: value_by_name('db[type]')
-			name		: value_by_name('db[name]')
-			user		: value_by_name('db[user]')
-			password	: value_by_name('db[password]')
-			host		: value_by_name('db[host]')
-			charset		: value_by_name('db[charset]')
-		)
-		$.ajax
-			url		: url
-			data	:
-				db	: db
-			success	: (result) ->
-				db_test
-					.find('h3 + *')
-					.replaceWith(result)
-			error	: ->
-				db_test
-					.find('h3 + *')
-					.replaceWith('<p class="cs-test-result">' + L.failed + '</p>')
-###*
- * Send request for storage connection testing
- *
- * @param {string}	url
- * @param {bool}	added
-###
-cs.storage_test				= (url, added) ->
-	storage_test	= $('#cs-storage-test')
-	storage_test
-		.find('h3 + *')
-		.replaceWith """
-			<div class="uk-progress uk-progress-striped uk-active">
-				<div class="uk-progress-bar" style="width:100%"></div>
-			</div>
-		"""
-	storage_test.cs().modal('show')
-	if added
-		$.ajax
-			url		: url
-			success	: (result) ->
-				storage_test
-					.find('h3 + *')
-					.replaceWith(result)
-			error	: ->
-				storage_test
-					.find('h3 + *')
-					.replaceWith('<p class="cs-test-result">' + L.failed + '</p>')
-	else
-		storage = cs.json_encode(
-			url			: value_by_name('storage[url]')
-			host		: value_by_name('storage[host]')
-			connection	: value_by_name('storage[connection]')
-			user		: value_by_name('storage[user]')
-			password	: value_by_name('storage[password]')
-		)
-		$.ajax
-			url		: url
-			data	:
-				storage	: storage
-			success	: (result) ->
-				storage_test
-					.find('h3 + *')
-					.replaceWith(result)
-			error	: ->
-				storage_test
-					.find('h3 + *')
-					.replaceWith('<p class="cs-test-result">' + L.failed + '</p>')
-###*
- * Toggling of blocks group in admin page
- *
- * @param {string}	position
-###
-cs.blocks_toggle			= (position) ->
-	container	= $("#cs-#{position}-blocks-items")
-	items		= container.children('li:not(:first)')
-	if container.data('mode') == 'open'
-		items.slideUp('fast')
-		container.data('mode', 'close')
-	else
-		items.slideDown('fast')
-		container.data('mode', 'open')
-	return
-###*
- * Returns the JSON representation of a value
- *
- * @param {object} obj
- *
- * @return {string}
-###
-cs.json_encode				= (obj) -> JSON.stringify(obj)
-###*
- * Decodes a JSON string
- *
- * @param {string}	str
- * @return {object}
-###
-cs.json_decode				= (str) -> JSON.parse(str)
 ###*
  * Supports algorithms sha1, sha224, sha256, sha384, sha512
  *
@@ -202,6 +53,7 @@ cs.setcookie				= (name, value, expires) ->
 		value
 		path	: cs.cookie_path
 		domain	: cs.cookie_domain
+		expires	: expires
 		secure	: cs.protocol == 'https'
 	)
 ###*
@@ -227,26 +79,11 @@ cs.sign_in					= (login, password) ->
 		url		: 'api/System/user/sign_in'
 		cache	: false
 		data	:
-			login: cs.hash('sha224', login)
+			login		: cs.hash('sha224', login)
+			password	: cs.hash('sha512', cs.hash('sha512', password) + cs.public_key)
 		type	: 'post'
-		success	: (random_hash) ->
-			if random_hash.length == 56
-				$.ajax(
-					'api/user/sign_in'
-						cache	: false
-						data	:
-							login		: cs.hash('sha224', login)
-							auth_hash	: cs.hash(
-								'sha512',
-								cs.hash('sha224', login) + cs.hash('sha512', cs.hash('sha512', password) + cs.public_key) + navigator.userAgent + random_hash
-							)
-						type	: 'post'
-						success	: (result) ->
-							if result == 'reload'
-								location.reload()
-				)
-			else if random_hash == 'reload'
-				location.reload()
+		success	: ->
+			location.reload()
 ###*
  * Sign out
 ###
@@ -325,8 +162,10 @@ cs.restore_password			= (email) ->
  *
  * @param {string} current_password
  * @param {string} new_password
+ * @param {Function} success
+ * @param {Function} error
 ###
-cs.change_password			= (current_password, new_password) ->
+cs.change_password			= (current_password, new_password, success, error) ->
 	if !current_password
 		alert(L.please_type_current_password)
 		return
@@ -342,25 +181,22 @@ cs.change_password			= (current_password, new_password) ->
 		url		: 'api/System/user/change_password'
 		cache	: false
 		data	:
-			verify_hash		: cs.hash('sha224', current_password + session_id)
-			new_password	: cs.xor_string(current_password, new_password)
+			current_password	: current_password
+			new_password		: new_password
 		type	: 'post'
 		success	: (result) ->
 			if result == 'OK'
-				alert(L.password_changed_successfully)
+				if success
+					success()
+				else
+					alert(L.password_changed_successfully)
 			else
-				alert(result)
-###*
- * For textarea in blocks editing
- *
- * @param item
-###
-cs.block_switch_textarea	= (item) ->
-	$('#cs-block-content-html, #cs-block-content-raw-html').hide()
-	switch $(item).val()
-		when 'html' then $('#cs-block-content-html').show()
-		when 'raw_html' then $('#cs-block-content-raw-html').show()
-	return
+				if error
+					error()
+				else
+					alert(result)
+		error	: ->
+			error()
 ###*
  * Encodes data with MIME base64
  *

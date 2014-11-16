@@ -30,70 +30,68 @@ if (isset($rc[2])) {
 			$a->action = "admin/System/$rc[0]/$rc[1]";
 			$Page->title($rc[2] == 'edit' ? $L->editing_of_storage($Config->storage[$rc[3]]['host'].'/'.$Config->storage[$rc[3]]['connection']) : $L->adding_of_storage);
 			$a->content(
-				h::{'p.lead.cs-center'}(
+				h::{'h2.cs-center'}(
 					$rc[2] == 'edit' ? $L->editing_of_storage($Config->storage[$rc[3]]['host'].'/'.$Config->storage[$rc[3]]['connection']) : $L->adding_of_storage
 				).
-				h::{'table.cs-table-borderless.cs-center-all tr'}(
-					\cs\modules\System\form_rows_to_cols([
-						array_map(
-							function ($in) {
-								return h::{'th info'}($in);
-							},
+				h::{'cs-table[center][right-left] cs-table-row| cs-table-cell'}(
+					[
+						h::info('storage_url'),
+						h::input([
+							'name'		=> 'storage[url]',
+							'value'		=> $rc[2] == 'edit' ? $storage['url'] : ''
+						])
+					],
+					[
+						h::info('storage_host'),
+						h::input([
+							'name'		=> 'storage[host]',
+							'value'		=> $rc[2] == 'edit' ? $storage['host'] : ''
+						])
+					],
+					[
+						h::info('storage_connection'),
+						h::select(
 							[
-								'storage_url',
-								'storage_host',
-								'storage_connection',
-								'storage_user',
-								'storage_pass'
-							]
-						),
-						array_map(
-							function ($in) {
-								return h::td($in);
-							},
+								'in'		=> _mb_substr(get_files_list(ENGINES.'/Storage', '/^[^_].*?\.php$/i', 'f'), 0, -4)
+							],
 							[
-								h::input([
-									'name'		=> 'storage[url]',
-									'value'		=> $rc[2] == 'edit' ? $storage['url'] : ''
-								]),
-								h::input([
-									'name'		=> 'storage[host]',
-									'value'		=> $rc[2] == 'edit' ? $storage['host'] : ''
-								]),
-								h::select(
-									[
-										'in'		=> _mb_substr(get_files_list(ENGINES.'/Storage', '/^[^_].*?\.php$/i', 'f'), 0, -4)
-									],
-									[
-										'name'		=> 'storage[connection]',
-										'selected'	=> $rc[2] == 'edit' ? $storage['connection'] : '',
-										'size'		=> 5
-									]
-								),
-								h::input([
-									'name'		=> 'storage[user]',
-									'value'		=> $rc[2] == 'edit' ? $storage['user'] : ''
-								]),
-								h::input([
-									'name'		=> 'storage[password]',
-									'value'		=> $rc[2] == 'edit' ? $storage['password'] : ''
-								]).
-								h::{'input[type=hidden]'}([
-									'name'		=> 'mode',
-									'value'		=> $rc[2] == 'edit' ? 'edit' : 'add'
-								]).
-								(isset($rc[3]) ? h::{'input[type=hidden]'}([
-									'name'	=> 'storage_id',
-									'value'	=> $rc[3]
-								]) : '')
+								'name'		=> 'storage[connection]',
+								'selected'	=> $rc[2] == 'edit' ? $storage['connection'] : '',
+								'size'		=> 5
 							]
 						)
-					])
+					],
+					[
+						h::info('storage_user'),
+						h::input([
+							'name'		=> 'storage[user]',
+							'value'		=> $rc[2] == 'edit' ? $storage['user'] : ''
+						])
+					],
+					[
+						h::info('storage_pass'),
+						h::input([
+							'name'		=> 'storage[password]',
+							'value'		=> $rc[2] == 'edit' ? $storage['password'] : ''
+						])
+					]
 				).
-				h::button(
+				h::{'input[type=hidden]'}([
+					'name'		=> 'mode',
+					'value'		=> $rc[2] == 'edit' ? 'edit' : 'add'
+				]).
+				(
+					isset($rc[3])
+						? h::{'input[type=hidden]'}([
+							'name'	=> 'storage_id',
+							'value'	=> $rc[3]
+						])
+						: ''
+				).
+				h::{'button.uk-button'}(
 					$L->test_connection,
 					[
-						'onMouseDown'	=> "cs.storage_test('$a->action/test');"
+						'onMouseDown'	=> "cs.storage_test();"
 					]
 				)
 			);
@@ -118,7 +116,7 @@ if (isset($rc[2])) {
 				$a->action = "admin/System/$rc[0]/$rc[1]";
 				$Page->title($L->deletion_of_storage($Config->storage[$rc[3]]['host'].'/'.$Config->storage[$rc[3]]['connection']));
 				$a->content(
-					h::{'p.lead.cs-center'}(
+					h::{'h2.cs-center'}(
 						$L->sure_to_delete.' '.$L->storage.' '.
 							$Config->storage[$rc[3]]['host'].'/'.$Config->storage[$rc[3]]['connection'].'?'.
 							h::{'input[type=hidden]'}([
@@ -130,50 +128,37 @@ if (isset($rc[2])) {
 								'value'	=> $rc[3]
 							])
 					).
-					h::{'button[type=submit]'}($L->yes)
+					h::{'button.uk-button[type=submit]'}($L->yes)
 				);
 			}
-		break;
-		case 'test':
-			interface_off();
-			$test_dialog		= false;
-			$a->form			= false;
-			$a->generate_auto	= false;
-			$Storage			= Storage::instance();
-			if (isset($rc[3])) {
-				$Page->Content = h::{'p.cs-test-result'}($Storage->test([$rc[3]]) ? $L->success : $L->failed);
-			} else {
-				$Page->Content = h::{'p.cs-test-result'}($Storage->test($_POST['storage']) ? $L->success : $L->failed);
-			}
-		break;
 	}
 } else {
-	$storage_list = [];
+	$storages_list = [];
 	$Core			= Core::instance();
 	$storages		= $Config->storage;
 	if (!empty($storages)) {
 		foreach ($storages as $i => &$storage_data) {
-			$storage_list[] =	[
+			$storages_list[] =	[
 				[
 					($i ?
-					h::{'a.cs-button-compact'}(
+					h::{'a.uk-button.cs-button-compact'}(
 						h::icon('pencil'),
 						[
 							'href'			=> "$a->action/edit/$i",
 							'data-title'	=> "$L->edit $L->storage"
 						]
 					).
-					h::{'a.cs-button-compact'}(
+					h::{'a.uk-button.cs-button-compact'}(
 						h::icon('trash-o'),
 						[
 							'href'			=> "$a->action/delete/$i",
 							'data-title'	=> "$L->delete $L->storage"
 						]
 					).
-					h::{'a.cs-button-compact'}(
+					h::{'a.uk-button.cs-button-compact'}(
 						h::icon('signal'),
 						[
-							'onMouseDown'	=> "cs.storage_test('$a->action/test/$i', true);",
+							'onMouseDown'	=> "cs.storage_test($i);",
 							'data-title'	=> $L->test_connection
 						]
 					) : '-'),
@@ -198,24 +183,24 @@ if (isset($rc[2])) {
 	}
 	unset($storages);
 	$a->content(
-		h::{'table.cs-table.cs-center-all'}(
-			h::{'thead tr th'}([
+		h::{'cs-table[center][list][with-header] cs-table-row| cs-table-cell'}(
+			[
 				$L->action,
 				$L->storage_url,
 				$L->storage_host,
 				$L->storage_connection,
 				$L->storage_user
-			]).
-			h::{'tbody tr| td'}([$storage_list])
+			],
+			$storages_list
 		).
-		h::{'p a.cs-button'}(
+		h::{'p a.uk-button'}(
 			$L->add_storage,
 			[
 				'href' => "admin/System/$rc[0]/$rc[1]/add"
 			]
 		)
 	);
-	unset($storage_list);
+	unset($storages_list);
 }
 $test_dialog && $a->content(
 	h::{'div#cs-storage-test.uk-modal div'}(

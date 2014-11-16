@@ -60,7 +60,7 @@ if (isset($rc[2])) {
 			$a->action				= 'admin/System/'.$rc[0].'/'.$rc[1];
 			$Page->title($L->deletion_of_block(get_block_title($rc[3])));
 			$a->content(
-				h::{'p.lead.cs-center'}(
+				h::{'h2.cs-center'}(
 					$L->sure_to_delete_block(get_block_title($rc[3])).
 					h::{'input[type=hidden]'}([
 						'name'	=> 'mode',
@@ -71,101 +71,86 @@ if (isset($rc[2])) {
 						'value'	=> $rc[3]
 					])
 				).
-				h::{'button[type=submit]'}($L->yes)
+				h::{'button.uk-button[type=submit]'}($L->yes)
 			);
 		break;
 		case 'add':
 			$form					= false;
 			$a->apply_button		= false;
 			$a->cancel_button_back	= true;
-			$a->form_atributes[]	= 'formnovalidate';
+			$a->form_attributes[]	= 'formnovalidate';
 			$Page->title($L->adding_a_block);
 			$a->content(
-				h::{'p.lead.cs-center'}(
+				h::{'h2.cs-center'}(
 					$L->adding_a_block
 				).
-				h::{'table.cs-table-borderless.cs-center-all tr'}(
-					\cs\modules\System\form_rows_to_cols([
-						array_map(
-							function ($in) {
-								return h::{'th info'}($in);
-							},
+				h::{'cs-table[center][right-left] cs-table-row| cs-table-cell'}(
+					[
+						h::info('block_type'),
+						h::select(
+							array_merge(['html', 'raw_html'], _mb_substr(get_files_list(BLOCKS, '/^block\..*?\.php$/i', 'f'), 6, -4)),
 							[
-								'block_type',
-								'block_title',
-								'block_active',
-								'block_template',
-								'block_start',
-								'block_expire'
-							]
-						),
-						array_map(
-							function ($in) {
-								return h::td($in);
-							},
-							[
-								h::select(
-									array_merge(['html', 'raw_html'], _mb_substr(get_files_list(BLOCKS, '/^block\..*?\.php$/i', 'f'), 6, -4)),
-									[
-										'name'		=> 'block[type]',
-										'size'		=> 5,
-										'onchange'	=> 'cs.block_switch_textarea(this)'
-									]
-								),
-								h::input([
-									'name'		=> 'block[title]'
-								]),
-								h::{'div input[type=radio]'}([
-									'name'		=> 'block[active]',
-									'value'		=> [1, 0],
-									'in'		=> [$L->yes, $L->no]
-								]),
-								h::select(
-									_mb_substr(get_files_list(TEMPLATES.'/blocks', '/^block\..*?\.(php|html)$/i', 'f'), 6),
-									[
-										'name'		=> 'block[template]',
-										'size'		=> 5
-									]
-								),
-								h::{'input[type=datetime-local]'}([
-									'name'		=> 'block[start]',
-									'value'		=> date('Y-m-d\TH:i', TIME)
-								]),
-								h::{'input[type=radio]'}([
-									'name'		=> 'block[expire][state]',
-									'value'		=> [0, 1],
-									'in'		=> [$L->never, $L->as_specified]
-								]).
-								h::br(2).
-								h::{'input[type=datetime-local]'}([
-									'name'		=> 'block[expire][date]',
-									'value'		=> date('Y-m-d\TH:i', TIME)
-								])
+								'name'		=> 'block[type]',
+								'size'		=> 5,
+								'onchange'	=> 'cs.block_switch_textarea(this)'
 							]
 						)
-					]),
-					[
-						h::{'td[colspan=6] textarea.EDITOR'}(
-							'',
-							[
-								'name'	=> 'block[html]'
-							]
-						),
-						[
-							'id'	=> 'cs-block-content-html'
-						]
 					],
 					[
-						h::{'td[colspan=6] textarea'}(
-							'',
+						h::info('block_title'),
+						h::input([
+							'name'		=> 'block[title]'
+						])
+					],
+					[
+						h::info('block_active'),
+						h::{'div radio'}([
+							'name'		=> 'block[active]',
+							'value'		=> [1, 0],
+							'in'		=> [$L->yes, $L->no]
+						])
+					],
+					[
+						h::info('block_template'),
+						h::select(
+							_mb_substr(get_files_list(TEMPLATES.'/blocks', '/^block\..*?\.(php|html)$/i', 'f'), 6),
 							[
-								'name'	=> 'block[raw_html]'
+								'name'		=> 'block[template]',
+								'size'		=> 5
 							]
-						),
-						[
-							'style'	=> 'display: none;',
-							'id'	=> 'cs-block-content-raw-html'
-						]
+						)
+					],
+					[
+						h::info('block_start'),
+						h::{'input[type=datetime-local]'}([
+							'name'		=> 'block[start]',
+							'value'		=> date('Y-m-d\TH:i', TIME)
+						])
+					],
+					[
+						h::info('block_expire'),
+						h::radio([
+							'name'		=> 'block[expire][state]',
+							'value'		=> [0, 1],
+							'in'		=> [$L->never, $L->as_specified]
+						]).
+						h::br(2).
+						h::{'input[type=datetime-local]'}([
+							'name'		=> 'block[expire][date]',
+							'value'		=> date('Y-m-d\TH:i', TIME)
+						])
+					]
+				).
+				h::{'div#cs-block-content-html textarea.EDITOR'}(
+					'',
+					[
+						'name'	=> 'block[html]'
+					]
+				).
+				h::{'div#cs-block-content-raw-html[style=display:none;] textarea'}(
+					'',
+					[
+						'name'	=> 'block[raw_html]'
 					]
 				).
 				h::{'input[type=hidden]'}([
@@ -181,84 +166,81 @@ if (isset($rc[2])) {
 			$form					= false;
 			$a->apply_button		= false;
 			$a->cancel_button_back	= true;
-			$a->form_atributes[]	= 'formnovalidate';
+			$a->form_attributes[]	= 'formnovalidate';
 			$block = &$Config->components['blocks'][$rc[3]];
 			$Page->title($L->editing_a_block(get_block_title($rc[3])));
 			$a->content(
-				h::{'p.lead.cs-center'}(
+				h::{'h2.cs-center'}(
 					$L->editing_a_block(get_block_title($rc[3]))
 				).
-				h::{'table.cs-table-borderless.cs-center-all tr'}(
-					\cs\modules\System\form_rows_to_cols([
-						array_map(
-							function ($in) {
-								return h::{'th info'}($in);
-							},
+				h::{'cs-table[center][right-left] cs-table-row| cs-table-cell'}(
+					[
+						h::info('block_title'),
+						h::input([
+							'name'		=> 'block[title]',
+							'value'		=> get_block_title($rc[3])
+						])
+					],
+					[
+						h::info('block_active'),
+						h::{'div radio'}([
+							'name'		=> 'block[active]',
+							'checked'	=> $block['active'],
+							'value'		=> [1, 0],
+							'in'		=> [$L->yes, $L->no]
+						])
+					],
+					[
+						h::info('block_template'),
+						h::select(
 							[
-								'block_title',
-								'block_active',
-								'block_template',
-								'block_start',
-								'block_expire'
-							]
-						),
-						array_map(
-							function ($in) {
-								return h::td($in);
-							},
+								'in'		=> _mb_substr(get_files_list(TEMPLATES.'/blocks', '/^block\..*?\.(php|html)$/i', 'f'), 6)
+							],
 							[
-								h::input([
-									'name'		=> 'block[title]',
-									'value'		=> get_block_title($rc[3])
-								]),
-								h::{'div input[type=radio]'}([
-									'name'		=> 'block[active]',
-									'checked'	=> $block['active'],
-									'value'		=> [1, 0],
-									'in'		=> [$L->yes, $L->no]
-								]),
-								h::select(
-									[
-										'in'		=> _mb_substr(get_files_list(TEMPLATES.'/blocks', '/^block\..*?\.(php|html)$/i', 'f'), 6)
-									],
-									[
-										'name'		=> 'block[template]',
-										'selected'	=> $block['template'],
-										'size'		=> 5
-									]
-								),
-								h::{'input[type=datetime-local]'}([
-									'name'		=> 'block[start]',
-									'value'		=> date('Y-m-d\TH:i', $block['start'] ?: TIME)
-								]),
-								h::{'input[type=radio]'}([
-									'name'		=> 'block[expire][state]',
-									'checked'	=> $block['expire'] != 0,
-									'value'		=> [0, 1],
-									'in'		=> [$L->never, $L->as_specified]
-								]).
-								h::br(2).
-								h::{'input[type=datetime-local]'}([
-									'name'		=> 'block[expire][date]',
-									'value'		=> date('Y-m-d\TH:i', $block['expire'] ?: TIME)
-								])
+								'name'		=> 'block[template]',
+								'selected'	=> $block['template'],
+								'size'		=> 5
 							]
 						)
-					]),
-					($block['type'] == 'html' ? h::{'td[colspan=5] textarea.EDITOR'}(
+					],
+					[
+						h::info('block_start'),
+						h::{'input[type=datetime-local]'}([
+							'name'		=> 'block[start]',
+							'value'		=> date('Y-m-d\TH:i', $block['start'] ?: TIME)
+						])
+					],
+					[
+						h::info('block_expire'),
+						h::radio([
+							'name'		=> 'block[expire][state]',
+							'checked'	=> $block['expire'] != 0,
+							'value'		=> [0, 1],
+							'in'		=> [$L->never, $L->as_specified]
+						]).
+						h::br(2).
+						h::{'input[type=datetime-local]'}([
+							'name'		=> 'block[expire][date]',
+							'value'		=> date('Y-m-d\TH:i', $block['expire'] ?: TIME)
+						])
+					]
+				).
+				(
+					$block['type'] == 'html'
+						? h::{'textarea.EDITOR'}(
 							get_block_content($rc[3]),
 							[
 								'name'	=> 'block[html]'
 							]
-						) : (
-							$block['type'] == 'raw_html' ? h::{'td[colspan=5] textarea'}(
+						)
+						: (
+							$block['type'] == 'raw_html' ? h::textarea(
 								get_block_content($rc[3]),
 								[
 									'name'	=> 'block[raw_html]'
 								]
 							) : ''
 						)
-					)
 				).
 				h::{'input[type=hidden]'}([
 					[[
@@ -292,22 +274,24 @@ if (isset($rc[2])) {
 					$group['id'],
 					$permission
 				]);
-				$groups_content[] = h::th(
-					$group['title'],
+				$groups_content[] = h::cs_table_cell(
 					[
-						'data-title'	=> $group['description']
-					]
-				).
-				h::{'td input[type=radio]'}([
-					'name'			=> "groups[$group[id]]",
-					'checked'		=> $group_permission === false ? -1 : $group_permission,
-					'value'			=> [-1, 0, 1],
-					'in'			=> [$L->inherited, $L->deny, $L->allow]
-				]);
+						$group['title'],
+						[
+							'data-title'	=> $group['description']
+						]
+					],
+					h::radio([
+						'name'			=> "groups[$group[id]]",
+						'checked'		=> $group_permission === false ? -1 : $group_permission,
+						'value'			=> [-1, 0, 1],
+						'in'			=> [$L->inherited, $L->deny, $L->allow]
+					])
+				);
 			}
 			unset($groups, $group, $group_permission);
 			if (count($groups_content) % 2) {
-				$groups_content[] = h::{'td[colspan=2]'}();
+				$groups_content[] = h::cs_table_cell().h::cs_table_cell();
 			}
 			$count			= count($groups_content);
 			$content_		= [];
@@ -328,48 +312,46 @@ if (isset($rc[2])) {
 			foreach ($users_list as &$user) {
 				$value				= $user['value'];
 				$user				= $user['id'];
-				$users_content[]	= h::th($User->username($user)).
-					h::{'td input[type=radio]'}([
+				$users_content[]	= h::cs_table_cell(
+					$User->username($user),
+					h::radio([
 						'name'			=> 'users['.$user.']',
 						'checked'		=> $value,
 						'value'			=> [-1, 0, 1],
 						'in'			=> [$L->inherited, $L->deny, $L->allow]
-					]);
+					])
+				);
 			}
 			unset($user, $value);
 			$Page->title($L->permissions_for_block(get_block_title($rc[3])));
 			$a->content(
-				h::{'p.lead.cs-center'}(
+				h::{'h2.cs-center'}(
 					$L->permissions_for_block(get_block_title($rc[3]))
 				).
 				h::{'ul.cs-tabs li'}(
 					$L->groups,
 					$L->users
 				).
-				h::div(
-					h::{'table.cs-table-borderless.cs-center-all tr'}(
-						h::{'td.cs-left-all[colspan=4]'}(
-							h::{'button.cs-permissions-invert'}($L->invert).
-							h::{'button.cs-permissions-allow-all'}($L->allow_all).
-							h::{'button.cs-permissions-deny-all'}($L->deny_all)
-						),
-						$groups_content
+				h::{'div div'}(
+					h::{'p.cs-left'}(
+						h::{'button.uk-button.cs-permissions-invert'}($L->invert).
+						h::{'button.uk-button.cs-permissions-allow-all'}($L->allow_all).
+						h::{'button.uk-button.cs-permissions-deny-all'}($L->deny_all)
 					).
-					h::{'table.cs-table-borderless.cs-center-all tr'}([
-						h::{'td.cs-left-all'}(
-							h::{'button.cs-permissions-invert'}($L->invert).
-							h::{'button.cs-permissions-allow-all'}($L->allow_all).
-							h::{'button.cs-permissions-deny-all'}($L->deny_all)
-						),
-						h::{'td table#cs-block-users-changed-permissions.cs-table-borderless.cs-center-all tr'}($users_content),
-						h::{'td input#block_users_search[type=search]'}([
-							'autocomplete'	=> 'off',
-							'permission'	=> $permission,
-							'placeholder'	=> $L->type_username_or_email_press_enter,
-							'style'			=> 'width: 100%'
-						]),
-						h::{'td#block_users_search_results'}()
-					])
+					h::{'cs-table[right-left] cs-table-row'}($groups_content),
+					h::{'p.cs-left'}(
+						h::{'button.uk-button.cs-permissions-invert'}($L->invert).
+						h::{'button.uk-button.cs-permissions-allow-all'}($L->allow_all).
+						h::{'button.uk-button.cs-permissions-deny-all'}($L->deny_all)
+					).
+					h::{'cs-table#cs-block-users-changed-permissions[right-left] cs-table-row'}($users_content).
+					h::{'input#block_users_search[type=search]'}([
+						'autocomplete'	=> 'off',
+						'permission'	=> $permission,
+						'placeholder'	=> $L->type_username_or_email_press_enter,
+						'style'			=> 'width: 100%'
+					]).
+					h::{'div#block_users_search_results'}()
 				).
 				h::{'input#cs-block-users-search-found[type=hidden]'}([
 					'value'	=> implode(',', $users_list)
@@ -386,50 +368,11 @@ if (isset($rc[2])) {
 					]]
 				])
 			);
-		break;
-		case 'search_users':
-			$form				= false;
-			$a->generate_auto	= false;
-			interface_off();
-			$users_list		= $User->search_users($_POST['search_phrase']);
-			$found_users	= explode(',', $_POST['found_users']);
-			$permission		= (int)$_POST['permission'];
-			$content		= [];
-			foreach ($users_list as $user) {
-				if (in_array($user, $found_users)) {
-					continue;
-				}
-				$found_users[]	= $user;
-				$value			= $User->db()->qfs([
-					"SELECT `value`
-					FROM `[prefix]users_permissions`
-					WHERE
-						`id`			= '%s' AND
-						`permission`	= '%s'",
-					$user,
-					$permission
-				]);
-				$content[]		= h::th($User->username($user)).
-					h::{'td input[type=radio]'}([
-						'name'			=> 'users['.$user.']',
-						'checked'		=> $value !== false ? $value : -1,
-						'value'			=> [-1, 0, 1],
-						'in'			=> [
-							$L->inherited.' ('.($value !== false && !$value ? '-' : '+').')',
-							$L->deny,
-							$L->allow
-						]
-					]);
-			}
-			$Page->content(
-				h::{'table.cs-table-borderless.cs-center-all tr'}($content)
-			);
-		break;
 	}
 }
 if ($form) {
 	$a->reset_button	= false;
-	$a->post_buttons	.= h::{'button.cs-reload-button'}(
+	$a->custom_buttons	.= h::{'button.uk-button.cs-reload-button'}(
 		$L->reset
 	);
 	$blocks_array = [
@@ -474,8 +417,8 @@ if ($form) {
 					]
 				),
 				[
-					'id'	=> "block$id",
-					'class'	=> $block['active'] ? 'uk-button-success' : 'uk-button-default'
+					'data-id'	=> $id,
+					'class'		=> $block['active'] ? 'uk-button-success' : 'uk-button-default'
 				]
 			);
 			unset($block_data);
@@ -483,7 +426,7 @@ if ($form) {
 		unset($id, $block);
 	}
 	foreach ($blocks_array as $position => &$content) {
-		$content = h::{'td.cs-blocks-items-groups ul.cs-blocks-items'}(
+		$content = h::{'cs-table-cell.cs-blocks-items-groups ul.cs-blocks-items'}(
 			h::{'li.uk-button-primary'}(
 				$L->{"{$position}_blocks"},
 				[
@@ -499,14 +442,14 @@ if ($form) {
 	}
 	unset($position, $content);
 	$a->content(
-		h::{'table.cs-table-borderless tr'}([
-			h::td().$blocks_array['top'].h::td(),
+		h::{'cs-table cs-table-row'}([
+			h::cs_table_cell().$blocks_array['top'].h::cs_table_cell(),
 
 			"$blocks_array[left]$blocks_array[floating]$blocks_array[right]",
 
-			h::td().$blocks_array['bottom'].h::td()
+			h::cs_table_cell().$blocks_array['bottom'].h::cs_table_cell()
 		]).
-		h::{'p.cs-left a.cs-button'}(
+		h::{'p.cs-left a.uk-button'}(
 			"$L->add $L->block",
 			[
 			'href' => "admin/System/$rc[0]/$rc[1]/add"

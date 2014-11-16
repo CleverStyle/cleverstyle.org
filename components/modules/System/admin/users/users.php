@@ -17,10 +17,6 @@ use			h,
 			cs\Permission,
 			cs\Text,
 			cs\User;
-function row ($col1, $col2) {
-	return	h::th($col1).
-			h::td($col2);
-}
 $Config			= Config::instance();
 $L				= Language::instance();
 $Page			= Page::instance();
@@ -36,7 +32,7 @@ if (isset($rc[2], $rc[3])) {
 			$a->cancel_button_back	= true;
 			$Page->title($L->adding_a_user);
 			$a->content(
-				h::{'p.lead.cs-center'}(
+				h::{'h2.cs-center'}(
 					$L->adding_a_user
 				).
 				h::{'p.cs-center input'}([
@@ -50,10 +46,10 @@ if (isset($rc[2], $rc[3])) {
 			$a->cancel_button_back	= true;
 			$Page->title($L->adding_a_bot);
 			$a->content(
-				h::{'p.lead.cs-center'}(
+				h::{'h2.cs-center'}(
 					$L->adding_a_bot
 				).
-				h::{'table.cs-table-borderless.cs-left-even.cs-right-odd tr| td'}([
+				h::{'cs-table[right-left] cs-table-row| cs-table-cell'}([
 					[
 						$L->bot_name,
 						h::{'input[name=name]'}()
@@ -77,35 +73,31 @@ if (isset($rc[2], $rc[3])) {
 			$a->cancel_button_back	= true;
 			$content				= $content_ = '';
 			$user_data				= $User->get($search_columns, $rc[3]);
-			$last					= count($search_columns) - 1;
 			foreach ($search_columns as $i => $column) {
-				$content_ .= h::th($column).
-				h::td(
-					$column == 'data' ?
-						h::textarea(
+				$content_ .= h::cs_table_cell(
+					$column,
+					$column == 'data'
+						? h::textarea(
 							$user_data[$column],
 							[
 								'name'		=> "user[$column]"
 							]
-						) :
-						h::input([
+						)
+						: h::input([
 							'name'		=> "user[$column]",
 							'value'		=> $user_data[$column],
 							$column == 'id' ? 'readonly' : false
-						]),
-					[
-						'colspan'	=> $i == $last ? 3 : false
-					]
+						])
 				);
 				if  ($i % 2) {
-					$content .= h::tr(
+					$content .= h::cs_table_row(
 						$content_
 					);
 					$content_ = '';
 				}
 			}
 			if ($content_ != '') {
-				$content .= h::tr(
+				$content .= h::cs_table_row(
 					$content_
 				);
 			}
@@ -114,12 +106,12 @@ if (isset($rc[2], $rc[3])) {
 				$L->editing_raw_data_of_user($User->username($rc[3]))
 			);
 			$a->content(
-				h::{'p.lead.cs-center'}(
+				h::{'h2.cs-center'}(
 					$L->editing_raw_data_of_user(
 						$User->username($rc[3])
 					)
 				).
-				h::{'table.cs-table-borderless.cs-center-all'}($content)
+				h::{'cs-table[right-left]'}($content)
 			);
 		break;
 		case 'edit':
@@ -154,73 +146,115 @@ if (isset($rc[2], $rc[3])) {
 					$L->editing_of_user_information($User->username($rc[3]))
 				);
 				$a->content(
-					h::{'p.lead.cs-center'}(
+					h::{'h2.cs-center'}(
 						$L->editing_of_user_information(
 							$User->username($rc[3])
 						)
 					).
-					h::{'table.cs-table-borderless.cs-center-all tr'}([
-						row('id', $rc[3]),
-						row($L->registration_date, $user_data['reg_date'] ? date($L->_date, $user_data['reg_date']) : $L->undefined),
-						row($L->registration_ip, $reg_ip[0] ? $reg_ip[0].($reg_ip[1] ? h::br().$reg_ip[1] : '') : $L->undefined),
-						row($L->last_sign_in, $user_data['last_sign_in'] ? date($L->_datetime, $user_data['last_sign_in']) : $L->undefined),
-						row($L->last_ip, $last_ip[0] ? $last_ip[0].($last_ip[1] ? h::br().$last_ip[1] : '') : $L->undefined),
-						row($L->last_online, $user_data['last_online'] ? date($L->_datetime, $user_data['last_online']) : $L->undefined),
-						row($L->login, h::input([
-							'name'		=> 'user[login]',
-							'value'		=> $user_data['login']
-						])),
-						row($L->username, h::input([
-							'name'	=> 'user[username]',
-							'value'	=> $user_data['username']
-						])),
-						row($L->email, h::input([
-							'name'		=> 'user[email]',
-							'value'		=> $user_data['email']
-						])),
-						row(
+					h::{'cs-table[right-left] cs-table-row| cs-table-cell'}([
+						[
+							'id',
+							$rc[3]
+						],
+						[
+							$L->registration_date,
+							$user_data['reg_date'] ? date($L->_date, $user_data['reg_date']) : $L->undefined
+						],
+						[
+							$L->registration_ip,
+							$reg_ip[0] ? $reg_ip[0].($reg_ip[1] ? h::br().$reg_ip[1] : '') : $L->undefined
+						],
+						[
+							$L->last_sign_in,
+							$user_data['last_sign_in'] ? date($L->_datetime, $user_data['last_sign_in']) : $L->undefined
+						],
+						[
+							$L->last_ip,
+							$last_ip[0] ? $last_ip[0].($last_ip[1] ? h::br().$last_ip[1] : '') : $L->undefined
+						],
+						[
+							$L->last_online,
+							$user_data['last_online'] ? date($L->_datetime, $user_data['last_online']) : $L->undefined
+						],
+						[
+							$L->login,
+							h::input([
+								'name'		=> 'user[login]',
+								'value'		=> $user_data['login']
+							])
+						],
+						[
+							$L->username,
+							h::input([
+								'name'	=> 'user[username]',
+								'value'	=> $user_data['username']
+							])
+						],
+						[
+							$L->email,
+							h::input([
+								'name'		=> 'user[email]',
+								'value'		=> $user_data['email']
+							])
+						],
+						[
 							$L->password_only_for_changing.h::{'icon.cs-show-password.cs-pointer'}('lock'),
 							h::{'input[type=password]'}([
 								'name'	=> 'user[password]',
 								'value'	=> ''
 							])
-						),
-						row($L->language, h::select(
-							[
-								'in'		=> array_merge(["$L->system_default ({$Config->core['language']})"], $Config->core['active_languages']),
-								'value'		=> array_merge([''], $Config->core['active_languages'])
-							],
-							[
-								'name'		=> 'user[language]',
-								'selected'	=> $user_data['language'],
-								'size'		=> 5
-							]
-						)),
-						row($L->timezone, h::select(
-							[
-								'in'		=> array_merge(["$L->system_default ({$Config->core['timezone']})"], array_keys($timezones)),
-								'value'		=> array_merge([''], array_values($timezones))
-							],
-							[
-								'name'		=> 'user[timezone]',
-								'selected'	=> $user_data['timezone'],
-								'size'		=> 5
-							]
-						)),
-						row($L->status, h::{'input[type=radio]'}([
-							'name'		=> 'user[status]',
-							'checked'	=> $user_data['status'],
-							'value'		=> [User::STATUS_NOT_ACTIVATED, User::STATUS_INACTIVE, User::STATUS_ACTIVE],
-							'in'		=> [$L->is_not_activated, $L->inactive, $L->active]
-						])),
-						row(h::info('block_until'), h::{'input[type=datetime-local]'}([
-							'name'		=> 'user[block_until]',
-							'value'		=> date('Y-m-d\TH:i', $user_data['block_until'] ?: TIME)
-						])),
-						row($L->avatar, h::input([
-							'name'		=> 'user[avatar]',
-							'value'		=> $user_data['avatar']
-						]))
+						],
+						[
+							$L->language,
+							h::select(
+								[
+									'in'		=> array_merge(["$L->system_default ({$Config->core['language']})"], $Config->core['active_languages']),
+									'value'		=> array_merge([''], $Config->core['active_languages'])
+								],
+								[
+									'name'		=> 'user[language]',
+									'selected'	=> $user_data['language'],
+									'size'		=> 5
+								]
+							)
+						],
+						[
+							$L->timezone,
+							h::select(
+								[
+									'in'		=> array_merge(["$L->system_default ({$Config->core['timezone']})"], array_keys($timezones)),
+									'value'		=> array_merge([''], array_values($timezones))
+								],
+								[
+									'name'		=> 'user[timezone]',
+									'selected'	=> $user_data['timezone'],
+									'size'		=> 5
+								]
+							)
+						],
+						[
+							$L->status,
+							h::radio([
+								'name'		=> 'user[status]',
+								'checked'	=> $user_data['status'],
+								'value'		=> [User::STATUS_NOT_ACTIVATED, User::STATUS_INACTIVE, User::STATUS_ACTIVE],
+								'in'		=> [$L->is_not_activated, $L->inactive, $L->active]
+							])
+						],
+						[
+							h::info('block_until'),
+							h::{'input[type=datetime-local]'}([
+								'name'		=> 'user[block_until]',
+								'value'		=> date('Y-m-d\TH:i', $user_data['block_until'] ?: TIME)
+							])
+						],
+						[
+							$L->avatar,
+							h::input([
+								'name'		=> 'user[avatar]',
+								'value'		=> $user_data['avatar']
+							])
+						]
 					]).
 					h::{'input[type=hidden]'}([
 						'name'	=> 'user[id]',
@@ -240,12 +274,12 @@ if (isset($rc[2], $rc[3])) {
 					$L->editing_of_bot_information($bot_data['username'])
 				);
 				$a->content(
-					h::{'p.lead.cs-center'}(
+					h::{'h2.cs-center'}(
 						$L->editing_of_bot_information(
 							$bot_data['username']
 						)
 					).
-					h::{'table.cs-table-borderless.cs-left-even.cs-right-odd tr| td'}([
+					h::{'cs-table[right-left] cs-table-row| cs-table-cell'}([
 						[
 							$L->bot_name,
 							h::input([
@@ -290,7 +324,7 @@ if (isset($rc[2], $rc[3])) {
 					'name'	=> 'id',
 					'value'	=> $rc[3]
 				]).
-				h::{'button[type=submit]'}($L->yes)
+				h::{'button.uk-button[type=submit]'}($L->yes)
 			);
 		break;
 		case 'activate':
@@ -308,7 +342,7 @@ if (isset($rc[2], $rc[3])) {
 					'name'	=> 'id',
 					'value'	=> $rc[3]
 				]).
-				h::{'button[type=submit]'}($L->yes)
+				h::{'button.uk-button[type=submit]'}($L->yes)
 			);
 		break;
 		case 'permissions':
@@ -335,35 +369,35 @@ if (isset($rc[2], $rc[3])) {
 				);
 				$content	= [];
 				foreach($list as $label => $id) {
-					$content[] = h::th(
-						$group != 'Block' ? $label : Text::instance()->process($Config->module('System')->db('texts'), $blocks[$label])
-					).
-					h::{'td input[type=radio]'}([
-						'name'			=> "permission[$id]",
-						'checked'		=> isset($user_permissions[$id]) ? $user_permissions[$id] : -1,
-						'value'			=> [-1, 0, 1],
-						'in'			=> [
-							$L->inherited.' ('.(isset($user_permissions[$id]) && !$user_permissions[$id] ? '-' : '+').')',
-							$L->deny,
-							$L->allow
-						]
-					]);
+					$content[] = h::cs_table_cell(
+						$group != 'Block' ? $label : Text::instance()->process($Config->module('System')->db('texts'), $blocks[$label]),
+						h::radio([
+							'name'			=> "permission[$id]",
+							'checked'		=> isset($user_permissions[$id]) ? $user_permissions[$id] : -1,
+							'value'			=> [-1, 0, 1],
+							'in'			=> [
+								$L->inherited.' ('.(isset($user_permissions[$id]) && !$user_permissions[$id] ? '-' : '+').')',
+								$L->deny,
+								$L->allow
+							]
+						])
+					);
 				}
 				if (count($list) % 2) {
-					$content[] = h::{'td[colspan=2]'}();
+					$content[] = h::cs_table_cell().h::cs_table_cell();
 				}
 				$count		= count($content);
 				$content_	= [];
 				for ($i = 0; $i < $count; $i += 2) {
 					$content_[]	= $content[$i].$content[$i+1];
 				}
-				$tabs_content .= h::{'div#permissions_group_'.strtr($group, '/', '_').' table.cs-table-borderless.cs-center-all'}(
-					h::{'tr td.cs-left-all[colspan=4]'}(
-						h::{'button.cs-permissions-invert'}($L->invert).
-						h::{'button.cs-permissions-deny-all'}($L->deny_all).
-						h::{'button.cs-permissions-allow-all'}($L->allow_all)
+				$tabs_content .= h::{'div#permissions_group_'.strtr($group, '/', '_')}(
+					h::{'p.cs-left'}(
+						h::{'button.uk-button.cs-permissions-invert'}($L->invert).
+						h::{'button.uk-button.cs-permissions-deny-all'}($L->deny_all).
+						h::{'button.uk-button.cs-permissions-allow-all'}($L->allow_all)
 					).
-					h::tr($content_)
+					h::{'cs-table[right-left] cs-table-row'}($content_)
 				);
 			}
 			unset($content, $content_, $count, $i, $permissions, $group, $list, $label, $id, $blocks);
@@ -371,7 +405,7 @@ if (isset($rc[2], $rc[3])) {
 				$User->username($rc[3])
 			));
 			$a->content(
-				h::{'p.lead.cs-center'}(
+				h::{'h2.cs-center'}(
 					$L->{$is_bot ? 'permissions_for_bot' : 'permissions_for_user'}(
 						$User->username($rc[3])
 					)
@@ -407,7 +441,7 @@ if (isset($rc[2], $rc[3])) {
 					$groups_selected	.= h::{'li.uk-button-success'}(
 						$group['title'],
 						[
-							'id'			=> "group$group[id]",
+							'data-id'		=> $group['id'],
 							'data-title'	=> $group['description']
 						]
 					);
@@ -421,7 +455,7 @@ if (isset($rc[2], $rc[3])) {
 					$groups_list	.= h::{'li.uk-button-default'}(
 						$group['title'],
 						[
-							'id'			=> "group$group[id]",
+							'data-id'		=> $group['id'],
 							'data-title'	=> $group['description']
 						]
 					);
@@ -431,7 +465,7 @@ if (isset($rc[2], $rc[3])) {
 				$L->user_groups($User->username($rc[3]))
 			);
 			$a->content(
-				h::{'p.lead.cs-center'}(
+				h::{'h2.cs-center'}(
 					$L->user_groups(
 						$User->username($rc[3])
 					),
@@ -439,14 +473,9 @@ if (isset($rc[2], $rc[3])) {
 						'data-title'	=> $L->user_groups_info
 					]
 				).
-				h::{'table.cs-table-borderless tr td'}(
-					[
-						h::{'ul#cs-users-groups-list-selected'}($groups_selected),
-						h::{'ul#cs-users-groups-list'}($groups_list)
-					],
-					[
-						'style'	=> 'vertical-align: top;'
-					]
+				h::{'div[layout][horizontal]'}(
+					h::{'ul#cs-users-groups-list-selected[flex]'}($groups_selected).
+					h::{'ul#cs-users-groups-list[flex]'}($groups_list)
 				).
 				h::{'input[type=hidden]'}([
 					'name'	=> 'user[id]',
@@ -471,7 +500,7 @@ if (isset($rc[2], $rc[3])) {
 		'id', 'login', 'username', 'email'
 	];
 	$limit			= isset($_POST['search_limit'])	? (int)$_POST['search_limit']		: 20;
-	$start			= isset($_POST['search_start'])	? (int)$_POST['search_start'] - 1	: 0;
+	$page			= isset($_POST['page'])			? (int)$_POST['page']				: 1;
 	$search_text	= isset($_POST['search_text'])	? $_POST['search_text']				: '';
 	$columns_list	= '';
 	$search_modes	= [
@@ -484,7 +513,7 @@ if (isset($rc[2], $rc[3])) {
 		$columns_list .= h::{'li.cs-pointer.uk-button.uk-margin-bottom'}(
 			$column,
 			[
-				'class'	=> in_array($column, $columns) ? 'ui-selected uk-button-primary' : ''
+				'class'	=> in_array($column, $columns) ? 'uk-button-primary' : ''
 			]
 		);
 	}
@@ -554,7 +583,7 @@ if (isset($rc[2], $rc[3])) {
 		User::STATUS_NOT_ACTIVATED
 	]);
 	if ($results_count) {
-		$from		= $start * $limit;
+		$from		= ($page - 1) * $limit;
 		$users_ids	= $users_db->qfas([
 			"SELECT `id`
 			FROM `[prefix]users`
@@ -569,16 +598,17 @@ if (isset($rc[2], $rc[3])) {
 		]);
 		unset($from);
 	}
-	$users_list				= [];
+	$users_list	= [];
 	if (isset($users_ids) && is_array($users_ids)) {
 		foreach ($users_ids as $id) {
 			$is_guest		= $id == User::GUEST_ID;
 			$is_root		= $id == User::ROOT_ID;
 			$groups			= (array)$User->get_groups($id);
 			$is_bot			= in_array(User::BOT_GROUP_ID, $groups);
-			$is_active		= $User->get('status', $id) == User::STATUS_ACTIVE;
+			$status			= $User->get('status', $id);
+			$is_active		= $status == User::STATUS_ACTIVE;
 			$buttons		= (!$is_guest && !$is_root && !$is_bot ?
-				h::{'a.cs-button-compact'}(
+				h::{'a.uk-button.cs-button-compact'}(
 					h::icon('pencil'),
 					[
 						'href'			=> "$a->action/edit_raw/$id",
@@ -587,8 +617,8 @@ if (isset($rc[2], $rc[3])) {
 				) : ''
 			).
 			(!$is_guest && !$is_root && (!$is_bot || !$Config->core['simple_admin_mode']) ?
-				h::{'a.cs-button-compact'}(
-					h::icon('pencil-square-o'),
+				h::{'a.uk-button.cs-button-compact'}(
+					h::icon('sliders'),
 					[
 						'href'			=> "$a->action/edit/$id",
 						'data-title'	=> $L->{$is_bot ? 'edit_bot_information' : 'edit_user_information'}
@@ -596,7 +626,7 @@ if (isset($rc[2], $rc[3])) {
 				) : ''
 			).
 			(!$is_guest && !$is_root ?
-				h::{'a.cs-button-compact'}(
+				h::{'a.uk-button.cs-button-compact'}(
 					h::icon($is_active ? 'minus' : 'check'),
 					[
 						'href'			=> "$a->action/".($is_active ? 'deactivate' : 'activate')."/$id",
@@ -605,7 +635,7 @@ if (isset($rc[2], $rc[3])) {
 				) : ''
 			).
 			(!$is_guest && !$is_root && !$is_bot ?
-				h::{'a.cs-button-compact'}(
+				h::{'a.uk-button.cs-button-compact'}(
 					h::icon('group'),
 					[
 						'href'			=> "$a->action/groups/$id",
@@ -614,7 +644,7 @@ if (isset($rc[2], $rc[3])) {
 				) : ''
 			).
 			(!$is_root  ?
-				h::{'a.cs-button-compact'}(
+				h::{'a.uk-button.cs-button-compact'}(
 					h::icon('key'),
 					[
 						'href'			=> "$a->action/permissions/$id",
@@ -651,10 +681,16 @@ if (isset($rc[2], $rc[3])) {
 			} else {
 				$type = h::info('g');
 			}
-			$users_list[]	= array_values([$buttons, $type]+$user_data);
+			$users_list[]	= [
+				array_values([$buttons, $type]+$user_data),
+				[
+					'class'	=> $is_active ? 'uk-alert-success' : ($status == User::STATUS_INACTIVE ? 'uk-alert-warning' : false)
+				]
+			];
 		}
 	}
 	unset($id, $buttons, $user_data, $users_ids, $is_guest, $is_root, $is_bot);
+	$total_pages	= ceil($results_count / $limit);
 	$a->content(
 		h::{'ul.cs-tabs li'}(
 			$L->search,
@@ -685,12 +721,6 @@ if (isset($rc[2], $rc[3])) {
 					'name'			=> 'search_text',
 					'placeholder'	=> $L->search_text
 				]).
-				$L->page.' '.
-				h::{'input[type=number]'}([
-					'value'	=> $start + 1,
-					'min'	=> 1,
-					'name'	=> 'search_start'
-				]).
 				$L->items.' '.
 				h::{'input[type=number]'}([
 					'value'	=> $limit,
@@ -706,24 +736,22 @@ if (isset($rc[2], $rc[3])) {
 		h::{'input#cs-users-search-selected-columns[name=columns][type=hidden]'}().
 		h::hr().
 		h::{'p.cs-left'}(
-			h::{'button[type=submit]'}($L->search),
-			$L->found_users($results_count).($results_count > $limit ? ' / '.$L->page_from($start+1, ceil($results_count / $limit)) : '')
+			h::{'button.uk-button[type=submit]'}($L->search),
+			pages_buttons($page, $total_pages)
 		).
-		h::{'table.cs-table.cs-center-all'}(
-			h::{'thead tr th'}(
-				array_merge([$L->action, ''], $columns)
-			).
-			h::{'tbody tr| td'}($users_list)
+		h::{'cs-table[center][list][with-header] cs-table-row| cs-table-cell'}(
+			array_merge([$L->action, ''], $columns),
+			$users_list
 		).
 		h::{'p.cs-left'}(
-			$L->found_users($results_count).($results_count > $limit ? ' / '.$L->page_from($start+1, ceil($results_count / $limit)) : ''),
-			h::{'a.cs-button'}(
+			pages_buttons($page, $total_pages),
+			h::{'a.uk-button'}(
 				$L->add_user,
 				[
 					'href' => 'admin/System/users/users/add/0',
 				]
 			).
-			h::{'a.cs-button'}(
+			h::{'a.uk-button'}(
 				$L->add_bot,
 				[
 					'href' => 'admin/System/users/users/add_bot/0',

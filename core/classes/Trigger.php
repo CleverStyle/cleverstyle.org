@@ -6,17 +6,18 @@
  * @license		MIT License, see license.txt
  */
 namespace	cs;
-use			Closure;
+
 /**
  * Trigger class
  *
  * Provides triggers registering and running.
+ *
+ * @method static Trigger instance($check = false)
  */
 class Trigger {
 	use Singleton;
-
 	/**
-	 * @var Closure[]
+	 * @var callable[]
 	 */
 	protected	$triggers		= [];
 	/**
@@ -26,19 +27,19 @@ class Trigger {
 	/**
 	 * Registration of triggers for actions
 	 * @param string	$trigger	For example <i>admin/System/components/plugins/disable</i>
-	 * @param Closure	$closure	Closure, that will be called at trigger running
+	 * @param callable	$callback	callable, that will be called at trigger running
 	 * @param bool		$replace	If <i>true</i> - existing closures for this trigger will be removed and replaced with specified one
 	 *
 	 * @return Trigger
 	 */
-	function register ($trigger, $closure, $replace = false) {
-		if (!is_string($trigger) || !($closure instanceof Closure)) {
+	function register ($trigger, $callback, $replace = false) {
+		if (!is_string($trigger) || !is_callable($callback)) {
 			return $this;
 		}
 		if (!isset($this->triggers[$trigger]) || $replace) {
 			$this->triggers[$trigger]	= [];
 		}
-		$this->triggers[$trigger][]	= $closure;
+		$this->triggers[$trigger][]	= $callback;
 		return $this;
 	}
 	/**
@@ -54,7 +55,7 @@ class Trigger {
 			return true;
 		}
 		if (!$this->initialized) {
-			$modules = array_keys(Config::instance()->components['modules']);
+			$modules = get_files_list(MODULES, false, 'd');
 			foreach ($modules as $module) {
 				_include_once(MODULES.'/'.$module.'/trigger.php', false);
 			}
@@ -72,11 +73,11 @@ class Trigger {
 			return true;
 		}
 		$return	= true;
-		foreach ($this->triggers[$trigger] as $closure) {
+		foreach ($this->triggers[$trigger] as $callback) {
 			if ($data === null) {
-				$return = $return && ($closure() === false ? false : true);
+				$return = $return && ($callback() === false ? false : true);
 			} else {
-				$return = $return && ($closure($data) === false ? false : true);
+				$return = $return && ($callback($data) === false ? false : true);
 			}
 		}
 		return $return;

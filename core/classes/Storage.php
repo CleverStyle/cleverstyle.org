@@ -7,12 +7,14 @@
  */
 namespace cs;
 
+/**
+ * @method static Storage instance($check = false)
+ */
 class Storage {
 	use	Singleton;
-
-	protected	$connections			= [],
-				$successful_connections	= [],
-				$failed_connections		= [];
+	protected	$connections			= [];
+	protected	$successful_connections	= [];
+	protected	$failed_connections		= [];
 	/**
 	 * Get list of connections of specified type
 	 *
@@ -91,13 +93,13 @@ class Storage {
 		/**
 		 * Create new Storage connection
 		 */
-		$engine_class					= '\\cs\\Storage\\'.$storage['connection'];
+		$engine_class					= "\\cs\\Storage\\$storage[connection]";
 		$this->connections[$connection]	= new $engine_class($storage['url'], $storage['host'], $storage['user'], $storage['password']);
 		/**
 		 * If successfully - add connection to the list of success connections and return instance of DB engine object
 		 */
 		if (is_object($this->connections[$connection]) && $this->connections[$connection]->connected()) {
-			$this->successful_connections[] = $connection.'/'.$storage['host'].'/'.$storage['connection'];
+			$this->successful_connections[] = "$connection/$storage[host]/$storage[connection]";
 			unset($storage);
 			$this->$connection = $this->connections[$connection];
 			return $this->connections[$connection];
@@ -106,7 +108,7 @@ class Storage {
 		 */
 		} else {
 			unset($this->$connection);
-			$this->failed_connections[$connection] = $connection.'/'.$storage['host'].'/'.$storage['connection'];
+			$this->failed_connections[$connection] = "$connection/$storage[host]/$storage[connection]";
 			unset($storage);
 			trigger_error(Language::instance()->error_storage.' '.$this->failed_connections[$connection], E_USER_WARNING);
 			$return			= False_class::instance();
@@ -117,25 +119,25 @@ class Storage {
 	/**
 	 * Test connection to the Storage
 	 *
-	 * @param array|bool|string $data	Array or string in JSON format of connection parameters
+	 * @param bool|int[]|string[] $data	Array or string in JSON format of connection parameters
 	 *
 	 * @return bool
 	 */
 	function test ($data = false) {
 		if (empty($data)) {
 			return false;
-		} elseif (is_array($data)) {
+		} elseif (is_array_indexed($data)) {
 			if (isset($data[0])) {
 				$storage = Config::instance()->storage[$data[0]];
 			} else {
 				return false;
 			}
 		} else {
-			$storage = _json_decode($data);
+			$storage = $data;
 		}
 		unset($data);
 		if (is_array($storage)) {
-			$connection_class	= '\\cs\\Storage\\'.$storage['connection'];
+			$connection_class	= "\\cs\\Storage\\$storage[connection]";
 			$test				= new $connection_class($storage['url'], $storage['host'], $storage['user'], $storage['password']);
 			return $test->connected();
 		} else {

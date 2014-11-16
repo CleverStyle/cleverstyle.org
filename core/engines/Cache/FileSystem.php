@@ -19,6 +19,27 @@ class FileSystem extends _Abstract {
 		$this->cache_size = Core::instance()->cache_size * 1024 * 1024;
 	}
 	/**
+	 * Like realpath() but works even if files does not exists
+	 *
+	 * @param string $path
+	 *
+	 * @return string
+	 */
+	protected function get_absolute_path ($path) {
+		$path = str_replace(['/', '\\'], '/', $path);
+		$parts = array_filter(explode('/', $path), 'strlen');
+		$absolutes = [];
+		foreach ($parts as $part) {
+			if ('.' == $part) continue;
+			if ('..' == $part) {
+				array_pop($absolutes);
+			} else {
+				$absolutes[] = $part;
+			}
+		}
+		return '/'.implode('/', $absolutes);
+	}
+	/**
 	 * Get item from cache
 	 *
 	 * @param string		$item	May contain "/" symbols for cache structure, for example users/<i>user_id</i>
@@ -26,11 +47,15 @@ class FileSystem extends _Abstract {
 	 * @return bool|mixed			Returns item on success of <b>false</b> on failure
 	 */
 	function get ($item) {
-		if (is_file(CACHE."/$item") && is_readable(CACHE."/$item") && $cache = file_get_contents(CACHE."/$item", FILE_BINARY)) {
+		$path_in_filesystem = $this->get_absolute_path(CACHE."/$item");
+		if (strpos($path_in_filesystem, CACHE) !== 0) {
+			return false;
+		}
+		if (is_file($path_in_filesystem) && is_readable($path_in_filesystem) && $cache = file_get_contents($path_in_filesystem, FILE_BINARY)) {
 			if (($cache = @_json_decode($cache)) !== false) {
 				return $cache;
 			} else {
-				unlink(CACHE."/$item");
+				unlink($path_in_filesystem);
 				return false;
 			}
 		}
@@ -45,22 +70,26 @@ class FileSystem extends _Abstract {
 	 * @return bool
 	 */
 	function set ($item, $data) {
+		$path_in_filesystem = $this->get_absolute_path(CACHE."/$item");
+		if (strpos($path_in_filesystem, CACHE) !== 0) {
+			return false;
+		}
 		$data = @_json_encode($data);
 		if (mb_strpos($item, '/') !== false) {
 			$path	=mb_substr($item, 0, mb_strrpos($item, '/'));
 			if (!is_dir(CACHE."/$path")) {
-				@mkdir(CACHE."/$path", 0700, true);
+				@mkdir(CACHE."/$path", 0770, true);
 			}
 			unset($path);
 		}
-		if (!file_exists(CACHE."/$item") || is_writable(CACHE."/$item")) {
+		if (!file_exists($path_in_filesystem) || is_writable($path_in_filesystem)) {
 			if ($this->cache_size > 0) {
 				$dsize				= strlen($data);
 				if ($dsize > $this->cache_size) {
 					return false;
 				}
-				if (file_exists(CACHE."/$item")) {
-					$dsize -= filesize(CACHE."/$item");
+				if (file_exists($path_in_filesystem)) {
+					$dsize -= filesize($path_in_filesystem);
 				}
 				$cache_size_file	= fopen(CACHE.'/size', 'c+b');
 				$time				= microtime(true);
@@ -86,7 +115,7 @@ class FileSystem extends _Abstract {
 					}
 					unset($cache_list, $file);
 				}
-				if (($return = file_put_contents(CACHE."/$item", $data, LOCK_EX | FILE_BINARY)) !== false) {
+				if (($return = file_put_contents($path_in_filesystem, $data, LOCK_EX | FILE_BINARY)) !== false) {
 					ftruncate($cache_size_file, 0);
 					fseek($cache_size_file, 0);
 					fwrite($cache_size_file, $cache_size > 0 ? $cache_size : 0);
@@ -95,11 +124,11 @@ class FileSystem extends _Abstract {
 				fclose($cache_size_file);
 				return $return;
 			} else {
-				return file_put_contents(CACHE."/$item", $data, LOCK_EX | FILE_BINARY);
+				return file_put_contents($path_in_filesystem, $data, LOCK_EX | FILE_BINARY);
 			}
 		} else {
 			$L	= Language::instance();
-			trigger_error($L->file.' '.CACHE."/$item $L->not_writable", E_USER_WARNING);
+			trigger_error("$L->file $path_in_filesystem $L->not_writable", E_USER_WARNING);
 			return false;
 		}
 	}
@@ -111,14 +140,23 @@ class FileSystem extends _Abstract {
 	 * @return bool
 	 */
 	function del ($item) {
-		if (is_writable(CACHE."/$item")) {
-			if (is_dir(CACHE."/$item")) {
+		$path_in_filesystem = $this->get_absolute_path(CACHE."/$item");
+		if (strpos($path_in_filesystem, CACHE) !== 0) {
+			return false;
+		}
+		if (is_writable($path_in_filesystem)) {
+			if (is_dir($path_in_filesystem)) {
+				/**
+				 * Rename to random name in order to immediately invalidate nested elements, actual deletion done right after this
+				 */
+				$new_path	= $path_in_filesystem.uniqid();
+				rename($path_in_filesystem, $new_path);
 				/**
 				 * Speed-up of files deletion
 				 */
 				if (!($this->cache_size > 0)) {
 					get_files_list(
-						CACHE."/$item",
+						$new_path,
 						false,
 						'f',
 						true,
@@ -133,12 +171,12 @@ class FileSystem extends _Abstract {
 						}
 					);
 				}
-				$files = get_files_list(CACHE."/$item", false, 'fd');
+				$files = get_files_list($new_path, false, 'fd');
 				foreach ($files as $file) {
 					$this->del($item."/$file", false);
 				}
 				unset($files, $file);
-				return @rmdir(CACHE."/$item");
+				return @rmdir($new_path);
 			}
 			if ($this->cache_size > 0) {
 				$cache_size_file	= fopen(CACHE.'/size', 'c+b');
@@ -152,8 +190,8 @@ class FileSystem extends _Abstract {
 				}
 				unset($time);
 				$cache_size	= (int)stream_get_contents($cache_size_file);
-				$cache_size -= filesize(CACHE."/$item");
-				if (@unlink(CACHE."/$item")) {
+				$cache_size -= filesize($path_in_filesystem);
+				if (@unlink($path_in_filesystem)) {
 					ftruncate($cache_size_file, 0);
 					fseek($cache_size_file, 0);
 					fwrite($cache_size_file, $cache_size > 0 ? $cache_size : 0);
@@ -161,9 +199,9 @@ class FileSystem extends _Abstract {
 				flock($cache_size_file, LOCK_UN);
 				fclose($cache_size_file);
 			} else {
-				@unlink(CACHE."/$item");
+				@unlink($path_in_filesystem);
 			}
-		} elseif (file_exists(CACHE."/$item")) {
+		} elseif (file_exists($path_in_filesystem)) {
 			return false;
 		}
 		return true;
@@ -175,25 +213,53 @@ class FileSystem extends _Abstract {
 	 */
 	function clean () {
 		$ok			= true;
-		$cache_old	= CACHE.'_old';
-		rename(CACHE, $cache_old);
+		$dirs_to_rm	= [];
+		/**
+		 * Remove root files and rename root directories for instant cache cleaning
+		 */
+		$uniqid		= uniqid();
 		get_files_list(
-			$cache_old,
+			CACHE,
 			false,
 			'fd',
 			true,
-			true,
 			false,
 			false,
+			false,
 			true,
-			function ($item) use (&$ok) {
+			function ($item) use (&$ok, &$dirs_to_rm, $uniqid) {
 				if (is_writable($item)) {
-					is_dir($item) ? @rmdir($item) : @unlink($item);
+					if (is_dir($item)) {
+						rename($item, "$item$uniqid");
+						$dirs_to_rm[]	= "$item$uniqid";
+					} else {
+						@unlink($item);
+					}
 				} else {
 					$ok = false;
 				}
 			}
 		);
-		return $ok && @rmdir($cache_old);
+		foreach ($dirs_to_rm as $dir) {
+			get_files_list(
+				$dir,
+				false,
+				'fd',
+				true,
+				true,
+				false,
+				false,
+				true,
+				function ($item) use (&$ok) {
+					if (is_writable($item)) {
+						is_dir($item) ? @rmdir($item) : @unlink($item);
+					} else {
+						$ok = false;
+					}
+				}
+			);
+			@rmdir($dir);
+		}
+		return $ok;
 	}
 }

@@ -30,7 +30,7 @@ $columns		= [
 	'timezone',
 	'avatar'
 ];
-if (isset($_POST['user']) && $_POST['edit_settings'] == 'save') {
+if (isset($_POST['user'], $_POST['save'])) {
 	$user_data = &$_POST['user'];
 	foreach ($user_data as $item => &$value) {
 		if (in_array($item, $columns) && $item != 'data') {
@@ -67,17 +67,19 @@ $Index->action	= path($L->profile).'/'.path($L->settings);
 switch (isset($Config->route[2]) ? $Config->route[2] : '') {
 	default:
 		$Index->content(
-			h::{'a.cs-button'}(
-				$L->general,
-				[
-					'href'	=> "$Index->action/".path($L->general)
-				]
-			).
-			h::{'a.cs-button'}(
-				$L->change_password,
-				[
-					'href'	=> "$Index->action/".path($L->change_password)
-				]
+			h::p(
+				h::{'a.uk-button'}(
+					$L->general,
+					[
+						'href'	=> "$Index->action/".path($L->general)
+					]
+				).
+				h::{'a.uk-button'}(
+					$L->change_password,
+					[
+						'href'	=> "$Index->action/".path($L->change_password)
+					]
+				)
 			)
 		);
 		Trigger::instance()->run('System/profile/settings');
@@ -85,84 +87,91 @@ switch (isset($Config->route[2]) ? $Config->route[2] : '') {
 	case 'general':
 		$user_data						= $User->get($columns);
 		unset($columns);
-		$timezones						= get_timezones_list();
-		$row							= function ($col1, $col2) {
-			return	h::th($col1).
-				h::td($col2);
-		};
-		$Index->form					= true;
-		$Index->form_atributes['class']	= 'cs-center';
-		$Index->apply_button			= false;
-		$Index->cancel_button_back		= true;
+		$timezones							= get_timezones_list();
+		$Index->form						= true;
+		$Index->form_attributes['class']	.= ' cs-center';
+		$Index->apply_button				= false;
+		$Index->cancel_button_back			= true;
 		$Page->title($L->general);
 		$Index->content(
-			h::{'p.lead.cs-center'}(
+			h::{'h2.cs-center'}(
 				$L->general_settings
 			).
-			h::{'table.cs-table-borderless.cs-left-even.cs-right-odd tr'}(
-				$row($L->login, h::input([
-					'name'		=> 'user[login]',
-					'value'		=> $user_data['login']
-				])),
+			h::{'cs-table[right-left] cs-table-row| cs-table-cell'}(
+				[
+					$L->login,
+					h::input([
+						'name'		=> 'user[login]',
+						'value'		=> $user_data['login']
+					])
+				],
 
-				$row($L->username, h::input([
-					'name'	=> 'user[username]',
-					'value'	=> $user_data['username']
-				])),
-				$row($L->language, h::select(
-					[
-						'in'		=> array_merge([$L->system_default], $Config->core['active_languages']),
-						'value'		=> array_merge([''], $Config->core['active_languages'])
-					],
-					[
-						'name'		=> 'user[language]',
-						'selected'	=> $user_data['language'],
-						'size'		=> 5
-					]
-				)),
-				$row($L->timezone, h::select(
-					[
-						'in'		=> array_merge(["$L->system_default ({$Config->core['timezone']})"], array_keys($timezones)),
-						'value'		=> array_merge([''], array_values($timezones))
-					],
-					[
-						'name'		=> 'user[timezone]',
-						'selected'	=> $user_data['timezone'],
-						'size'		=> 5
-					]
-				)),
-				$row($L->avatar, h::input([
-					'name'		=> 'user[avatar]',
-					'value'		=> $user_data['avatar']
-				]))
+				[
+					$L->username,
+					h::input([
+						'name'	=> 'user[username]',
+						'value'	=> $user_data['username']
+					])
+				],
+				[
+					$L->language,
+					h::select(
+						[
+							'in'		=> array_merge([$L->system_default], $Config->core['active_languages']),
+							'value'		=> array_merge([''], $Config->core['active_languages'])
+						],
+						[
+							'name'		=> 'user[language]',
+							'selected'	=> $user_data['language'],
+							'size'		=> 5
+						]
+					)
+				],
+				[
+					$L->timezone,
+					h::select(
+						[
+							'in'		=> array_merge(["$L->system_default ({$Config->core['timezone']})"], array_keys($timezones)),
+							'value'		=> array_merge([''], array_values($timezones))
+						],
+						[
+							'name'		=> 'user[timezone]',
+							'selected'	=> $user_data['timezone'],
+							'size'		=> 5
+						]
+					)
+				],
+				[
+					$L->avatar,
+						h::input([
+						'name'		=> 'user[avatar]',
+						'value'		=> $user_data['avatar']
+					])
+				]
 			)
 		);
 	break;
 	case 'change_password':
-		$Index->form					= true;
-		$Index->form_atributes['class']	= 'cs-center';
-		$Index->buttons					= false;
-		$Index->cancel_button_back		= true;
+		$Index->form						= true;
+		$Index->form_attributes['class']	.= ' cs-center';
+		$Index->buttons						= false;
+		$Index->cancel_button_back			= true;
 		$Page->title($L->password_changing);
 		$Index->content(
-			h::{'p.lead.cs-center'}(
+			h::{'h2.cs-center'}(
 				$L->password_changing
 			).
-			h::{'table.cs-table-borderless.cs-left-even.cs-right-odd tr'}(
-				h::th(
-					"$L->current_password ".h::{'icon#current_password.cs-pointer'}('lock')
-				).
-				h::td(
+			h::{'cs-table[right-left] cs-table-row| cs-table-cell'}(
+				[
+					"$L->current_password ".h::{'icon#current_password.cs-pointer'}('lock'),
 					h::{'input.cs-profile-current-password[type=password]'}()
-				),
-				h::th(
-					"$L->new_password ".h::{'icon#new_password.cs-pointer'}('lock')
-				).
-				h::td(
+				],
+				[
+					"$L->new_password ".h::{'icon#new_password.cs-pointer'}('lock'),
 					h::{'input.cs-profile-new-password[type=password]'}()
-				)
+				]
 			).
-			h::{'button.cs-profile-change-password'}(
+			h::{'button.uk-button.cs-profile-change-password'}(
 				$L->change_password
 			)
 		);

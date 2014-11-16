@@ -8,11 +8,12 @@
  * @license		MIT License, see license.txt
  */
 namespace	cs\modules\System\general\about_server;
-use			h,
-			cs\Core,
-			cs\DB,
-			cs\Index,
-			cs\Language;
+use
+	h,
+	cs\Core,
+	cs\DB,
+	cs\Index,
+	cs\Language;
 $Core			= Core::instance();
 $Index			= Index::instance();
 $L				= Language::instance();
@@ -28,42 +29,38 @@ if (isset($Index->route_path[2])) {
 		case 'readme.html':
 			$Index->Content	= file_get_contents(DIR.'/readme.html');
 	}
-	$Index->stop;
 	return;
 }
 $hhvm_version	= defined('HHVM_VERSION') ? HHVM_VERSION : false;
 $Index->form	= false;
 $Index->content(
-	h::{'table.cs-table-borderless.cs-left-even.cs-right-odd tr| td'}(
-		[
-			h::{'a.cs-button[target=_blank]'}(
-				'phpinfo()',
-				[
-					'href'	=> "$Index->action/phpinfo"
-				]
-			).
-			h::{'a.cs-button[target=_blank]'}(
-				$L->information_about_system,
-				[
-					'href'	=> "$Index->action/readme.html"
-				]
-			).
-			h::{'div#cs-system-license.uk-modal pre.uk-modal-dialog-large'}(
-				file_get_contents(DIR.'/license.txt'),
-				[
-					'title'			=> "$L->system » $L->license"
-				]
-			).
-			h::{'button#cs-system-license-open'}(
-				$L->license,
-				[
-					'data-title'	=> $L->click_to_view_details
-				]
-			),
+	h::{'div.cs-right'}(
+		h::{'a.uk-button[target=_blank]'}(
+			'phpinfo()',
 			[
-				'colspan'	=> 2
+				'href'	=> "$Index->action/phpinfo"
 			]
-		],
+		).
+		h::{'a.uk-button[target=_blank]'}(
+			h::icon('info').$L->information_about_system,
+			[
+				'href'	=> "$Index->action/readme.html"
+			]
+		).
+		h::{'div#cs-system-license.uk-modal pre.uk-modal-dialog-large.cs-left'}(
+			file_get_contents(DIR.'/license.txt'),
+			[
+				'title'			=> "$L->system » $L->license"
+			]
+		).
+		h::{'button#cs-system-license-open.uk-button'}(
+			h::icon('legal').$L->license,
+			[
+				'data-title'	=> $L->click_to_view_details
+			]
+		)
+	).
+	h::{'cs-table[right-left] cs-table-row| cs-table-cell'}(
 		[
 			"$L->operation_system:",
 			php_uname('s').' '.php_uname('r').' '.php_uname('v')
@@ -93,16 +90,12 @@ $Index->content(
 			)
 		],
 		[
-			"$L->free_disk_space:",
-			format_filesize(disk_free_space('./'), 2)
-		],
-		[
 			$L->version_of('PHP').':',
 			PHP_VERSION
 		],
 		[
 			"$L->php_components:",
-			h::{'table.cs-left-odd.cs-table-borderless tr| td'}(
+			h::{'cs-table cs-table-row| cs-table-cell'}(
 				[
 					"$L->mcrypt:",
 					[
@@ -156,7 +149,7 @@ $Index->content(
 		],
 		[
 			"$L->properties $Core->db_type:",
-			h::{'table.cs-left-odd.cs-table-borderless tr| td'}(
+			h::{'cs-table cs-table-row| cs-table-cell'}(
 				[
 					"$L->host:",
 					$Core->db_host
@@ -186,8 +179,12 @@ $Index->content(
 			$Core->cache_engine
 		],
 		[
+			"$L->free_disk_space:",
+			format_filesize(disk_free_space('./'), 2)
+		],
+		[
 			"$L->php_ini_settings:",
-			h::{'table.cs-left-odd.cs-table-borderless tr| td'}(
+			h::{'cs-table cs-table-row| cs-table-cell'}(
 				[
 					"$L->allow_file_upload:",
 					[
@@ -266,7 +263,13 @@ function server_api () {
 	if (preg_match('/apache/i', $_SERVER['SERVER_SOFTWARE'])) {
 		return 'Apache'.(preg_match('/mod_php/i', $phpinfo) ? ' + mod_php' : '');
 	} elseif (preg_match('/nginx/i', $_SERVER['SERVER_SOFTWARE'])) {
-		return 'Nginx'.(preg_match('/php-fpm/i', $phpinfo) ? ' + PHP-FPM' : '');
+		$return = 'Nginx';
+		if (preg_match('/php-fpm/i', $phpinfo)) {
+			$return	.= ' + PHP-FPM';
+		} elseif (defined('HHVM_VERSION')) {
+			$return	.= ' + HHVM';
+		}
+		return $return;
 	} elseif (defined('HHVM_VERSION')) {
 		return 'HipHop Virtual Machine';
 	} else {

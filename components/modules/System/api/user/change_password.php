@@ -8,42 +8,27 @@
  * @license		MIT License, see license.txt
  */
 namespace	cs;
-$Config	= Config::instance();
 $L		= Language::instance();
 $Page	= Page::instance();
 $User	= User::instance();
-/**
- * If AJAX request from local referer, user is registered - change password, otherwise - show error
- */
-if (
-	!$Config->server['referer']['local'] ||
-	!$Config->server['ajax'] ||
-	!isset($_POST['verify_hash'], $_POST['new_password']) ||
-	!$User->user()
-) {
-	sleep(1);
+if (!isset($_POST['current_password'], $_POST['new_password'])) {
+	error_code(400);
+	return;
+}
+if (!$User->user()) {
 	error_code(403);
 	return;
 } elseif (!$_POST['new_password']) {
 	error_code(400);
 	$Page->error($L->please_type_new_password);
 	return;
-} elseif (hash('sha224', $User->password_hash.$User->get_session()) != $_POST['verify_hash']) {
+} elseif (!$User->validate_password($_POST['current_password'], $User->id, true)) {
 	error_code(400);
 	$Page->error($L->wrong_current_password);
 	return;
-} elseif (($new_password = xor_string($_POST['new_password'], $User->password_hash)) == $User->password_hash) {
-	error_code(400);
-	$Page->error($L->current_new_password_equal);
-	return;
-}
-if ($new_password == hash('sha512', hash('sha512', '').Core::instance()->public_key)) {
-	error_code(400);
-	$Page->error($L->please_type_new_password);
-	return;
 }
 $id	= $User->id;
-if ($User->set('password_hash', $new_password)) {
+if ($User->set_password($_POST['new_password'], $id, true)) {
 	$User->add_session($id);
 	$Page->json('OK');
 } else {

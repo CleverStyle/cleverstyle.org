@@ -9,81 +9,10 @@
 
 
 (function() {
-  var __hasProp = {}.hasOwnProperty;
 
-  (function($) {
+  (function($, UI) {
     var helpers;
     helpers = {
-      /**
-      		 * Radio buttons with UIkit
-      		 *
-      		 * Required DOM structure * > label > input:radio, plugin may be applied to any of these elements
-      */
-
-      radio: function() {
-        var collection;
-        if (!this.length) {
-          return this;
-        }
-        collection = [];
-        this.each(function() {
-          var radio;
-          radio = $(this);
-          if (!radio.is(':radio')) {
-            radio = radio.find(':radio');
-          }
-          return collection.push(radio.parent().parent().get());
-        });
-        collection = $($.unique(collection));
-        collection.each(function() {
-          return $(this).addClass('uk-button-group').attr('data-uk-button-radio', '').children('label').addClass('uk-button').click(function() {
-            return $(this).find(':radio').prop('checked', true).change();
-          }).find(':radio').change(function() {
-            var $this;
-            $this = $(this);
-            if (!$this.is(':checked')) {
-              return;
-            }
-            return $this.parent().parent().children('.uk-active').removeClass('uk-active').end().end().addClass('uk-active');
-          }).filter(':checked').parent().addClass('uk-active');
-        });
-        return this;
-      },
-      /**
-      		 * Checkboxes with UIkit
-      		 *
-      		 * Required DOM structure * > label > input:checkbox, plugin may be applied to any of these elements
-      */
-
-      checkbox: function() {
-        var collection;
-        if (!this.length) {
-          return this;
-        }
-        collection = [];
-        this.each(function() {
-          var checkbox;
-          checkbox = $(this);
-          if (!checkbox.is(':checkbox')) {
-            checkbox = checkbox.find(':checkbox');
-          }
-          return collection.push(checkbox.parent().parent().get());
-        });
-        collection = $($.unique(collection));
-        collection.each(function() {
-          return $(this).addClass('uk-button-group').attr('data-uk-button-checkbox', '').children('label').addClass('uk-button').click(function() {
-            return $(this).find(':radio:not(:checked)').prop('checked', true).change();
-          }).find(':checkbox').change(function() {
-            var $this;
-            $this = $(this);
-            if (!$this.is(':checked')) {
-              return;
-            }
-            return $this.parent().parent().children('.uk-active').removeClass('uk-active').end().end().addClass('uk-active');
-          }).filter(':checked').parent().addClass('uk-active');
-        });
-        return this;
-      },
       /**
       		 * Tabs with UIkit
       		 *
@@ -91,11 +20,9 @@
       */
 
       tabs: function() {
-        var UI;
         if (!this.length) {
           return this;
         }
-        UI = $.UIkit;
         return this.each(function() {
           var $this, content;
           $this = $(this);
@@ -107,35 +34,11 @@
               return li.wrapInner('<a />');
             }
           }).first().addClass('uk-active');
-          $this.data('tab', new UI.tab($this, {
+          $this.data('tab', UI.tab($this, {
             connect: content
           }));
           content.addClass('uk-switcher uk-margin').children(':first').addClass('uk-active');
-          return content.data('switcher', new UI.switcher(content));
-        });
-      },
-      /**
-      		 * Tooltip with UIkit
-      		 *
-      		 * Required title or data-title attribute with some content, optionally support data-pos attribute with desired position of tooltip
-      */
-
-      tooltip: function() {
-        if (!this.length) {
-          return this;
-        }
-        return this.each(function() {
-          var $this, pos;
-          $this = $(this);
-          if (!$this.attr('title')) {
-            $this.attr('title', $this.data('title')).attr('data-title', '');
-          }
-          pos = $this.data('pos');
-          return $this.attr('data-uk-tooltip', cs.json_encode({
-            pos: pos ? pos : 'top',
-            animation: true,
-            delay: 200
-          }));
+          return content.data('switcher', UI.switcher(content));
         });
       },
       /**
@@ -146,11 +49,9 @@
       */
 
       modal: function(mode) {
-        var UI;
         if (!this.length) {
           return this;
         }
-        UI = $.UIkit;
         mode = mode || 'init';
         return this.each(function() {
           var $this, content, modal;
@@ -161,7 +62,7 @@
               content = $this.wrapInner('<div />').children();
             }
             content.addClass('uk-modal-dialog uk-modal-dialog-slide');
-            if ($this.data('modal-frameless')) {
+            if ($this.is('[data-modal-frameless]')) {
               content.addClass('uk-modal-dialog-frameless');
             }
             if ($this.attr('title')) {
@@ -170,7 +71,7 @@
             if (content.attr('title')) {
               $('<h3 />').html(content.attr('title')).prependTo(content);
             }
-            $this.addClass('uk-modal').data('modal', new UI.modal.Modal($this));
+            $this.addClass('uk-modal').data('modal', UI.modal($this));
           }
           modal = $this.data('modal');
           switch (mode) {
@@ -190,21 +91,15 @@
     */
 
     $.fn.cs = function(name, helper) {
-      var key, method, public_helpers, this_;
+      var func, public_helpers;
       if (name && helper) {
         helpers[name] = helper;
         return this;
       }
       public_helpers = {};
-      this_ = this;
-      for (key in helpers) {
-        if (!__hasProp.call(helpers, key)) continue;
-        method = helpers[key];
-        public_helpers[key] = (function(method) {
-          return function() {
-            return method.apply(this_, arguments);
-          };
-        })(method);
+      for (name in helpers) {
+        func = helpers[name];
+        public_helpers[name] = func.bind(this);
       }
       return public_helpers;
     };
@@ -229,6 +124,6 @@
         });
       }
     };
-  })(jQuery);
+  })(jQuery, jQuery.UIkit);
 
 }).call(this);

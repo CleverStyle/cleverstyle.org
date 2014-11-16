@@ -12,36 +12,44 @@
 use	cs\Cache,
 	cs\Config,
 	cs\DB,
-	cs\Error,
 	cs\Index,
-	cs\Key,
 	cs\Language,
 	cs\Page,
 	cs\Text,
-	cs\Trigger,
 	cs\User;
 /**
  * Auto Loading of classes
  */
 spl_autoload_register(function ($class) {
-	$class	= ltrim($class, '\\');
-	if (substr($class, 0, 3) == 'cs\\') {
-		$class	= substr($class, 3);
+	static $cache;
+	if (!isset($cache)) {
+		$cache = file_exists(CACHE.'/classes_autoloading') ? file_get_json(CACHE.'/classes_autoloading') : [];
 	}
-	$class	= explode('\\', $class);
-	$class	= [
-		'namespace'	=> count($class) > 1 ? implode('/', array_slice($class, 0, -1)) : '',
-		'name'		=> array_pop($class)
-	];
+	if (isset($cache[$class])) {
+		return require_once $cache[$class];
+	}
+	$prepared_class_name	= ltrim($class, '\\');
+	if (substr($prepared_class_name, 0, 3) == 'cs\\') {
+		$prepared_class_name	= substr($prepared_class_name, 3);
+	}
+	$prepared_class_name	= explode('\\', $prepared_class_name);
+	$namespace				= count($prepared_class_name) > 1 ? implode('/', array_slice($prepared_class_name, 0, -1)) : '';
+	$class_name				= array_pop($prepared_class_name);
 	/**
 	 * Try to load classes from different places. If not found in one place - try in another.
 	 */
-	return
-		_require_once(CLASSES."/$class[namespace]/$class[name].php", false) ||		//Core classes
-		_require_once(THIRDPARTY."/$class[namespace]/$class[name].php", false) ||	//Third party classes
-		_require_once(TRAITS."/$class[namespace]/$class[name].php", false) ||		//Core traits
-		_require_once(ENGINES."/$class[namespace]/$class[name].php", false) ||		//Core engines
-		_require_once(MODULES."/../$class[namespace]/$class[name].php", false);		//Classes in modules and plugins
+	if (
+		_require_once($file = CLASSES."/$namespace/$class_name.php", false) ||		//Core classes
+		_require_once($file = THIRDPARTY."/$namespace/$class_name.php", false) ||	//Third party classes
+		_require_once($file = TRAITS."/$namespace/$class_name.php", false) ||		//Core traits
+		_require_once($file = ENGINES."/$namespace/$class_name.php", false) ||		//Core engines
+		_require_once($file = MODULES."/../$namespace/$class_name.php", false)		//Classes in modules and plugins
+	) {
+		$cache[$class] = realpath($file);
+		file_put_json(CACHE.'/classes_autoloading', $cache);
+		return true;
+	}
+	return false;
 }, true, true);
 /**
  * Correct termination
@@ -59,18 +67,12 @@ register_shutdown_function(function () {
  */
 function errors_on () {
 	error_reporting(defined('DEBUG') && DEBUG ? E_ALL : E_ERROR | E_WARNING | E_PARSE);
-	if (defined('CS_ERROR_HANDLER') && CS_ERROR_HANDLER && class_exists('\\cs\\Error', false)) {
-		Error::instance()->error = true;
-	}
 }
 /**
  * Disabling of errors processing
  */
 function errors_off () {
 	error_reporting(0);
-	if (defined('CS_ERROR_HANDLER') && CS_ERROR_HANDLER && class_exists('\\cs\\Error', false)) {
-		Error::instance()->error = false;
-	}
 }
 /**
  * Enabling of page interface
@@ -83,6 +85,25 @@ function interface_on () {
  */
 function interface_off () {
 	Page::instance()->interface	= false;
+}
+/**
+ * Easy getting of translations
+ *
+ * @param string $item
+ * @param mixed  $arguments There can be any necessary number of arguments here
+ *
+ * @return string
+ */
+function __ ($item, $arguments = null) {
+	static $L;
+	if (!isset($L)) {
+		$L = Language::instance();
+	}
+	if (func_num_args() > 1) {
+		return $L->format($item, array_slice(func_get_args(), 1));
+	} else {
+		return $L->$item;
+	}
 }
 /**
  * Get file url by it's destination in file system
@@ -98,7 +119,7 @@ function url_by_source ($source) {
 	}
 	$source = realpath($source);
 	if (mb_strpos($source, DIR) === 0) {
-		return $Config->base_url().mb_substr($source, mb_strlen(DIR));
+		return $Config->core_url().mb_substr($source, mb_strlen(DIR));
 	}
 	return false;
 }
@@ -114,8 +135,8 @@ function source_by_url ($url) {
 	if (!$Config) {
 		return false;
 	}
-	if (mb_strpos($url, $Config->base_url()) === 0) {
-		return DIR.mb_substr($url, mb_strlen($Config->base_url()));
+	if (mb_strpos($url, $Config->core_url()) === 0) {
+		return DIR.mb_substr($url, mb_strlen($Config->core_url()));
 	}
 	return false;
 }
@@ -382,8 +403,8 @@ function get_core_ml_text ($item) {
  *
  * @param int				$page		Current page
  * @param int				$total		Total pages number
- * @param Closure|string	$url		if string - it will be formatted with sprintf with one parameter - page number<br>
- * 										if Closure - one parameter will be given, Closure should return url string
+ * @param callable|string	$url		if string - it will be formatted with sprintf with one parameter - page number<br>
+ * 										if callable - one parameter will be given, callable should return url string
  * @param bool				$head_links	If <b>true</b> - links with rel="prev" and rel="next" will be added
  *
  * @return bool|string					<b>false</b> if single page, otherwise string, set of navigation links
@@ -394,7 +415,7 @@ function pages ($page, $total, $url, $head_links = false) {
 	}
 	$Page	= Page::instance();
 	$output	= [];
-	if ($url instanceof Closure) {
+	if (is_callable($url)) {
 		$url_func	= $url;
 	} else {
 		$original_url	= $url;
@@ -416,12 +437,12 @@ function pages ($page, $total, $url, $head_links = false) {
 				$i,
 				[
 					'href'	=> $i == $page ? false : $url($i),
-					'class'	=> $i == $page ? 'cs-button uk-button-primary uk-frozen' : 'cs-button'
+					'class'	=> $i == $page ? 'uk-button uk-button-primary uk-frozen' : 'uk-button'
 				]
 			];
 			if ($head_links && ($i == $page - 1 || $i == $page + 1)) {
 				$Page->link([
-					'href'	=> $url instanceof Closure ? $url($i) : sprintf($url, $i),
+					'href'	=> is_callable($url) ? $url($i) : sprintf($url, $i),
 					'rel'	=> $i == $page - 1 ? 'prev' : ($i == $page + 1 ? 'next' : false)
 				]);
 			}
@@ -433,12 +454,12 @@ function pages ($page, $total, $url, $head_links = false) {
 					$i,
 					[
 						'href'	=> $i == $page ? false : $url($i),
-						'class'	=> $i == $page ? 'cs-button uk-button-primary uk-frozen' : 'cs-button'
+						'class'	=> $i == $page ? 'uk-button uk-button-primary uk-frozen' : 'uk-button'
 					]
 				];
 				if ($head_links&& ($i == $page - 1 || $i == $page + 1)) {
 					$Page->link([
-						'href'	=> $url instanceof Closure ? $url($i) : sprintf($url, $i),
+						'href'	=> is_callable($url) ? $url($i) : sprintf($url, $i),
 						'rel'	=> $i == $page - 1 ? 'prev' : ($i == $page + 1 ? 'next' : false)
 					]);
 				}
@@ -446,15 +467,15 @@ function pages ($page, $total, $url, $head_links = false) {
 			$output[]	= [
 				'...',
 				[
-					'class'	=> 'cs-button uk-frozen'
+					'class'	=> 'uk-button uk-frozen'
 				]
 			];
 			for ($i = $total - 2; $i <= $total; ++$i) {
 				$output[]	= [
 					$i,
 					[
-						'href'	=> $url instanceof Closure ? $url($i) : sprintf($url, $i),
-						'class'	=> 'cs-button'
+						'href'	=> is_callable($url) ? $url($i) : sprintf($url, $i),
+						'class'	=> 'uk-button'
 					]
 				];
 			}
@@ -463,15 +484,15 @@ function pages ($page, $total, $url, $head_links = false) {
 				$output[]	= [
 					$i,
 					[
-						'href'	=> $url instanceof Closure ? $url($i) : sprintf($url, $i),
-						'class'	=> 'cs-button'
+						'href'	=> is_callable($url) ? $url($i) : sprintf($url, $i),
+						'class'	=> 'uk-button'
 					]
 				];
 			}
 			$output[]	= [
 				'...',
 				[
-					'class'	=> 'cs-button uk-frozen'
+					'class'	=> 'uk-button uk-frozen'
 				]
 			];
 			for ($i = $total - 6; $i <= $total; ++$i) {
@@ -479,12 +500,12 @@ function pages ($page, $total, $url, $head_links = false) {
 					$i,
 					[
 						'href'	=> $i == $page ? false : $url($i),
-						'class'	=> $i == $page ? 'cs-button uk-button-primary uk-frozen' : 'cs-button'
+						'class'	=> $i == $page ? 'uk-button uk-button-primary uk-frozen' : 'uk-button'
 					]
 				];
 				if ($head_links && ($i == $page - 1 || $i == $page + 1)) {
 					$Page->link([
-						'href'	=> $url instanceof Closure ? $url($i) : sprintf($url, $i),
+						'href'	=> is_callable($url) ? $url($i) : sprintf($url, $i),
 						'rel'	=> $i == $page - 1 ? 'prev' : ($i == $page + 1 ? 'next' : false)
 					]);
 				}
@@ -494,15 +515,15 @@ function pages ($page, $total, $url, $head_links = false) {
 				$output[]	= [
 					$i,
 					[
-						'href'	=> $url instanceof Closure ? $url($i) : sprintf($url, $i),
-						'class'	=> 'cs-button'
+						'href'	=> is_callable($url) ? $url($i) : sprintf($url, $i),
+						'class'	=> 'uk-button'
 					]
 				];
 			}
 			$output[]	= [
 				'...',
 				[
-					'class'	=> 'cs-button uk-frozen'
+					'class'	=> 'uk-button uk-frozen'
 				]
 			];
 			for ($i = $page - 1; $i <= $page + 3; ++$i) {
@@ -510,12 +531,12 @@ function pages ($page, $total, $url, $head_links = false) {
 					$i,
 					[
 						'href'	=> $i == $page ? false : $url($i),
-						'class'	=> $i == $page ? 'cs-button uk-button-primary uk-frozen' : 'cs-button'
+						'class'	=> $i == $page ? 'uk-button uk-button-primary uk-frozen' : 'uk-button'
 					]
 				];
 				if ($head_links && ($i == $page - 1 || $i == $page + 1)) {
 					$Page->link([
-						'href'	=> $url instanceof Closure ? $url($i) : sprintf($url, $i),
+						'href'	=> is_callable($url) ? $url($i) : sprintf($url, $i),
 						'rel'	=> $i == $page - 1 ? 'prev' : ($i == $page + 1 ? 'next' : false)
 					]);
 				}
@@ -523,15 +544,15 @@ function pages ($page, $total, $url, $head_links = false) {
 			$output[]	= [
 				'...',
 				[
-					'class'	=> 'cs-button uk-frozen'
+					'class'	=> 'uk-button uk-frozen'
 				]
 			];
 			for ($i = $total - 1; $i <= $total; ++$i) {
 				$output[]	= [
 					$i,
 					[
-						'href'	=> $url instanceof Closure ? $url($i) : sprintf($url, $i),
-						'class'	=> 'cs-button'
+						'href'	=> is_callable($url) ? $url($i) : sprintf($url, $i),
+						'class'	=> 'uk-button'
 					]
 				];
 			}
@@ -544,10 +565,10 @@ function pages ($page, $total, $url, $head_links = false) {
  *
  * @param int					$page		Current page
  * @param int					$total		Total pages number
- * @param bool|Closure|string	$url		Adds <i>formaction</i> parameter to every button<br>
+ * @param bool|callable|string	$url		Adds <i>formaction</i> parameter to every button<br>
  * 											if <b>false</b> - only form parameter <i>page</i> will we added<br>
  * 											if string - it will be formatted with sprintf with one parameter - page number<br>
- * 											if Closure - one parameter will be given, Closure should return url string
+ * 											if callable - one parameter will be given, callable should return url string
  *
  * @return bool|string						<b>false</b> if single page, otherwise string, set of navigation buttons
  */
@@ -556,7 +577,7 @@ function pages_buttons ($page, $total, $url = false) {
 		return false;
 	}
 	$output	= [];
-	if (!($url instanceof Closure)) {
+	if (!is_callable($url)) {
 		$original_url	= $url;
 		$url			= function ($page) use ($original_url) {
 			return sprintf($original_url, $page);
@@ -598,7 +619,7 @@ function pages_buttons ($page, $total, $url = false) {
 				$output[]	= [
 					$i,
 					[
-						'formaction'	=> $url instanceof Closure ? $url($i) : sprintf($url, $i),
+						'formaction'	=> is_callable($url) ? $url($i) : sprintf($url, $i),
 						'value'			=> $i,
 						'type'			=> 'submit'
 					]
@@ -609,7 +630,7 @@ function pages_buttons ($page, $total, $url = false) {
 				$output[]	= [
 					$i,
 					[
-						'formaction'	=> $url instanceof Closure ? $url($i) : sprintf($url, $i),
+						'formaction'	=> is_callable($url) ? $url($i) : sprintf($url, $i),
 						'value'			=> $i,
 						'type'			=> 'submit'
 					]
@@ -638,7 +659,7 @@ function pages_buttons ($page, $total, $url = false) {
 				$output[]	= [
 					$i,
 					[
-						'formaction'	=> $url instanceof Closure ? $url($i) : sprintf($url, $i),
+						'formaction'	=> is_callable($url) ? $url($i) : sprintf($url, $i),
 						'value'			=> $i,
 						'type'			=> 'submit'
 					]
@@ -673,7 +694,7 @@ function pages_buttons ($page, $total, $url = false) {
 				$output[]	= [
 					$i,
 					[
-						'formaction'	=> $url instanceof Closure ? $url($i) : sprintf($url, $i),
+						'formaction'	=> is_callable($url) ? $url($i) : sprintf($url, $i),
 						'value'			=> $i,
 						'type'			=> 'submit'
 					]
@@ -681,15 +702,26 @@ function pages_buttons ($page, $total, $url = false) {
 			}
 		}
 	}
-	return h::{'button[name=page]'}($output);
+	return h::{'button.uk-button[name=page]'}($output);
 }
 /**
- * Simple wrapper for defining constant ERROR_CODE
+ * Function that is used to define errors by specifying error code, and system will account this in its operation
  *
- * @param int	$code
+ * @param int|null	$code
+ *
+ * @return int				<b>0</b> if no errors, error code otherwise
  */
-function error_code ($code) {
-	!defined('ERROR_CODE') && define('ERROR_CODE', $code);
+function error_code ($code = null) {
+	static $stored_code = 0;
+	if (
+		$code !== null &&
+		(
+			!$stored_code || $code == 0 //Allows to reset error code, but not allows to redefine by other code directly
+		)
+	) {
+		$stored_code = $code;
+	}
+	return $stored_code;
 }
 /**
  * Checks whether specified functionality available or not
@@ -739,4 +771,72 @@ function functionality ($functionality) {
 		return $functionality;
 	});
 	return array_search($functionality, $all) !== false;
+}
+/**
+ * Returns system version
+ *
+ * @return string
+ */
+function system_version () {
+	return file_get_json(MODULES.'/System/meta.json')['version'];
+}
+/**
+ * Is current path from administration area?
+ *
+ * @param bool|null $admin_path
+ *
+ * @return bool
+ */
+function admin_path ($admin_path = null) {
+	static $stored_admin_path = false;
+	if ($admin_path !== null) {
+		$stored_admin_path = $admin_path;
+		!defined('ADMIN') && define('ADMIN', $admin_path); //TODO: remove before release
+	}
+	return $stored_admin_path;
+}
+/**
+ * Is current path from api area?
+ *
+ * @param bool|null $api_path
+ *
+ * @return bool
+ */
+function api_path ($api_path = null) {
+	static $stored_api_path = false;
+	if ($api_path !== null) {
+		$stored_api_path = $api_path;
+		!defined('API') && define('API', $api_path); //TODO: remove before release
+	}
+	return $stored_api_path;
+}
+/**
+ * Name of currently used module (for generation of current page)
+ *
+ * @param null|string $current_module
+ *
+ * @return bool
+ */
+function current_module ($current_module = null) {
+	static $stored_current_module = '';
+	if ($current_module !== null) {
+		$stored_current_module = $current_module;
+		!defined('MODULE') && define('MODULE', $current_module); //TODO: remove before release
+	}
+	return $stored_current_module;
+}
+/**
+ * Is current page a home page?
+ *
+ * @param bool|null $home_page
+ *
+ * @return bool
+ */
+function home_page ($home_page = null) {
+	static $stored_home_page = false;
+	if ($home_page !== null) {
+		$stored_home_page = $home_page;
+		!defined('HOME') && define('HOME', $home_page); //TODO: remove before release
+	}
+	return $stored_home_page;
 }

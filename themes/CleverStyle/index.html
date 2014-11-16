@@ -1,23 +1,38 @@
-<!doctype html>
+<?php
+/**
+ * @package		ClevereStyle CMS
+ * @subpackage	CleverStyle theme
+ * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
+ * @copyright	Copyright (c) 2014, Nazar Mokrynskyi
+ * @license		MIT License, see license.txt
+ */
+namespace cs\themes\CleverStyle;
+use
+	cs\Menu,
+	cs\User,
+	h;
+include __DIR__.'/functions.php';
+$main_menu	= h::{'ul.uk-navbar-nav[level=0] li[level=0]'}(
+	get_main_menu()
+);
+$submenu	= admin_path() ? Menu::instance()->get_menu() : '';
+$avatar		= User::instance()->avatar();
+$body_class = admin_path() ? ' class="cs-admin-page"' : '';
+?><!doctype html>
 <!--pre_Html--><!--head-->
 <body>
-<!--pre_Body--><!--debug_info-->
+<!--pre_Body-->
 	<header class="uk-navbar uk-navbar-attached">
-<!--header-->
 		<div class="uk-navbar-content uk-navbar-flip">
-			<img alt="" src="<!--user-avatar-image-->">
-<!--header_info-->
+			<img alt="" src="<?=$avatar?>">
+			<?=get_header_info()?>
 		</div>
 		<a href="/" class="uk-navbar-brand"><?=get_core_ml_text('name')?></a>
-		<ul class="uk-navbar-nav">
-<!--main-menu-->
-		</ul>
+		<?=$main_menu?>
 		<hr>
-		<ul class="uk-subnav uk-subnav-pill">
-<!--main-sub-menu-->
-		</ul>
+		<?=$submenu?>
 	</header>
-	<div id="body"<?=ADMIN ? 'class="cs-admin-page" ' : ''?>>
+	<div id="body"<?=$body_class?>>
 		<aside id="left_blocks">
 <!--left_blocks-->
 		</aside>
@@ -37,7 +52,7 @@
 		</aside>
 	</div>
 	<footer>
-<!--footer-->
+		<?=get_footer()?>
 	</footer>
 <!--post_Body-->
 </body><!--post_Html-->

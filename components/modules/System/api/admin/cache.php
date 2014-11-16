@@ -1,30 +1,34 @@
 <?php
 /**
- * @package		CleverStyle CMS
- * @subpackage	System module
- * @category	modules
- * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
- * @license		MIT License, see license.txt
+ * @package        CleverStyle CMS
+ * @subpackage     System module
+ * @category       modules
+ * @author         Nazar Mokrynskyi <nazar@mokrynskyi.com>
+ * @copyright      Copyright (c) 2011-2014, Nazar Mokrynskyi
+ * @license        MIT License, see license.txt
  */
-namespace	cs;
-use			h;
-$Cache	= Cache::instance();
-$Config	= Config::instance();
-$L		= Language::instance();
-$Page	= Page::instance();
-$rc		= $Config->route;
-$ajax	= $Config->server['ajax'];
+namespace cs;
+$Cache  = Cache::instance();
+$Config = Config::instance();
+$Page   = Page::instance();
+$rc     = $Config->route;
 if (isset($rc[2])) {
 	switch ($rc[2]) {
 		case 'clean_cache':
-			if ($Cache->clean()) {
-				$Cache->disable();
-				$Page->content($ajax ? _json_encode(h::{'p.uk-alert.uk-alert-success'}($L->done)) : 1);
+			time_limit_pause();
+			if ($_POST['partial_path']) {
+				$result = $Cache->del($_POST['partial_path']);
 			} else {
-				$Page->content($ajax ? _json_encode(h::{'p.uk-alert.uk-alert-danger'}($L->error)) : 0);
+				$result = $Cache->clean();
 			}
-		break;
+			time_limit_pause(false);
+			if ($result) {
+				$Cache->disable();
+				$Page->content(1);
+			} else {
+				$Page->content(0);
+			}
+			break;
 		case 'clean_pcache':
 			if (clean_pcache()) {
 				if (!isset($rc[3])) {
@@ -32,12 +36,12 @@ if (isset($rc[2])) {
 					Core::instance()->api_request('System/admin/cache/clean_pcache/api');
 					time_limit_pause(false);
 				}
-				$Page->content($ajax ? _json_encode(h::{'p.uk-alert.uk-alert-success'}($L->done)) : 1);
+				$Page->content(1);
 			} else {
-				$Page->content($ajax ? _json_encode(h::{'p.uk-alert.uk-alert-danger'}($L->error)) : 0);
+				$Page->content(0);
 			}
-		break;
+			break;
 	}
 } else {
-	$Page->content($ajax ? _json_encode(h::{'p.uk-alert.uk-alert-danger'}($L->error)) : 0);
+	$Page->content(0);
 }

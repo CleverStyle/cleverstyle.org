@@ -8,9 +8,23 @@
 @import "../common_config";
 @import "mixins";
 
-* {
+html {
 	box-sizing      : border-box;
 	-moz-box-sizing : border-box;
+}
+
+*,
+*::before,
+*:after {
+	box-sizing      : inherit;
+	-moz-box-sizing : inherit;
+}
+
+body /deep/ *,
+body /deep/ *::before,
+body /deep/ *:after {
+	box-sizing      : inherit;
+	-moz-box-sizing : inherit;
 }
 
 code {
@@ -53,9 +67,9 @@ button, input, select, textarea {
 	margin    : 0;
 }
 
-.cs-table-borderless {
-	margin : 0 auto;
-	width  : 100%;
+button,
+.cs-disable-selection {
+	@include disable-selection;
 }
 
 .cs-button-compact {

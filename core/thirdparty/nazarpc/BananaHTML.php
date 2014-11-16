@@ -1,7 +1,7 @@
 <?php
 /**
  * @package		BananaHTML
- * @version		1.0.1
+ * @version		2.1.2
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
  * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
@@ -17,7 +17,7 @@ defined('XHTML_TAGS_STYLE') || define('XHTML_TAGS_STYLE', false);
  * This is class for HTML code rendering in accordance with the standards of HTML5, and with useful syntax extensions for simpler usage
  */
 class BananaHTML {
-	protected static	$unit_atributes = [	//Unit attributes, that have no value, or have the same value as name in xhtml style
+	protected static	$known_unit_atributes = [	//Unit attributes, that have no value, or have the same value as name in xhtml style
 			'async',
 			'defer',
 			'formnovalidate',
@@ -74,11 +74,10 @@ class BananaHTML {
 	 * @param string	$in
 	 * @param string	$tag
 	 * @param string	$add
-	 * @param null		$label
 	 *
 	 * @return bool
 	 */
-	protected static function data_prepare (&$data, &$in, &$tag, &$add, &$label = null) {
+	protected static function data_prepare (&$data, &$in, &$tag, &$add) {
 		$q = '"';
 		if (isset($data['in'])) {
 			if ($data['in'] === false) {
@@ -94,12 +93,6 @@ class BananaHTML {
 				}
 			}
 			unset($i, $item);
-		}
-		if (in_array('no-label', $data, true)) {
-			$label				= false;
-			unset($data[array_search('no-label', $data)]);
-		} else {
-			$label				= true;
 		}
 		if (isset($data['tag'])) {
 			if ($data['tag']) {
@@ -150,15 +143,13 @@ class BananaHTML {
 			unset($data['style']);
 		}
 		if (isset($data['value'])) {
-			$data['value']		= prepare_attr_value($data['value']);
+			$data['value']		= static::prepare_attr_value($data['value']);
 		}
 		ksort($data);
 		foreach ($data as $key => $value) {
 			if (is_int($key)) {
 				unset($data[$key]);
-				if (in_array($value, static::$unit_atributes)) {
-					$add	.= " $value".(XHTML_TAGS_STYLE ? "=$q$value$q" : '');
-				}
+				$add	.= " $value".(XHTML_TAGS_STYLE ? "=$q$value$q" : '');
 			} elseif ($value !== false) {
 				$add			.= " $key=$q$value$q";
 			}
@@ -217,6 +208,14 @@ class BananaHTML {
 		return "/$url";
 	}
 	/**
+	 * Empty stub, may be redefined if needed for custom attributes processing
+	 *
+	 * @static
+	 *
+	 * @param array	$attributes
+	 */
+	protected static function pre_processing (&$attributes) {}
+	/**
 	 * Wrapper for paired tags rendering
 	 *
 	 * @static
@@ -232,13 +231,11 @@ class BananaHTML {
 		$in			= $add = '';
 		$tag		= 'div';
 		$level		= 1;
-		if (isset($data['data-title']) && $data['data-title']) {
-			$data['data-title'] = prepare_attr_value($data['data-title']);
-		}
 		if (isset($data['level'])) {
 			$level	= $data['level'];
 			unset($data['level']);
 		}
+		static::pre_processing($data);
 		if (!static::data_prepare($data, $in, $tag, $add)) {
 			return false;
 		}
@@ -273,36 +270,12 @@ class BananaHTML {
 	protected static function u_wrap ($data = []) {
 		$in		= $add		= '';
 		$tag	= 'input';
-		if (!static::data_prepare($data, $in, $tag, $add, $label)) {
+		static::pre_processing($data);
+		if (!static::data_prepare($data, $in, $tag, $add)) {
 			return false;
 		}
-		if (isset($data['data-title']) && $data['data-title']) {
-			$data_title = $data['data-title'];
-			unset($data['data-title']);
-		}
 		$add	.= XHTML_TAGS_STYLE ? ' /' : '';
-		if (isset($data['type']) && $data['type'] == 'checkbox' && $label) {
-			$html	= static::span(
-				static::label(
-					"<$tag$add> $in",
-					[
-						'for'	=> $data['id']
-					]
-				)."\n",
-				[
-					'data-title' => isset($data_title) ? $data_title : false
-				]
-			);
-		} else {
-			$html	= "<$tag$add> $in\n";
-			$html	= isset($data_title) ? static::label(
-				$html,
-				[
-					'data-title' => $data_title
-				]
-			) : $html;
-		}
-		return $html;
+		return "<$tag$add> $in\n";
 	}
 	/**
 	 * Rendering of form tag, default method is post, if form method is post - special session key in hidden input is added for security.
@@ -348,6 +321,15 @@ class BananaHTML {
 	protected static function form_csrf () {
 		return '';
 	}
+	protected static function input_merge ($in, $data) {
+		if (!empty($data)) {
+			$in = array_merge(
+				static::is_array_assoc($in) ? $in : ['in' => $in],
+				$data
+			);
+		}
+		return $in;
+	}
 	/**
 	 * Rendering of input tag with automatic adding labels for type=radio if necessary and automatic correction if min and/or max attributes are specified
 	 * and value is out of this scope
@@ -366,64 +348,41 @@ class BananaHTML {
 		if ($in === false) {
 			return '';
 		}
-		if (!empty($data)) {
-			$in = array_merge(['in' => $in], $data);
+		$in	= static::input_merge($in, $data);
+		if (static::is_array_indexed($in) && is_array($in[0])) {
+			return static::__callStatic(__FUNCTION__, [$in, $data]);
 		}
 		if (isset($in['type']) && $in['type'] == 'radio') {
-			if (is_array_indexed($in) && is_array($in[0])) {
-				return static::__callStatic(__FUNCTION__, [$in, $data]);
+			if (!isset($in['checked'])) {
+				$in['checked'] = $in['value'][0];
 			}
-			if (is_array($in)) {
-				if (!isset($in['checked'])) {
-					$in['checked'] = $in['value'][0];
+			if (isset($in['add']) && !is_array($in['add'])) {
+				$add = $in['add'];
+				$in['add'] = [];
+				foreach ($in['in'] as $v) {
+					$in['add'][] = $add;
 				}
-				if (isset($in['add']) && !is_array($in['add'])) {
-					$add = $in['add'];
-					$in['add'] = [];
-					foreach ($in['in'] as $v) {
-						$in['add'][] = $add;
-					}
-					unset($add);
-				}
-				foreach ($in['value'] as $i => $v) {
-					if ($v == $in['checked']) {
-						if (!isset($in['add'][$i])) {
-							$in['add'][$i] = ' checked';
-						} else {
-							$in['add'][$i] .= ' checked';
-						}
-						break;
-					}
-				}
-				unset($in['checked'], $i, $v);
-				$items = array_flip_3d($in);
-				unset($in, $v, $i);
-				$temp = '';
-				foreach ($items as $item) {
-					if (!isset($item['id'])) {
-						$item['id'] = uniqid('input_');
-					}
-					$item['tag'] = __FUNCTION__;
-					if (isset($item['value'])) {
-						$item['value'] = prepare_attr_value($item['value']);
-					}
-					$temp .= static::label(static::u_wrap($item), ['for' => $item['id']]);
-				}
-				return static::span($temp);
-			} else {
-				if (!isset($in['id'])) {
-					$in['id'] = uniqid('input_');
-				}
-				$in['tag'] = __FUNCTION__;
-				if (isset($in['value'])) {
-					$in['value'] = prepare_attr_value($in['value']);
-				}
-				return static::label(static::u_wrap($in), ['for' => $in['id']]);
+				unset($add);
 			}
+			foreach ($in['value'] as $i => $v) {
+				if ($v == $in['checked']) {
+					@$in['add'][$i] .= ' checked';
+					break;
+				}
+			}
+			unset($in['checked'], $i, $v);
+			$items = static::array_flip_3d($in);
+			unset($in, $v, $i);
+			$temp = '';
+			foreach ($items as $item) {
+				$item['tag'] = __FUNCTION__;
+				if (isset($item['value'])) {
+					$item['value'] = static::prepare_attr_value($item['value']);
+				}
+				$temp .= static::u_wrap($item);
+			}
+			return $temp;
 		} else {
-			if (is_array_indexed($in)) {
-				return static::__callStatic(__FUNCTION__, [$in, $data]);
-			}
 			if (
 				(
 					isset($in['name'])	&& is_array($in['name'])
@@ -432,7 +391,7 @@ class BananaHTML {
 					isset($in['id'])	&& is_array($in['id'])
 				)
 			) {
-				$items	= array_flip_3d($in);
+				$items	= static::array_flip_3d($in);
 				$return	= '';
 				foreach ($items as $item) {
 					$return .= static::input($item);
@@ -441,8 +400,6 @@ class BananaHTML {
 			} else {
 				if (!isset($in['type'])) {
 					$in['type'] = 'text';
-				} elseif ($in['type'] == 'checkbox' && !isset($in['id'])) {
-					$in['id'] = uniqid('input_');
 				}
 				if ($in['type'] == 'checkbox' && isset($in['value'], $in['checked']) && $in['value'] == $in['checked']) {
 					$in[]	= 'checked';
@@ -531,6 +488,7 @@ class BananaHTML {
 			}
 			$data['selected']	= (array)$data['selected'];
 			if (isset($data['disabled'])) {
+				$data['disabled']	= (array)$data['disabled'];
 				$data['selected']	= array_diff($data['selected'], $data['disabled']);
 			} else {
 				$data['disabled']	= [];
@@ -553,7 +511,7 @@ class BananaHTML {
 			}
 			unset($data['disabled'], $data['selected'], $i, $v);
 		}
-		$options = array_flip_3d($in);
+		$options = static::array_flip_3d($in);
 		unset($in);
 		foreach ($options as &$option) {
 			if (isset($option[1])) {
@@ -793,7 +751,7 @@ class BananaHTML {
 			$array1['style'] .= $array3['style'];
 			unset($array3['class']);
 		}
-		return array_merge($array1, $array2, $array3);
+		return $array3 + $array2 + $array1;
 	}
 	/**
 	 * Analyze CSS selector for nester tags
@@ -804,20 +762,20 @@ class BananaHTML {
 	 * @return bool			Returns <i>true</i> and changes <i>&$in</i> to array if nested tags detected
 	 */
 	protected static function analyze_selector (&$in, $offset = 0) {
-		$space_position	= mb_strpos($in, ' ', $offset);
+		$space_position	= strpos($in, ' ', $offset);
 		if ($space_position === false) {
 			return false;
 		}
-		$next_space		= mb_strpos($in, ' ', $space_position + 1);
-		$attr_close		= mb_strpos($in, ']', $space_position);
+		$next_space		= strpos($in, ' ', $space_position + 1);
+		$attr_close		= strpos($in, ']', $space_position);
 		if (
 			$next_space === false ||
 			$attr_close === false ||
 			$next_space > $attr_close
 		) {
 			$in	= [
-				mb_substr($in, 0, $space_position),
-				mb_substr($in, $space_position + 1)
+				substr($in, 0, $space_position),
+				substr($in, $space_position + 1)
 			];
 			return true;
 		}
@@ -847,7 +805,7 @@ class BananaHTML {
 			$data	= '';
 			return;
 		}
-		if (is_array_indexed($insert) && is_array($insert[0])) {
+		if (static::is_array_indexed($insert) && is_array($insert[0])) {
 			$new_data	= [];
 			foreach ($insert as $i) {
 				$new_data[] = $data;
@@ -895,19 +853,19 @@ class BananaHTML {
 					count($data) > 2 ||
 					(
 						isset($data[1]) &&
-						is_array_indexed($data[1])
+						static::is_array_indexed($data[1])
 					)
 				) {
 					$data	= [$data];
 				}
 				foreach ($data[0] as $d) {
-					if (isset($d[0]) && is_array_indexed($d[0]) && !in_array($d[0][0], static::$unit_atributes)) {
+					if (isset($d[0]) && static::is_array_indexed($d[0]) && !in_array($d[0][0], static::$known_unit_atributes)) {
 						if (
 							isset($d[1]) &&
 							(
 								!is_array($d[1]) ||
 								(
-									is_array_indexed($d[1]) && !in_array($d[1][0], static::$unit_atributes)
+									static::is_array_indexed($d[1]) && !in_array($d[1][0], static::$known_unit_atributes)
 								)
 							)
 						) {
@@ -920,7 +878,7 @@ class BananaHTML {
 						} else {
 							$output[]	= [
 								static::__callStatic($input[1], $d[0]),
-								isset($d[1]) ? $d[1] : ''
+								isset($d[1]) ? $d[1] : false
 							];
 						}
 					} else {
@@ -928,7 +886,7 @@ class BananaHTML {
 					}
 				}
 				unset($d);
-			} elseif (!isset($data[1]) || is_array_assoc($data[1])) {
+			} elseif (!isset($data[1]) || static::is_array_assoc($data[1])) {
 				$output		= static::__callStatic(
 					$input[1],
 					[
@@ -959,13 +917,13 @@ class BananaHTML {
 		/**
 		 * Fix for textarea tag, which can accept array as content
 		 */
-		if (strpos($input, 'textarea') === 0 && isset($data[0]) && is_array_indexed($data[0]) && !is_array($data[0][0])) {
+		if (strpos($input, 'textarea') === 0 && isset($data[0]) && static::is_array_indexed($data[0]) && !is_array($data[0][0])) {
 			$data[0]	= implode("\n", $data[0]);
 		}
 		/**
 		 * If associative array given then for every element of array separate copy of current tag will be created
 		 */
-		if (is_array_indexed($data)) {
+		if (static::is_array_indexed($data)) {
 			if (count($data) > 2) {
 				$output	= '';
 				foreach ($data as $d) {
@@ -982,16 +940,12 @@ class BananaHTML {
 				strpos($input, 'select') !== 0 &&
 				strpos($input, 'datalist') !== 0 &&
 				strpos($input, 'input') !== 0 &&
+				static::is_array_indexed($data[0]) &&
 				(
+					!isset($data[1]) ||
+					!is_array($data[1]) ||
 					(
-						is_array_indexed($data[0]) &&
-						(
-							!isset($data[1]) ||
-							!is_array($data[1]) ||
-							(
-								is_array_indexed($data[1]) && !in_array($data[1][0], static::$unit_atributes)
-							)
-						)
+						static::is_array_indexed($data[1]) && !in_array($data[1][0], static::$known_unit_atributes)
 					)
 				)
 			) {
@@ -1004,7 +958,7 @@ class BananaHTML {
 				}
 				return $output;
 			} elseif (
-				is_array_indexed($data[0]) &&
+				static::is_array_indexed($data[0]) &&
 				(
 					/**
 					 * Fix for "select" and "datalist" tags because they accept arrays as values
@@ -1013,7 +967,7 @@ class BananaHTML {
 						strpos($input, 'select') !== 0 && strpos($input, 'datalist') !== 0
 					) ||
 					(
-						is_array_indexed($data[0][0]) && !in_array($data[0][0][0], static::$unit_atributes)
+						static::is_array_indexed($data[0][0]) && !in_array($data[0][0][0], static::$known_unit_atributes)
 					)
 				)
 			) {
@@ -1028,7 +982,7 @@ class BananaHTML {
 								$data[1]
 							]
 						);
-					} elseif (is_array_indexed($d[1]) && !in_array($d[1], static::$unit_atributes)) {
+					} elseif (static::is_array_indexed($d[1]) && !in_array($d[1], static::$known_unit_atributes)) {
 						$output			.= static::__callStatic(
 							$input,
 							[
@@ -1056,12 +1010,12 @@ class BananaHTML {
 				return $output;
 			} elseif (
 				!is_array($data[0]) &&
-				!in_array($data[0], static::$unit_atributes) &&
+				!in_array($data[0], static::$known_unit_atributes) &&
 				isset($data[1]) &&
 				(
 					!is_array($data[1]) ||
 					(
-						is_array_indexed($data[1])  && !in_array($data[1][0], static::$unit_atributes)
+						static::is_array_indexed($data[1])  && !in_array($data[1][0], static::$known_unit_atributes)
 					)
 				)
 			) {
@@ -1132,6 +1086,12 @@ class BananaHTML {
 		 */
 		$input	= explode('#', $input);
 		$tag	= $input[0];
+		/**
+		 * Convenient support of custom tags for Web Components
+		 *
+		 * Allows to write BananaHTML::custom_tag() that will be translated to <custom-tag></custom-tag>
+		 */
+		$tag	= strtr($tag, '_', '-');
 		if (isset($input[1])) {
 			$attrs['id'] = $input[1];
 		}
@@ -1185,5 +1145,92 @@ class BananaHTML {
 			$in				= static::wrap($in, $attrs, $tag);
 		}
 		return $in;
+	}
+	/**
+	 * Checks associativity of array
+	 *
+	 * @param array	$array	Array to be checked
+	 *
+	 * @return bool
+	 */
+	protected static function is_array_assoc ($array) {
+		if (!is_array($array) || empty($array)) {
+			return false;
+		}
+		$count = count($array);
+		for ($i = 0; $i < $count; ++$i) {
+			if (!isset($array[$i])) {
+				return true;
+			}
+		}
+		return false;
+	}
+	/**
+	 * Checks whether array is indexed or not
+	 *
+	 * @param array	$array	Array to be checked
+	 *
+	 * @return bool
+	 */
+	protected static function is_array_indexed ($array) {
+		if (!is_array($array) || empty($array)) {
+			return false;
+		}
+		return !static::is_array_assoc($array);
+	}
+	/**
+	 * Prepare text to be used as value for html attribute value
+	 *
+	 * @param string|string[]	$text
+	 *
+	 * @return string|string[]
+	 */
+	protected static function prepare_attr_value ($text) {
+		if (is_array($text)) {
+			foreach ($text as &$val) {
+				$val = static::prepare_attr_value($val);
+			}
+			return $text;
+		}
+		return strtr(
+			$text,
+			[
+				'&'		=> '&amp;',
+				'"'		=> '&quot;',
+				'\''	=> '&apos;',
+				'<'		=> '&lt;',
+				'>'		=> '&gt;'
+			]
+		);
+	}
+	/**
+	 * Works like <b>array_flip()</b> function, but is used when every item of array is not a string, but may be also array
+	 *
+	 * @param array			$array	At least one item must be array, some other items may be strings (or numbers)
+	 *
+	 * @return array|bool
+	 */
+	protected static function array_flip_3d ($array) {
+		if (!is_array($array)) {
+			return false;
+		}
+		$result	= [];
+		$size	= 0;
+		foreach ($array as $values) {
+			$size	= max($size, count((array)$values));
+		}
+		unset($values);
+		foreach ($array as $key => $values) {
+			for ($i = 0; $i < $size; ++$i) {
+				if (is_array($values)) {
+					if (isset($values[$i])) {
+						$result[$i][$key] = $values[$i];
+					}
+				} else {
+					$result[$i][$key] = $values;
+				}
+			}
+		}
+		return $result;
 	}
 }

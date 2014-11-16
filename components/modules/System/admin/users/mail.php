@@ -15,10 +15,10 @@ use			h,
 $Config	= Config::instance();
 $L		= Language::instance();
 Index::instance()->content(
-	h::{'table.cs-table-borderless.cs-left-even.cs-right-odd tr| td'}([
+	h::{'cs-table[right-left] cs-table-row| cs-table-cell'}([
 		[
 			h::info('smtp'),
-			h::{'input[type=radio]'}([
+			h::radio([
 				'name'			=> 'core[smtp]',
 				'checked'		=> $Config->core['smtp'],
 				'value'			=> [0, 1],
@@ -38,7 +38,7 @@ Index::instance()->content(
 					),
 					h::td([
 						h::info('smtp_secure'),
-						h::{'input[type=radio]'}([
+						h::radio([
 							'name'			=> 'core[smtp_secure]',
 							'checked'		=> $Config->core['smtp_secure'],
 							'value'			=> ['', 'ssl', 'tls'],
@@ -47,7 +47,7 @@ Index::instance()->content(
 					]),
 					h::td([
 						$L->smtp_auth,
-						h::{'input[type=radio]'}([
+						h::radio([
 							'name'			=> 'core[smtp_auth]',
 							'checked'		=> $Config->core['smtp_auth'],
 							'value'			=> [0, 1],
@@ -81,6 +81,10 @@ Index::instance()->content(
 		],
 		core_input('mail_from'),
 		core_input('mail_from_name'),
-		core_textarea('mail_signature', 'SIMPLE_EDITOR')
+		core_textarea('mail_signature', 'SIMPLE_EDITOR'),
+		[
+			'',
+			h::{'td button.uk-button[onclick=cs.test_email_sending()]'}($L->test_email_sending)
+		]
 	])
 );

@@ -13,9 +13,8 @@
  *  ['text'	=> <i>&$text</i>]<br>
  */
 namespace	cs;
-Index::instance()->stop		= true;
 interface_off();
-$text						= file_get_contents(MFOLDER.'/robots.txt');
+$text						= file_get_contents(__DIR__.'/robots.txt');
 Trigger::instance()->run(
 	'System/robots.txt',
 	[

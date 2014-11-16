@@ -7,15 +7,37 @@
  */
 namespace cs;
 
+/**
+ * @method static DB instance($check = false)
+ */
 class DB {
 	use	Singleton;
-
-	public		$queries				= 0,
-				$time					= 0;
-	protected	$connections			= [],
-				$successful_connections	= [],
-				$failed_connections		= [],
-				$mirrors				= [];
+	/**
+	 * Total number of executed queries
+	 * @var int
+	 */
+	public		$queries				= 0;
+	/**
+	 * Total time spent on all queries and connections
+	 * @var int
+	 */
+	public		$time					= 0;
+	/**
+	 * @var array
+	 */
+	protected	$connections			= [];
+	/**
+	 * @var array
+	 */
+	protected	$successful_connections	= [];
+	/**
+	 * @var array
+	 */
+	protected	$failed_connections		= [];
+	/**
+	 * @var array
+	 */
+	protected	$mirrors				= [];
 	/**
 	 * Get list of connections of specified type
 	 *
@@ -236,7 +258,7 @@ class DB {
 	/**
 	 * Test connection to the DB
 	 *
-	 * @param array|string $data	Array or string in JSON format of connection parameters
+	 * @param int[]|string[] $data	Array or string in JSON format of connection parameters
 	 *
 	 * @return bool
 	 */
@@ -244,7 +266,7 @@ class DB {
 		$Core	= Core::instance();
 		if (empty($data)) {
 			return false;
-		} elseif (is_array($data)) {
+		} elseif (is_array_indexed($data)) {
 			$Config	= Config::instance();
 			if (isset($data[1])) {
 				$db = $Config->db[$data[0]]['mirrors'][$data[1]];
@@ -265,7 +287,7 @@ class DB {
 				return false;
 			}
 		} else {
-			$db = _json_decode($data);
+			$db = $data;
 		}
 		unset($data);
 		if (is_array($db)) {

@@ -10,12 +10,20 @@ use			h;
 /**
  * Core class.
  * Provides loading of base system configuration, API requests sending
+ *
+ * @method static Core instance($check = false)
  */
 class Core {
 	use Singleton;
-
-	protected			$constructed		= false,	//Is object constructed
-						$config				= [];
+	/**
+	 * Is object constructed
+	 * @var bool
+	 */
+	protected	$constructed		= false;
+	/**
+	 * @var mixed[]
+	 */
+	protected	$config				= [];
 	/**
 	 * Loading of base system configuration, creating of missing directories
 	 */
@@ -38,32 +46,34 @@ class Core {
 		defined('DEBUG') || define('DEBUG', false);
 		define('DOMAIN', $this->config['domain']);
 		date_default_timezone_set($this->config['timezone']);
-		if ($clangs = Cache::instance()->{'languages/clangs'}) {
+		$clangs = file_exists(CACHE.'/languages_clangs') ? file_get_json(CACHE.'/languages_clangs') : false;
+		$this->set('fixed_language', false);
+		if ($clangs) {
 			if (is_array($clangs) && !empty($clangs)) {
 				$clang	= explode('/', trim($_SERVER['REQUEST_URI'], '/'), 2)[0];
 				if (in_array($clang, $clangs)) {
+					$this->set('fixed_language', true);
 					$this->set('language', array_flip($clangs)[$clang]);
-					define('FIXED_LANGUAGE', true);
 				}
 				unset($clang);
 			}
 		}
 		unset($clangs);
 		if (!is_dir(STORAGE)) {
-			@mkdir(STORAGE, 0755);
+			@mkdir(STORAGE, 0775);
 			file_put_contents(
 				STORAGE.'/.htaccess',
 				'Allow From All'
 			);
 		}
 		if (!is_dir(CACHE)) {
-			@mkdir(CACHE, 0700);
+			@mkdir(CACHE, 0770);
 		}
 		if (!is_dir(PCACHE)) {
-			@mkdir(PCACHE, 0755);
+			@mkdir(PCACHE, 0770);
 			file_put_contents(
 				PCACHE.'/.htaccess',
-				'<FilesMatch "\.(css|js)$">
+				'<FilesMatch "\.(css|js|html)$">
 	Allow From All
 </FilesMatch>
 <ifModule mod_expires.c>
@@ -75,23 +85,27 @@ class Core {
 </ifModule>
 AddEncoding gzip .js
 AddEncoding gzip .css
+AddEncoding gzip .html
 '
 			);
 		}
 		if (!is_dir(LOGS)) {
-			@mkdir(LOGS, 0700);
+			@mkdir(LOGS, 0770);
 		}
 		if (!is_dir(TEMP)) {
-			@mkdir(TEMP, 0755);
+			@mkdir(TEMP, 0775);
 			file_put_contents(
 				TEMP.'/.htaccess',
 				'Allow From All'
 			);
 		}
+		/**
+		 * Support for JSON requests, filling $_POST array for request methods different than GET and POST
+		 */
 		if (isset($_SERVER['CONTENT_TYPE']) && strpos($_SERVER['CONTENT_TYPE'], 'application/json') === 0) {
 			$_POST		= _json_decode(@file_get_contents('php://input')) ?: [];
 			$_REQUEST	= array_merge($_REQUEST, $_POST);
-		} elseif (in_array(strtolower($_SERVER['REQUEST_METHOD']), ['head', 'put', 'delete'])) {
+		} elseif (!in_array(strtolower($_SERVER['REQUEST_METHOD']), ['get', 'post'])) {
 			if (isset($_SERVER['CONTENT_TYPE']) && strpos($_SERVER['CONTENT_TYPE'], 'application/x-www-form-urlencoded') === 0) {
 				@parse_str(file_get_contents('php://input'), $_POST);
 				$_REQUEST	= array_merge($_REQUEST, $_POST);

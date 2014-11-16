@@ -94,7 +94,7 @@ switch ($_POST['mode']) {
 				} elseif (password_check($user_data['password'], $Config->core['password_min_length']) < $Config->core['password_min_strength']) {
 					$Page->warning($L->password_too_easy);
 				} else {
-					$user_data['password_hash'] = hash('sha512', hash('sha512', $user_data['password']).Core::instance()->public_key);
+					$User->set_password($user_data['password'], $id);
 				}
 			}
 			unset($user_data['password']);
@@ -165,10 +165,6 @@ switch ($_POST['mode']) {
 				break;
 			}
 			$groups	= _json_decode($_POST['user']['groups']);
-			foreach ($groups as &$group) {
-				$group = (int)substr($group, 5);
-			}
-			unset($group);
 			$Index->save(
 				$User->set_groups($groups, $user_id)
 			);

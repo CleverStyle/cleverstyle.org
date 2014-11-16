@@ -43,8 +43,8 @@ if (isset($rc[2])) {
 				}
 				unset($mirror, $cdb);
 			} elseif ($rc[2] == 'add') {
-				$dbs = array(-1, 0);
-				$dbsname = array($L->separate_db, $L->core_db);
+				$dbs = [-1, 0];
+				$dbsname = [$L->separate_db, $L->core_db];
 				foreach ($Config->db as $i => $db) {
 					if ($i) {
 						$dbs[] = $i;
@@ -62,96 +62,106 @@ if (isset($rc[2])) {
 			 */
 			$Page->title($rc[2] == 'edit' ? $L->editing_the_database($name) : $L->addition_of_db);
 			$a->content(
-				h::{'p.lead.cs-center'}(
+				h::{'h2.cs-center'}(
 					$rc[2] == 'edit' ? $L->editing_the_database($name) : $L->addition_of_db
 				).
-				h::{'table.cs-table.cs-center-all tr'}(
-					\cs\modules\System\form_rows_to_cols([
-						array_map(
-							function ($in) {
-								return h::{'th info'}($in);
-							},
+				h::{'cs-table[center][right-left] cs-table-row| cs-table-cell'}(
+					[
+						h::info($rc[2] == 'add' ? 'db_mirror' : false),
+						$rc[2] == 'add'
+							? h::select(
+								[
+									'in'		=> $dbsname,
+									'value'		=> $dbs
+								],
+								[
+									'name'		=> 'db[mirror]',
+									'selected'	=> isset($rc[3]) ? $rc[3] : -1,
+									'size'		=> 5
+								]
+							)
+							: false
+					],
+					[
+						h::info('db_host'),
+						h::input([
+							'name'		=> 'db[host]',
+							'value'		=> $rc[2] == 'edit' ? $database['host'] : $Core->db_host
+						])
+					],
+					[
+						h::info('db_type'),
+						h::select(
 							[
-								$rc[2] == 'add' ? 'db_mirror' : false,
-								'db_host',
-								'db_type',
-								'db_prefix',
-								'db_name',
-								'db_user',
-								'db_password',
-								'db_charset'
-							]
-						),
-						array_map(
-							function ($in) {
-								return h::td($in);
-							},
+								'in'		=> _mb_substr(get_files_list(ENGINES.'/DB', '/^[^_].*?\.php$/i', 'f'), 0, -4)
+							],
 							[
-								($rc[2] == 'add' ? h::select(
-									[
-										'in'		=> $dbsname,
-										'value'		=> $dbs
-									],
-									[
-										'name'		=> 'db[mirror]',
-										'selected'	=> isset($rc[3]) ? $rc[3] : -1,
-										'size'		=> 5
-									]
-								) : false),
-								h::input([
-									'name'		=> 'db[host]',
-									'value'		=> $rc[2] == 'edit' ? $database['host'] : $Core->db_host
-								]),
-								h::select(
-									[
-										'in'		=> _mb_substr(get_files_list(ENGINES.'/DB', '/^[^_].*?\.php$/i', 'f'), 0, -4)
-									],
-									[
-										'name'		=> 'db[type]',
-										'selected'	=> $rc[2] == 'edit' ? $database['type'] : $Core->db_type,
-										'size'		=> 5
-									]
-								),
-								h::input([
-									'name'		=> 'db[prefix]',
-									'value'		=> $rc[2] == 'edit' ? $database['prefix'] : $Core->db_prefix
-								]),
-								h::input([
-									'name'		=> 'db[name]',
-									'value'		=> $rc[2] == 'edit' ? $database['name'] : ''
-								]),
-								h::input([
-									'name'		=> 'db[user]',
-									'value'		=> $rc[2] == 'edit' ? $database['user'] : ''
-								]),
-								h::input([
-									'name'		=> 'db[password]',
-									'value'		=> $rc[2] == 'edit' ? $database['password'] : ''
-								]),
-								h::input([
-									'name'		=> 'db[charset]',
-									'value'		=> $rc[2] == 'edit' ? $database['charset'] : $Core->db_charset
-								]).
-								h::{'input[type=hidden]'}([
-									'name'		=> 'mode',
-									'value'		=> $rc[2] == 'edit' ? 'edit' : 'add'
-								]).
-								(isset($rc[3]) ? h::{'input[type=hidden]'}([
-									'name'		=> 'database',
-									'value'		=> $rc[3]
-								]) : '').
-								(isset($rc[4]) ? h::{'input[type=hidden]'}([
-									'name'		=> 'mirror',
-									'value'		=> $rc[4]
-								]) : '')
+								'name'		=> 'db[type]',
+								'selected'	=> $rc[2] == 'edit' ? $database['type'] : $Core->db_type,
+								'size'		=> 5
 							]
 						)
-					])
+					],
+					[
+						h::info('db_prefix'),
+						h::input([
+							'name'		=> 'db[prefix]',
+							'value'		=> $rc[2] == 'edit' ? $database['prefix'] : $Core->db_prefix
+						])
+					],
+					[
+						h::info('db_name'),
+						h::input([
+							'name'		=> 'db[name]',
+							'value'		=> $rc[2] == 'edit' ? $database['name'] : ''
+						])
+					],
+					[
+						h::info('db_user'),
+						h::input([
+							'name'		=> 'db[user]',
+							'value'		=> $rc[2] == 'edit' ? $database['user'] : ''
+						])
+					],
+					[
+						h::info('db_password'),
+						h::input([
+							'name'		=> 'db[password]',
+							'value'		=> $rc[2] == 'edit' ? $database['password'] : ''
+						])
+					],
+					[
+						h::info('db_charset'),
+						h::input([
+							'name'		=> 'db[charset]',
+							'value'		=> $rc[2] == 'edit' ? $database['charset'] : $Core->db_charset
+						]).
+						h::{'input[type=hidden]'}([
+							'name'		=> 'mode',
+							'value'		=> $rc[2] == 'edit' ? 'edit' : 'add'
+						])
+					]
+				).
+				(
+					isset($rc[3])
+						? h::{'input[type=hidden]'}([
+							'name'		=> 'database',
+							'value'		=> $rc[3]
+						])
+						: ''
+				).
+				(
+					isset($rc[4])
+						? h::{'input[type=hidden]'}([
+							'name'		=> 'mirror',
+							'value'		=> $rc[4]
+						])
+						: ''
 				).
 				h::{'p button'}(
 					$L->test_connection,
 					[
-						'onMouseDown'	=> "cs.db_test('$a->action/test');"
+						'onMouseDown'	=> "cs.db_test();"
 					]
 				)
 			);
@@ -188,7 +198,7 @@ if (isset($rc[2])) {
 				unset($mirror, $cdb);
 				$Page->title($L->deletion_of_database($name));
 				$a->content(
-					h::{'p.lead.cs-center'}(
+					h::{'h2.cs-center'}(
 						$L->sure_to_delete.' '.$name.
 							h::{'input[type=hidden]'}([
 								[[
@@ -205,32 +215,7 @@ if (isset($rc[2])) {
 								'value'	=> $rc[4]
 							]) : '')
 					).
-					h::{'button[type=submit]'}($L->yes)
-				);
-			}
-		break;
-		case 'test':
-			interface_off();
-			$a->form			= false;
-			$a->generate_auto	= false;
-			$db					= DB::instance();
-			if (isset($rc[4])) {
-				$Page->content(
-					h::{'p.cs-test-result'}(
-						$db->test([$rc[3], $rc[4]]) ? $L->success : $L->failed
-					)
-				);
-			} elseif (isset($rc[3])) {
-				$Page->content(
-					h::{'p.cs-test-result'}(
-						$db->test([$rc[3]]) ? $L->success : $L->failed
-					)
-				);
-			} else {
-				$Page->content(
-					h::{'p.cs-test-result'}(
-						$db->test($_POST['db']) ? $L->success : $L->failed
-					)
+					h::{'button.uk-button[type=submit]'}($L->yes)
 				);
 			}
 	}
@@ -243,7 +228,7 @@ if (isset($rc[2])) {
 			$db_list[]	= [
 				[
 					[
-						h::{'a.cs-button-compact'}(
+						h::{'a.uk-button.cs-button-compact'}(
 							[
 								h::icon('plus'),
 								[
@@ -268,7 +253,7 @@ if (isset($rc[2])) {
 							[
 								h::icon('signal'),
 								[
-									'onMouseDown'	=> "cs.db_test('$a->action/test/$i', true);",
+									'onMouseDown'	=> "cs.db_test($i);",
 									'data-title'	=> $L->test_connection
 								]
 							]
@@ -292,7 +277,7 @@ if (isset($rc[2])) {
 				if (is_array($mirror) && !empty($mirror)) {
 					$db_list[]	= [
 						[
-							h::{'a.cs-button-compact'}(
+							h::{'a.uk-button.cs-button-compact'}(
 								[
 									h::icon('pencil'),
 									[
@@ -310,7 +295,7 @@ if (isset($rc[2])) {
 								[
 									h::icon('signal'),
 									[
-										'onMouseDown'	=> "cs.db_test('$a->action/test/$i/$m', true);",
+										'onMouseDown'	=> "cs.db_test($i, $m);",
 										'data-title'	=> $L->test_connection
 									]
 								]
@@ -334,8 +319,8 @@ if (isset($rc[2])) {
 	}
 	unset($databases);
 	$a->content(
-		h::{'table.cs-table'}(
-			h::{'thead tr th'}(
+		h::{'cs-table[list][with-header] cs-table-row| cs-table-cell'}(
+			[
 				$L->action,
 				$L->db_host,
 				$L->db_type,
@@ -343,15 +328,13 @@ if (isset($rc[2])) {
 				$L->db_name,
 				$L->db_user,
 				$L->db_charset
-			).
-			h::tbody(
-				h::{'tr| td'}([$db_list])
-			)
+			],
+			$db_list
 		).
-		h::{'table.cs-table-borderless.cs-left-even.cs-right-odd tr| td'}([
+		h::{'cs-table[right-left] cs-table-row| cs-table-cell'}([
 			[
 				h::info('db_balance'),
-				h::{'input[type=radio]'}([
+				h::radio([
 					'name'			=> 'core[db_balance]',
 					'checked'		=> $Config->core['db_balance'],
 					'value'			=> [0, 1],
@@ -360,7 +343,7 @@ if (isset($rc[2])) {
 			],
 			[
 				h::info('maindb_for_write'),
-				h::{'input[type=radio]'}([
+				h::radio([
 					'name'			=> 'core[maindb_for_write]',
 					'checked'		=> $Config->core['maindb_for_write'],
 					'value'			=> [0, 1],
@@ -368,7 +351,7 @@ if (isset($rc[2])) {
 				])
 			]
 		]).
-		h::{'p a.cs-button'}(
+		h::{'p a.uk-button'}(
 			$L->add_database,
 			[
 				'href' => "admin/System/$rc[0]/$rc[1]/add"

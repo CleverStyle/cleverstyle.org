@@ -9,23 +9,10 @@
 
 
 (function() {
-  var L, value_by_name,
+  var L,
     __hasProp = {}.hasOwnProperty;
 
   L = cs.Language;
-
-  /**
-   * Get value by name
-   *
-   * @param {string}	name
-   *
-   * @return {string}
-  */
-
-
-  value_by_name = function(name) {
-    return document.getElementsByName(name).item(0).value;
-  };
 
   /**
    * Adds method for symbol replacing at specified position
@@ -39,171 +26,6 @@
 
   String.prototype.replaceAt = function(index, symbol) {
     return this.substr(0, index) + symbol + this.substr(index + symbol.length);
-  };
-
-  /**
-   * Debug window opening
-  */
-
-
-  cs.debug_window = function() {
-    return $('#cs-debug').cs().modal('show');
-  };
-
-  /**
-   * Cache cleaning
-   *
-   * @param 			element
-   * @param {string}	action
-  */
-
-
-  cs.admin_cache = function(element, action) {
-    $(element).html("<div class=\"uk-progress uk-progress-striped uk-active\">\n	<div class=\"uk-progress-bar\" style=\"width:100%\"></div>\n</div>");
-    $.ajax({
-      url: action,
-      success: function(result) {
-        return $(element).html(result);
-      }
-    });
-  };
-
-  /**
-   * Send request for db connection testing
-   *
-   * @param {string}	url
-   * @param {bool}	added
-  */
-
-
-  cs.db_test = function(url, added) {
-    var db, db_test;
-    db_test = $('#cs-db-test');
-    db_test.find('h3 + *').replaceWith("<div class=\"uk-progress uk-progress-striped uk-active\">\n	<div class=\"uk-progress-bar\" style=\"width:100%\"></div>\n</div>");
-    db_test.cs().modal('show');
-    if (added) {
-      return $.ajax({
-        url: url,
-        success: function(result) {
-          return db_test.find('h3 + *').replaceWith(result);
-        },
-        error: function() {
-          return db_test.find('h3 + *').replaceWith('<p class="cs-test-result">' + L.failed + '</p>');
-        }
-      });
-    } else {
-      db = cs.json_encode({
-        type: value_by_name('db[type]'),
-        name: value_by_name('db[name]'),
-        user: value_by_name('db[user]'),
-        password: value_by_name('db[password]'),
-        host: value_by_name('db[host]'),
-        charset: value_by_name('db[charset]')
-      });
-      return $.ajax({
-        url: url,
-        data: {
-          db: db
-        },
-        success: function(result) {
-          return db_test.find('h3 + *').replaceWith(result);
-        },
-        error: function() {
-          return db_test.find('h3 + *').replaceWith('<p class="cs-test-result">' + L.failed + '</p>');
-        }
-      });
-    }
-  };
-
-  /**
-   * Send request for storage connection testing
-   *
-   * @param {string}	url
-   * @param {bool}	added
-  */
-
-
-  cs.storage_test = function(url, added) {
-    var storage, storage_test;
-    storage_test = $('#cs-storage-test');
-    storage_test.find('h3 + *').replaceWith("<div class=\"uk-progress uk-progress-striped uk-active\">\n	<div class=\"uk-progress-bar\" style=\"width:100%\"></div>\n</div>");
-    storage_test.cs().modal('show');
-    if (added) {
-      return $.ajax({
-        url: url,
-        success: function(result) {
-          return storage_test.find('h3 + *').replaceWith(result);
-        },
-        error: function() {
-          return storage_test.find('h3 + *').replaceWith('<p class="cs-test-result">' + L.failed + '</p>');
-        }
-      });
-    } else {
-      storage = cs.json_encode({
-        url: value_by_name('storage[url]'),
-        host: value_by_name('storage[host]'),
-        connection: value_by_name('storage[connection]'),
-        user: value_by_name('storage[user]'),
-        password: value_by_name('storage[password]')
-      });
-      return $.ajax({
-        url: url,
-        data: {
-          storage: storage
-        },
-        success: function(result) {
-          return storage_test.find('h3 + *').replaceWith(result);
-        },
-        error: function() {
-          return storage_test.find('h3 + *').replaceWith('<p class="cs-test-result">' + L.failed + '</p>');
-        }
-      });
-    }
-  };
-
-  /**
-   * Toggling of blocks group in admin page
-   *
-   * @param {string}	position
-  */
-
-
-  cs.blocks_toggle = function(position) {
-    var container, items;
-    container = $("#cs-" + position + "-blocks-items");
-    items = container.children('li:not(:first)');
-    if (container.data('mode') === 'open') {
-      items.slideUp('fast');
-      container.data('mode', 'close');
-    } else {
-      items.slideDown('fast');
-      container.data('mode', 'open');
-    }
-  };
-
-  /**
-   * Returns the JSON representation of a value
-   *
-   * @param {object} obj
-   *
-   * @return {string}
-  */
-
-
-  cs.json_encode = function(obj) {
-    return JSON.stringify(obj);
-  };
-
-  /**
-   * Decodes a JSON string
-   *
-   * @param {string}	str
-   * @return {object}
-  */
-
-
-  cs.json_decode = function(str) {
-    return JSON.parse(str);
   };
 
   /**
@@ -260,6 +82,7 @@
     return !!$.cookie(name, value, {
       path: cs.cookie_path,
       domain: cs.cookie_domain,
+      expires: expires,
       secure: cs.protocol === 'https'
     });
   };
@@ -293,27 +116,12 @@
       url: 'api/System/user/sign_in',
       cache: false,
       data: {
-        login: cs.hash('sha224', login)
+        login: cs.hash('sha224', login),
+        password: cs.hash('sha512', cs.hash('sha512', password) + cs.public_key)
       },
       type: 'post',
-      success: function(random_hash) {
-        if (random_hash.length === 56) {
-          return $.ajax('api/user/sign_in', {
-            cache: false,
-            data: {
-              login: cs.hash('sha224', login),
-              auth_hash: cs.hash('sha512', cs.hash('sha224', login) + cs.hash('sha512', cs.hash('sha512', password) + cs.public_key) + navigator.userAgent + random_hash)
-            },
-            type: 'post',
-            success: function(result) {
-              if (result === 'reload') {
-                return location.reload();
-              }
-            }
-          });
-        } else if (random_hash === 'reload') {
-          return location.reload();
-        }
+      success: function() {
+        return location.reload();
       }
     });
   };
@@ -406,10 +214,12 @@
    *
    * @param {string} current_password
    * @param {string} new_password
+   * @param {Function} success
+   * @param {Function} error
   */
 
 
-  cs.change_password = function(current_password, new_password) {
+  cs.change_password = function(current_password, new_password, success, error) {
     if (!current_password) {
       alert(L.please_type_current_password);
       return;
@@ -426,36 +236,29 @@
       url: 'api/System/user/change_password',
       cache: false,
       data: {
-        verify_hash: cs.hash('sha224', current_password + session_id),
-        new_password: cs.xor_string(current_password, new_password)
+        current_password: current_password,
+        new_password: new_password
       },
       type: 'post',
       success: function(result) {
         if (result === 'OK') {
-          return alert(L.password_changed_successfully);
+          if (success) {
+            return success();
+          } else {
+            return alert(L.password_changed_successfully);
+          }
         } else {
-          return alert(result);
+          if (error) {
+            return error();
+          } else {
+            return alert(result);
+          }
         }
+      },
+      error: function() {
+        return error();
       }
     });
-  };
-
-  /**
-   * For textarea in blocks editing
-   *
-   * @param item
-  */
-
-
-  cs.block_switch_textarea = function(item) {
-    $('#cs-block-content-html, #cs-block-content-raw-html').hide();
-    switch ($(item).val()) {
-      case 'html':
-        $('#cs-block-content-html').show();
-        break;
-      case 'raw_html':
-        $('#cs-block-content-raw-html').show();
-    }
   };
 
   /**

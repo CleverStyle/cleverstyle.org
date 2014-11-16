@@ -40,7 +40,6 @@ use			h,
 			cs\Trigger,
 			cs\User;
 $Config				= Config::instance();
-$Core				= Core::instance();
 $L					= Language::instance();
 $Page				= Page::instance();
 $User				= User::instance();
@@ -52,7 +51,7 @@ if (
 	isset($rc[2]) &&
 	!empty($rc[2]) &&
 	(
-		$rc[2] == 'update_system' ||
+		in_array($rc[2], ['update_system', 'remove']) ||
 		(
 			isset($rc[3], $Config->components['modules'][$rc[3]]) ||
 			(
@@ -82,41 +81,40 @@ if (
 				if ($_FILES['upload_module']['error'] != UPLOAD_ERR_OK) {
 					break;
 				}
-				move_uploaded_file(
-					$_FILES['upload_module']['tmp_name'],
-					$tmp_file = TEMP.'/'.md5($_FILES['upload_module']['tmp_name'].MICROTIME).'.phar.php'
-				);
-				$tmp_dir								= "phar://$tmp_file";
-				if (!($module = file_get_contents("$tmp_dir/dir"))) {
+				$tmp_file = TEMP.'/'.md5($_FILES['upload_module']['tmp_name'].MICROTIME).'.phar.php';
+				move_uploaded_file($_FILES['upload_module']['tmp_name'], $tmp_file);
+				$tmp_dir	= "phar://$tmp_file";
+				$module_name = file_get_contents("$tmp_dir/dir");
+				if (!$module_name) {
 					unlink($tmp_file);
 					break;
 				}
-				$rc[3]									= $module;
+				$rc[3]									= $module_name;
 				if (!file_exists("$tmp_dir/meta.json") || file_get_json("$tmp_dir/meta.json")['category'] != 'modules') {
 					$Page->warning($L->this_is_not_module_installer_file);
 					unlink($tmp_file);
 					break;
 				}
-				if (isset($Config->components['modules'][$module])) {
-					$current_version		= file_get_json(MODULES."/$module/meta.json")['version'];
+				if (isset($Config->components['modules'][$module_name])) {
+					$current_version		= file_get_json(MODULES."/$module_name/meta.json")['version'];
 					$new_version			= file_get_json("$tmp_dir/meta.json")['version'];
 					if (!version_compare($current_version, $new_version, '<')) {
-						$Page->warning($L->update_module_impossible_older_version($module));
+						$Page->warning($L->update_module_impossible_older_version($module_name));
 						unlink($tmp_file);
 						break;
 					}
-					$check_dependencies		= check_dependencies($module, 'module', $tmp_dir, 'update');
+					$check_dependencies		= check_dependencies($module_name, 'module', $tmp_dir, 'update');
 					if (!$check_dependencies && $Config->core['simple_admin_mode']) {
 						break;
 					}
 					$rc[2]					= 'update';
 					$show_modules			= false;
-					$Page->title($L->updating_of_module($module));
+					$Page->title($L->updating_of_module($module_name));
 					rename($tmp_file, $tmp_file = TEMP.'/'.$User->get_session().'_module_update.phar.php');
 					$a->content(
-						h::{'p.lead.cs-center'}(
+						h::{'h2.cs-center'}(
 							$L->update_module(
-								$module,
+								$module_name,
 								$current_version,
 								$new_version
 							)
@@ -124,11 +122,11 @@ if (
 					);
 					$a->cancel_button_back	= true;
 					$a->content(
-						h::{'button[type=submit]'}($L->{$check_dependencies ? $L->yes : 'force_update_not_recommended'})
+						h::{'button.uk-button[type=submit]'}($L->{$check_dependencies ? $L->yes : 'force_update_not_recommended'})
 					);
 					break;
 				}
-				if (!file_exists(MODULES."/$module") && !mkdir(MODULES."/$module", 0700)) {
+				if (!file_exists(MODULES."/$module_name") && !mkdir(MODULES."/$module_name", 0770)) {
 					$Page->warning($L->cant_unpack_module_no_write_permissions);
 					unlink($tmp_file);
 					break;
@@ -136,54 +134,32 @@ if (
 				$fs										= file_get_json("$tmp_dir/fs.json");
 				$extract								= array_product(
 					array_map(
-						function ($index, $file) use ($tmp_dir, $module) {
+						function ($index, $file) use ($tmp_dir, $module_name) {
 							if (
-								!file_exists(pathinfo(MODULES."/$module/$file", PATHINFO_DIRNAME)) &&
-								!mkdir(pathinfo(MODULES."/$module/$file", PATHINFO_DIRNAME), 0700, true)
+								!file_exists(dirname(MODULES."/$module_name/$file")) &&
+								!mkdir(dirname(MODULES."/$module_name/$file"), 0770, true)
 							) {
 								return 0;
 							}
-							return (int)copy("$tmp_dir/fs/$index", MODULES."/$module/$file");
+							return (int)copy("$tmp_dir/fs/$index", MODULES."/$module_name/$file");
 						},
 						$fs,
 						array_keys($fs)
 					)
 				);
-				file_put_json(MODULES."/$module/fs.json", array_keys($fs));
-				unset($tmp_dir);
+				file_put_json(MODULES."/$module_name/fs.json", array_keys($fs));
+				unlink($tmp_file);
+				unset($tmp_file, $tmp_dir);
 				if (!$extract) {
 					$Page->warning($L->module_files_unpacking_error);
 					break;
 				}
-				rename($tmp_file, $tmp_file = mb_substr($tmp_file, 0, -9));
-				$api_request							= $Core->api_request(
-					'System/admin/upload_module',
-					[
-						'package'	=> str_replace(DIR, $Config->base_url(), $tmp_file)
-					]
-				);
-				if ($api_request) {
-					$success	= true;
-					foreach ($api_request as $mirror => $result) {
-						if ($result == 1) {
-							$success	= false;
-							$Page->warning($L->cant_unpack_module_on_mirror($mirror));
-						}
-					}
-					if (!$success) {
-						$Page->warning($L->module_files_unpacking_error);
-						break;
-					}
-					unset($success, $mirror, $result);
-				}
-				unset($api_request);
-				unlink($tmp_file);
-				$Config->components['modules'][$module]	= [
+				$Config->components['modules'][$module_name]	= [
 					'active'	=> -1,
 					'db'		=> [],
 					'storage'	=> []
 				];
-				unset($tmp_file, $module);
+				unset($module_name);
 				ksort($Config->components['modules'], SORT_STRING | SORT_FLAG_CASE);
 				$Config->save();
 			} elseif ($rc[3] == 'upload') {
@@ -192,7 +168,7 @@ if (
 			$show_modules	= false;
 			$Page->title($L->installation_of_module($rc[3]));
 			$a->content(
-				h::{'p.lead.cs-center'}(
+				h::{'h2.cs-center'}(
 					$L->installation_of_module($rc[3])
 				)
 			);
@@ -252,7 +228,7 @@ if (
 				back_to_module_installation_2:
 			}
 			$a->content(
-				h::{'button[type=submit]'}(
+				h::{'button.uk-button[type=submit]'}(
 					$L->{$check_dependencies ? 'install' : 'force_install_not_recommended'}
 				)
 			);
@@ -261,7 +237,7 @@ if (
 			$show_modules			= false;
 			$Page->title($L->uninstallation_of_module($rc[3]));
 			$a->content(
-				h::{'p.lead.cs-center'}(
+				h::{'h2.cs-center'}(
 					$L->uninstallation_of_module($rc[3])
 				)
 			);
@@ -279,7 +255,7 @@ if (
 			}
 			$a->cancel_button_back	= true;
 			$a->content(
-				h::{'button[type=submit]'}(
+				h::{'button.uk-button[type=submit]'}(
 					$L->{$check_dependencies ? 'uninstall' : 'force_uninstall_not_recommended'}
 				)
 			);
@@ -338,13 +314,13 @@ if (
 			$Page->title($L->updating_of_system);
 			rename($tmp_file, $tmp_file = TEMP.'/'.$User->get_session().'_update_system.phar.php');
 			$a->content(
-				h::{'p.lead.cs-center'}(
+				h::{'h2.cs-center'}(
 					$L->update_system(
 						$current_version,
 						$new_version
 					)
 				).
-				h::{'button[type=submit]'}($L->yes)
+				h::{'button.uk-button[type=submit]'}($L->yes)
 			);
 			$rc[3]					= 'System';
 			$a->cancel_button_back	= true;
@@ -354,7 +330,7 @@ if (
 			$show_modules			= false;
 			$Page->title($L->setting_default_module($rc[3]));
 			$a->content(
-				h::{'p.lead.cs-center'}(
+				h::{'h2.cs-center'}(
 					$L->setting_default_module($rc[3])
 				)
 			);
@@ -368,7 +344,7 @@ if (
 			}
 			$a->cancel_button_back	= true;
 			$a->content(
-				h::{'button[type=submit]'}($L->yes)
+				h::{'button.uk-button[type=submit]'}($L->yes)
 			);
 		break;
 		case 'db':
@@ -377,7 +353,7 @@ if (
 				$Page->warning($L->changing_settings_warning);
 				$Page->title($L->db_settings_for_module($rc[3]));
 				$a->content(
-					h::{'p.lead.cs-center'}(
+					h::{'h2.cs-center'}(
 						$L->db_settings_for_module($rc[3])
 					)
 				);
@@ -394,6 +370,7 @@ if (
 				$a->cancel_button_back	= true;
 				module_db_settings:
 				if (file_exists(MODULES."/$rc[3]/meta/db.json")) {
+					$Core					= Core::instance();
 					$dbs					= [0 => "$L->core_db ($Core->db_type)"];
 					foreach ($Config->db as $i => &$db_data) {
 						if ($i) {
@@ -405,7 +382,7 @@ if (
 					$db_json				= file_get_json(MODULES."/$rc[3]/meta/db.json");
 					foreach ($db_json as $database) {
 						$db_list[] = [
-							$L->{"$rc[3]_db_$database"},
+							$database,
 							h::select(
 								[
 									'in'		=> array_values($dbs),
@@ -422,12 +399,12 @@ if (
 					}
 					unset($db_json, $dbs, $database);
 					$a->content(
-						h::{'table.cs-table'}(
-							h::{'thead tr th'}([
+						h::{'cs-table[right-left][with-header] cs-table-row| cs-table-cell'}(
+							[
 								h::info('appointment_of_db'),
 								h::info('system_db')
-							]).
-							h::{'tbody tr| td'}($db_list)
+							],
+							$db_list
 						)
 					);
 					unset($db_list);
@@ -443,7 +420,7 @@ if (
 				$Page->warning($L->changing_settings_warning);
 				$Page->title($L->storage_settings_for_module($rc[3]));
 				$a->content(
-					h::{'p.lead.cs-center'}(
+					h::{'h2.cs-center'}(
 						$L->storage_settings_for_module($rc[3])
 					)
 				);
@@ -471,7 +448,7 @@ if (
 					$storage_json			= file_get_json(MODULES."/$rc[3]/meta/storage.json");
 					foreach ($storage_json as $storage) {
 						$storage_list[] = [
-							$L->{"$rc[3]_storage_$storage"},
+							$storage,
 							h::select(
 								[
 									'in'		=> array_values($storages),
@@ -488,12 +465,12 @@ if (
 					}
 					unset($storage_json, $storages, $storage);
 					$a->content(
-						h::{'table.cs-table'}(
-							h::{'thead tr th'}([
+						h::{'cs-table[right-left][with-header] cs-table-row| cs-table-cell'}(
+							[
 								h::info('appointment_of_storage'),
 								h::info('system_storage')
-							]).
-							h::{'tbody tr| td'}($storage_list)
+							],
+							$storage_list
 						)
 					);
 					unset($storage_list);
@@ -505,29 +482,51 @@ if (
 		break;
 		case 'enable':
 			$show_modules			= false;
+			$check_dependencies		= check_dependencies($rc[3], 'module', null, 'enable');
+			if (!$check_dependencies && $Config->core['simple_admin_mode']) {
+				break;
+			}
 			$Page->title($L->enabling_of_module($rc[3]));
 			$a->content(
-				h::{'p.lead.cs-center'}(
+				h::{'h2.cs-center'}(
 					$L->enable_module($rc[3])
 				)
 			);
 			$a->cancel_button_back	= true;
 			$a->content(
-				h::{'button[type=submit]'}($L->yes)
+				h::{'button.uk-button[type=submit]'}($L->{$check_dependencies ? 'yes' : 'force_enable_not_recommended'})
 			);
 		break;
 		case 'disable':
 			$show_modules			= false;
+			$check_dependencies		= check_backward_dependencies($rc[3], 'module', 'disable');
+			if (!$check_dependencies && $Config->core['simple_admin_mode']) {
+				break;
+			}
 			$Page->title($L->disabling_of_module($rc[3]));
 			$a->content(
-				h::{'p.lead.cs-center'}(
+				h::{'h2.cs-center'}(
 					$L->disable_module($rc[3])
 				)
 			);
 			$a->cancel_button_back	= true;
 			$a->content(
-				h::{'button[type=submit]'}($L->yes)
+				h::{'button.uk-button[type=submit]'}($L->{$check_dependencies ? 'yes' : 'force_disable_not_recommended'})
 			);
+		break;
+		case 'remove':
+			$show_modules			= false;
+			$Page->title($L->complete_removal_of_module($_POST['remove_module']));
+			$a->content(
+				h::{'h2.cs-center'}(
+					$L->completely_remove_module($_POST['remove_module'])
+				)
+			);
+			$a->cancel_button_back	= true;
+			$a->content(
+				h::{'button.uk-button[type=submit]'}($L->yes)
+			);
+			$rc[3]					= $_POST['remove_module'];
 		break;
 	}
 	switch ($rc[2]) {
@@ -540,6 +539,7 @@ if (
 		case 'storage':
 		case 'enable':
 		case 'disable':
+		case 'remove':
 			$a->content(
 				h::{'input[type=hidden]'}([
 					'name'	=> 'mode',
@@ -557,21 +557,21 @@ if (!$show_modules) {
 	return;
 }
 $a->file_upload		= true;
-$modules_list = [];
-foreach ($Config->components['modules'] as $module => &$mdata) {
+$modules_list		= [];
+foreach ($Config->components['modules'] as $module_name => &$module_data) {
 	/**
 	 * If module if enabled or disabled
 	 */
 	$addition_state = $action = '';
 	$admin_link		= false;
-	if ($mdata['active'] != -1) {
+	if ($module_data['active'] != -1) {
 		/**
 		 * Notice about API existence
 		 */
-		if (is_dir(MODULES."/$module/api")) {
+		if (is_dir(MODULES."/$module_name/api")) {
 			if (
-				file_exists($file = MODULES."/$module/api/readme.txt") ||
-				file_exists($file = MODULES."/$module/api/readme.html")
+				file_exists($file = MODULES."/$module_name/api/readme.txt") ||
+				file_exists($file = MODULES."/$module_name/api/readme.html")
 			) {
 				if (substr($file, -3) == 'txt') {
 					$tag = 'pre';
@@ -581,8 +581,8 @@ foreach ($Config->components['modules'] as $module => &$mdata) {
 				$addition_state .= h::{'div.uk-modal.cs-left'}(
 					h::{"$tag.uk-modal-dialog-large"}($tag == 'pre' ? prepare_attr_value(file_get_contents($file)) : file_get_contents($file)),
 					[
-						'id'			=> "{$module}_api",
-						'title'			=> "$module » $L->api"
+						'id'			=> "{$module_name}_api",
+						'title'			=> "$module_name » $L->api"
 					]
 				);
 			}
@@ -590,7 +590,7 @@ foreach ($Config->components['modules'] as $module => &$mdata) {
 				'link',
 				[
 					'data-title'	=> $L->api_exists.h::br().(file_exists($file) ? $L->click_to_view_details : ''),
-					'onClick'		=> "$('#{$module}_api').cs().modal('show');",
+					'onClick'		=> "$('#{$module_name}_api').cs().modal('show');",
 					'class'			=> file_exists($file) ? 'cs-pointer' : false
 				]
 			);
@@ -599,7 +599,7 @@ foreach ($Config->components['modules'] as $module => &$mdata) {
 		/**
 		 * Information about module
 		 */
-		if (file_exists($file = MODULES."/$module/readme.txt") || file_exists($file = MODULES."/$module/readme.html")) {
+		if (file_exists($file = MODULES."/$module_name/readme.txt") || file_exists($file = MODULES."/$module_name/readme.html")) {
 			if (substr($file, -3) == 'txt') {
 				$tag		= 'pre';
 			} else {
@@ -610,15 +610,15 @@ foreach ($Config->components['modules'] as $module => &$mdata) {
 			$addition_state .= h::{'div.uk-modal.cs-left'}(
 				h::{"$tag.uk-modal-dialog-large"}($uniqid),
 				[
-					'id'			=> "{$module}_readme",
-					'title'			=> "$module » $L->information_about_module"
+					'id'			=> "{$module_name}_readme",
+					'title'			=> "$module_name » $L->information_about_module"
 				]
 			).
 			h::{'icon.cs-pointer'}(
 				'exclamation',
 				[
 					'data-title'	=> $L->information_about_module.h::br().$L->click_to_view_details,
-					'onClick'		=> "$('#{$module}_readme').cs().modal('show');"
+					'onClick'		=> "$('#{$module_name}_readme').cs().modal('show');"
 				]
 			);
 			unset($uniqid);
@@ -627,7 +627,7 @@ foreach ($Config->components['modules'] as $module => &$mdata) {
 		/**
 		 * License
 		 */
-		if (file_exists($file = MODULES."/$module/license.txt") || file_exists($file = MODULES."/$module/license.html")) {
+		if (file_exists($file = MODULES."/$module_name/license.txt") || file_exists($file = MODULES."/$module_name/license.html")) {
 			if (substr($file, -3) == 'txt') {
 				$tag = 'pre';
 			} else {
@@ -636,15 +636,15 @@ foreach ($Config->components['modules'] as $module => &$mdata) {
 			$addition_state .= h::{'div.uk-modal.cs-left'}(
 				h::{"$tag.uk-modal-dialog-large"}(file_get_contents($file)),
 				[
-					'id'			=> "{$module}_license",
-					'title'			=> "$module » $L->license"
+					'id'			=> "{$module_name}_license",
+					'title'			=> "$module_name » $L->license"
 				]
 			).
 			h::{'icon.cs-pointer'}(
 				'legal',
 				[
 					'data-title'	=> $L->license.h::br().$L->click_to_view_details,
-					'onClick'		=> "$('#{$module}_license').cs().modal('show');"
+					'onClick'		=> "$('#{$module_name}_license').cs().modal('show');"
 				]
 			);
 		}
@@ -653,18 +653,18 @@ foreach ($Config->components['modules'] as $module => &$mdata) {
 		 * Setting default module
 		 */
 		if (
-			$mdata['active'] == 1 &&
-			$module != $Config->core['default_module'] &&
+			$module_data['active'] == 1 &&
+			$module_name != $Config->core['default_module'] &&
 			(
-				file_exists(MODULES."/$module/index.php") ||
-				file_exists(MODULES."/$module/index.html") ||
-				file_exists(MODULES."/$module/index.json")
+				file_exists(MODULES."/$module_name/index.php") ||
+				file_exists(MODULES."/$module_name/index.html") ||
+				file_exists(MODULES."/$module_name/index.json")
 			)
 		) {
-			$action .= h::{'a.cs-button-compact'}(
+			$action .= h::{'a.uk-button.cs-button-compact'}(
 				h::icon('home'),
 				[
-					'href'			=> "$a->action/default_module/$module",
+					'href'			=> "$a->action/default_module/$module_name",
 					'data-title'	=> $L->make_default_module
 				]
 			);
@@ -672,11 +672,11 @@ foreach ($Config->components['modules'] as $module => &$mdata) {
 		/**
 		 * DataBases settings
 		 */
-		if (!$Config->core['simple_admin_mode'] && file_exists(MODULES."/$module/meta/db.json") && count($Config->db) > 1) {
-			$action .= h::{'a.cs-button-compact'}(
-				h::icon('gears'),
+		if (!$Config->core['simple_admin_mode'] && file_exists(MODULES."/$module_name/meta/db.json") && count($Config->db) > 1) {
+			$action .= h::{'a.uk-button.cs-button-compact'}(
+				h::icon('database'),
 				[
-					'href'			=> "$a->action/db/$module",
+					'href'			=> "$a->action/db/$module_name",
 					'data-title'	=> $L->databases
 				]
 			);
@@ -684,41 +684,41 @@ foreach ($Config->components['modules'] as $module => &$mdata) {
 		/**
 		 * Storages settings
 		 */
-		if (!$Config->core['simple_admin_mode'] && file_exists(MODULES."/$module/meta/storage.json") && count($Config->storage) > 1) {
-			$action .= h::{'a.cs-button-compact'}(
-				h::icon('hdd'),
+		if (!$Config->core['simple_admin_mode'] && file_exists(MODULES."/$module_name/meta/storage.json") && count($Config->storage) > 1) {
+			$action .= h::{'a.uk-button.cs-button-compact'}(
+				h::icon('hdd-o'),
 				[
-					'href'			=> "$a->action/storage/$module",
+					'href'			=> "$a->action/storage/$module_name",
 					'data-title'	=> $L->storages
 				]
 			);
 		}
-		if ($module != 'System') {
+		if ($module_name != 'System') {
 			/**
 			 * Link to the module admin page
 			 */
-			if (file_exists(MODULES."/$module/admin/index.php") || file_exists(MODULES."/$module/admin/index.json")) {
-				$action		.= h::{'a.cs-button-compact'}(
-					h::icon('wrench'),
+			if (file_exists(MODULES."/$module_name/admin/index.php") || file_exists(MODULES."/$module_name/admin/index.json")) {
+				$action		.= h::{'a.uk-button.cs-button-compact'}(
+					h::icon('sliders'),
 					[
-						'href'			=> "admin/$module",
+						'href'			=> "admin/$module_name",
 						'data-title'	=> $L->module_admin_page
 					]
 				);
 				$admin_link	= true;
 			}
-			if ($module != $Config->core['default_module']) {
-				$action		.= h::{'a.cs-button-compact'}(
-					h::icon($mdata['active'] == 1 ? 'minus' : 'check'),
+			if ($module_name != $Config->core['default_module']) {
+				$action		.= h::{'a.uk-button.cs-button-compact'}(
+					$module_data['active'] == 1 ? h::icon('minus') : h::icon('check')." $L->enable",
 					[
-						'href'			=> $a->action.($mdata['active'] == 1 ? '/disable/' : '/enable/').$module,
-						'data-title'	=> $mdata['active'] == 1 ? $L->disable : $L->enable
+						'href'			=> $a->action.($module_data['active'] == 1 ? '/disable/' : '/enable/').$module_name,
+						'data-title'	=> $module_data['active'] == 1 ? $L->disable : false
 					]
 				).
-				h::{'a.cs-button-compact'}(
+				h::{'a.uk-button.cs-button-compact'}(
 					h::icon('trash-o'),
 					[
-						'href'			=> "$a->action/uninstall/$module",
+						'href'			=> "$a->action/uninstall/$module_name",
 						'data-title'	=> $L->uninstall
 					]
 				);
@@ -728,17 +728,16 @@ foreach ($Config->components['modules'] as $module => &$mdata) {
 	 * If module uninstalled or not installed yet
 	 */
 	} else {
-		$action .= h::{'a.cs-button-compact'}(
-			h::icon('download'),
+		$action .= h::{'a.uk-button.cs-button-compact'}(
+			h::icon('download')." $L->install",
 			[
-				'href'			=> "$a->action/install/$module",
-				'data-title'	=> $L->install
+				'href'			=> "$a->action/install/$module_name"
 			]
 		);
 	}
 	$module_info	= false;
-	if (file_exists(MODULES."/$module/meta.json")) {
-		$module_meta	= file_get_json(MODULES."/$module/meta.json");
+	if (file_exists(MODULES."/$module_name/meta.json")) {
+		$module_meta	= file_get_json(MODULES."/$module_name/meta.json");
 		$module_info	= $L->module_info(
 			$module_meta['package'],
 			$module_meta['version'],
@@ -759,49 +758,60 @@ foreach ($Config->components['modules'] as $module => &$mdata) {
 	}
 	unset($module_meta);
 	$modules_list[]	= [
-		h::a(
-			$L->$module,
-			[
-				'href'			=> $admin_link ? "admin/$module" : false,
-				'data-title'	=> $module_info
-			]
-		),
-		h::icon(
-			$mdata['active'] == 1 ? (
-				$module == $Config->core['default_module'] ? 'home' : 'check'
-			) : (
-				$mdata['active'] == 0 ? 'minus' : 'times'
-			),
-			[
-				'data-title'	=> $mdata['active'] == 1 ? (
-					$module == $Config->core['default_module'] ? $L->default_module : $L->enabled
-				) : (
-					$mdata['active'] == 0 ? $L->disabled : "$L->uninstalled ($L->not_installed)"
-				)
-			]
-		).
-		$addition_state,
 		[
-			$action,
+			h::a(
+				$L->$module_name,
+				[
+					'href'			=> $admin_link ? "admin/$module_name" : false,
+					'data-title'	=> $module_info
+				]
+			),
+			h::icon(
+				$module_data['active'] == 1 ? (
+					$module_name == $Config->core['default_module'] ? 'home' : 'check'
+				) : (
+					$module_data['active'] == 0 ? 'minus' : 'times'
+				),
+				[
+					'data-title'	=> $module_data['active'] == 1 ? (
+						$module_name == $Config->core['default_module'] ? $L->default_module : $L->enabled
+					) : (
+						$module_data['active'] == 0 ? $L->disabled : "$L->uninstalled ($L->not_installed)"
+					)
+				]
+			).
+			$addition_state,
 			[
-				'class'	=> 'cs-left-all'
+				$action,
+				[
+					'left'	=> ''
+				]
 			]
+		],
+		[
+			'class'	=> $module_data['active'] == 1 ? 'uk-alert-success' : ($module_data['active'] == -1 ? 'uk-alert-danger' : 'uk-alert-warning')
 		]
 	];
 	unset($module_info);
 }
+$modules_for_removal = array_keys(array_filter(
+	$Config->components['modules'],
+	function ($module_data) {
+		return $module_data['active'] == '-1';
+	}
+));
 $a->content(
-	h::{'table.cs-table.cs-center-all'}(
-		h::{'thead tr th'}(
+	h::{'cs-table[list][center][with-header]'}(
+		h::{'cs-table-row cs-table-cell'}(
 			$L->module_name,
 			$L->state,
 			$L->action
 		).
-		h::{'tbody tr| td'}([$modules_list])
+		h::{'cs-table-row| cs-table-cell'}($modules_list)
 	).
 	h::p(
 		h::{'input[type=file][name=upload_module]'}().
-		h::{'button[type=submit]'}(
+		h::{'button.uk-button[type=submit]'}(
 			h::icon('upload').$L->upload_and_install_update_module,
 			[
 				'formaction'	=>  "$a->action/install/upload"
@@ -810,14 +820,27 @@ $a->content(
 	).
 	h::p(
 		h::{'input[type=file][name=upload_system]'}().
-		h::{'button[type=submit]'}(
+		h::{'button.uk-button[type=submit]'}(
 			h::icon('upload').$L->upload_and_update_system,
 			[
 				'formaction'	=>  "$a->action/update_system"
 			]
 		)
 	).
-	h::{'button[type=submit]'}(
+	(
+		$modules_for_removal
+			? h::p(
+				h::{'select[name=remove_module]'}($modules_for_removal).
+				h::{'button.uk-button[type=submit]'}(
+					h::icon('trash-o').$L->complete_module_removal,
+					[
+						'formaction'	=>  "$a->action/remove"
+					]
+				)
+			)
+			: ''
+	).
+	h::{'button.uk-button[type=submit]'}(
 		h::icon('refresh').$L->update_modules_list,
 		[
 			'data-title'	=> $L->update_modules_list_info,

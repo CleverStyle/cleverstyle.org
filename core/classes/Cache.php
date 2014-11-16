@@ -6,26 +6,39 @@
  * @license		MIT License, see license.txt
  */
 namespace	cs;
-use			Closure;
 
+/**
+ * @method static Cache instance($check = false)
+ */
 class Cache {
 	use Singleton;
-
-	protected	$cache,					//Cache state
-				$init		= false,	//Initialization state
-				$engine,
-				/**
-				 * Instance of cache engine object
-				 *
-				 * @var Cache\_Abstract
-				 */
-				$engine_instance;
+	/**
+	 * Cache state
+	 * @var
+	 */
+	protected	$state;
+	/**
+	 * Initialization state
+	 * @var bool
+	 */
+	protected	$init		= false;
+	/**
+	 * Name of cache engine
+	 * @var string
+	 */
+	protected	$engine;
+	/**
+	 * Instance of cache engine object
+	 *
+	 * @var Cache\_Abstract
+	 */
+	protected	$engine_instance;
 	/**
 	 * Initialization, creating cache engine instance
 	 */
 	protected function construct () {
-		$this->cache = !DEBUG;
-		if (!$this->init && $this->cache) {
+		$this->state = !DEBUG;
+		if (!$this->init && $this->state) {
 			$engine_class	= '\\cs\\Cache\\'.($this->engine = Core::instance()->cache_engine);
 			$this->engine_instance	= new $engine_class();
 		}
@@ -33,21 +46,21 @@ class Cache {
 	/**
 	 * Get item from cache
 	 *
-	 * If item not found and $closure parameter specified - closure must return value for item. This value will be set for current item, and returned.
+	 * If item not found and $callback parameter specified - closure must return value for item. This value will be set for current item, and returned.
 	 *
 	 * @param string		$item		May contain "/" symbols for cache structure, for example users/<i>user_id</i>
-	 * @param Closure|null	$closure
+	 * @param callable|null	$callback
 	 *
 	 * @return bool|mixed				Returns item on success of <b>false</b> on failure
 	 */
-	function get ($item, $closure = null) {
-		if (!$this->cache) {
+	function get ($item, $callback = null) {
+		if (!$this->state) {
 			return false;
 		}
 		$item	= trim($item, '/');
 		$data	= $this->engine_instance->get($item);
-		if ($data === false && $closure instanceof Closure) {
-			$data	= $closure();
+		if ($data === false && is_callable($callback)) {
+			$data	= $callback();
 			if ($data !== false) {
 				$this->set($item, $data);
 			}
@@ -66,7 +79,7 @@ class Cache {
 		if ($this->engine != 'BlackHole' && is_object($this->engine_instance)){
 			$this->engine_instance->del($item);
 		}
-		if (!$this->cache) {
+		if (!$this->state) {
 			return true;
 		}
 		$item	= trim($item, '/');
@@ -80,8 +93,14 @@ class Cache {
 	 * @return bool
 	 */
 	function del ($item) {
-		if (empty($item) || $item == '/') {
+		if (empty($item)) {
 			return false;
+		}
+		/**
+		 * Cache cleaning instead of removing when root specified
+		 */
+		if ($item == '/') {
+			return $this->clean();
 		}
 		if (is_object($this->engine_instance)){
 			$item	= trim($item, '/');
@@ -108,13 +127,13 @@ class Cache {
 	 * @return bool
 	 */
 	function cache_state() {
-		return $this->cache;
+		return $this->state;
 	}
 	/**
 	 * Disable cache
 	 */
 	function disable () {
-		$this->cache = false;
+		$this->state = false;
 	}
 	/**
 	 * Get item from cache

@@ -12,7 +12,6 @@ class MySQLi extends _Abstract {
 	 * @var \MySQLi Instance of DB connection
 	 */
 	protected	$instance;
-
 	/**
 	 * @inheritdoc
 	 */
@@ -22,7 +21,7 @@ class MySQLi extends _Abstract {
 		 * Parsing of $host variable, detecting port and persistent connection
 		 */
 		$host					= explode(':', $host);
-		$port					= ini_get("mysqli.default_port");
+		$port					= ini_get('mysqli.default_port') ?: 3306;
 		if (count($host) == 1) {
 			$host	= $host[0];
 		} elseif (count($host) == 2) {
@@ -36,13 +35,13 @@ class MySQLi extends _Abstract {
 			$port	= $host[2];
 			$host	= "$host[0]:$host[1]";
 		}
-		$this->instance = new \MySQLi($host, $user, $password, $database, $port);
+		$this->instance = @new \MySQLi($host, $user, $password, $database, $port);
 		if(is_object($this->instance) && !$this->instance->connect_errno) {
 			$this->database = $database;
 			/**
 			 * Changing DB charset
 			 */
-			if ($charset && $charset != $this->instance->get_charset()->charset) {
+			if ($charset && $charset != $this->instance->character_set_name()) {
 				$this->instance->set_charset($charset);
 			}
 			$this->connected = true;
@@ -71,7 +70,11 @@ class MySQLi extends _Abstract {
 	 */
 	protected function q_multi_internal ($query) {
 		$query	= implode(';', $query);
-		return @$this->instance->multi_query($query);
+		$return = @$this->instance->multi_query($query);
+		while($this->instance->more_results() && $this->instance->next_result()) {
+			//Nothing, just finish multi_query
+		}
+		return $return;
 	}
 	/**
 	 * @inheritdoc
