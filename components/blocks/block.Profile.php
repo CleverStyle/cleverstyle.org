@@ -8,8 +8,8 @@
  */
 namespace	cs;
 use			h;
-$content	= uniqid('Profile_block_');
 include_once THEMES.'/CleverStyle/functions.php';
+$content	= uniqid('Profile_block_');
 echo $content;
 Trigger::instance()->register(
 	'System/Page/display',
