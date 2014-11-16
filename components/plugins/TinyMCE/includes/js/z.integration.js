@@ -8,6 +8,33 @@
  */
 tinymce.baseURL	= '/components/plugins/TinyMCE/includes/js';
 $(function () {
+	window.no_ui_selector	+= ', .mce-tinymce';
+	var uploader_callback;
+	var uploader	= cs.file_upload(
+		null,
+		function (files) {
+			tinymce.uploader_dialog.cs().modal('hide');
+			tinymce.uploader_dialog.remove();
+			if (files.length) {
+				uploader_callback(files[0]);
+			}
+			uploader_callback	= undefined;
+		},
+		function (error) {
+			tinymce.uploader_dialog.cs().modal('hide');
+			alert(error.message);
+		},
+		function (file) {
+			if (!tinymce.uploader_dialog) {
+				tinymce.uploader_dialog		= $('<div title="Uploading..." class="cs-center"></div>')
+					.html('<div><div class="uk-progress uk-progress-striped uk-active"><div class="uk-progress-bar"></div></div></div>')
+					.appendTo('body')
+					.cs().modal('show')
+					.css('z-index', 100000);
+			}
+			tinymce.uploader_dialog.find('.uk-progress-bar').width((file.percent ? file.percent : 1) + '%');
+		}
+	);
 	var base_config			= {
 		doctype					: '<!doctype html>',
 		theme					: cs.tinymce && cs.tinymce.theme !== undefined ? cs.tinymce.theme : 'modern',
@@ -21,41 +48,9 @@ $(function () {
 		convert_urls			: false,
 		remove_script_host		: false,
 		relative_urls			: false,
-		file_browser_callback	: cs.file_upload ? function (field_name) {
-			if (!tinymce.uploader_dialog) {
-				tinymce.uploader_dialog		= $('<div title="Uploading..." class="cs-center"></div>')
-					.html('<div style="margin-left: -10%; width: 20%;"><div class="uk-progress uk-progress-striped uk-active"><div class="uk-progress-bar"></div></div></div>')
-					.appendTo('body')
-					.cs().modal()
-					.css('z-index', 100000);
-			}
-			var uploader	= cs.file_upload(
-				null,
-				function (files) {
-					tinymce.uploader_dialog.cs().modal('hide');
-					if (files.length) {
-						$('#' + field_name).val(files[0]);
-					}
-				},
-				function (error) {
-					tinymce.uploader_dialog.cs().modal('hide');
-					alert(error);
-				},
-				function (file) {
-					tinymce.uploader_dialog.find('.uk-progress-bar').width((file.percent ? file.percent : 1) + '%');
-					tinymce.uploader_dialog.cs().modal('show');
-				}
-			);
+		file_picker_callback	: cs.file_upload ? function (callback) {
+			uploader_callback	= callback;
 			uploader.browse();
-			/**
-			 * Destroy uploader instance on upload dialog closing
-			 */
-			var destroy_uploader = setInterval(function () {
-				if (!$('#mce-modal-block').length) {
-					uploader.destroy();
-					clearInterval(destroy_uploader);
-				}
-			}, 1000);
 		} : null
 	};
 	tinymce.editor_config	= $.extend(
