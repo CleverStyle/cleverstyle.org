@@ -33,22 +33,9 @@ Trigger::instance()
 		function () {
 			$Config	= Config::instance();
 			$Page	= Page::instance();
-			$Page->js(
-				'cs.plupload = '._json_encode([
-					'max_file_size'	=> $Config->module('Plupload')->max_file_size
-				]).';',
-				'code'
-			);
-		}
-	)
-	->register(
-		'System/Index/mainmenu',
-		function ($data) {
-			if ($data['path'] == 'Plupload') {
-				$data['hide']	= true;
-				return false;
-			}
-			return true;
+			$Page->config([
+				'max_file_size'	=> $Config->module('Plupload')->max_file_size
+			], 'cs.plupload');
 		}
 	)
 	->register(

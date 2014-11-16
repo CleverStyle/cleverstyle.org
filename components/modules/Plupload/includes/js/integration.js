@@ -13,11 +13,12 @@
 /**
  * Files uploading interface
  *
- * @param {object}		button
- * @param {function}	success
- * @param {function}	error
- * @param {function}	progress
- * @param {bool}		multi
+ * @param {object}				button
+ * @param {function}			success
+ * @param {function}			error
+ * @param {function}			progress
+ * @param {bool}				multi
+ * @param {object}|{object}[]	drop_element
  *
  * @return {function}
 */
@@ -25,8 +26,9 @@
 
 (function() {
 
-  cs.file_upload = function(button, success, error, progress, multi) {
+  cs.file_upload = function(button, success, error, progress, multi, drop_element) {
     var browse_button, files, uploader, _ref, _ref1;
+    button = $(button);
     files = [];
     browse_button = $('<button id="plupload_' + (new Date).getTime() + '" style="display:none;"/>').appendTo('body');
     uploader = new plupload.Uploader({
@@ -35,21 +37,10 @@
       multi_selection: multi,
       multipart: true,
       runtimes: 'html5',
-      url: '/Plupload'
+      url: '/Plupload',
+      drop_element: drop_element || button.get(0)
     });
     uploader.init();
-    if (button) {
-      button.click(function() {
-        return setTimeout((function() {
-          var input;
-          input = browse_button.nextAll('.moxie-shim:first').children();
-          if (!input.attr('accept')) {
-            input.removeAttr('accept');
-          }
-          return browse_button.click();
-        }), 0);
-      });
-    }
     uploader.bind('FilesAdded', function() {
       uploader.refresh();
       return uploader.start();
@@ -87,24 +78,22 @@
       return uploader.stop();
     };
     this.destroy = function() {
+      browse_button.nextAll('.moxie-shim:first').remove();
       browse_button.remove();
-      uploader.destroy();
-      return $('.moxie-shim').each(function() {
-        if ($(this).html() === '') {
-          return $(this).remove();
-        }
-      });
+      button.off('click.cs-plupload');
+      return uploader.destroy();
     };
     this.browse = function() {
-      return setTimeout((function() {
-        var input;
-        input = browse_button.nextAll('.moxie-shim:first').children();
-        if (!input.attr('accept')) {
-          input.removeAttr('accept');
-        }
-        return browse_button.click();
-      }), 0);
+      var input;
+      input = browse_button.nextAll('.moxie-shim:first').children();
+      if (!input.attr('accept')) {
+        input.removeAttr('accept');
+      }
+      return browse_button.click();
     };
+    if (button.length) {
+      button.on('click.cs-plupload', this.browse);
+    }
     return this;
   };
 
