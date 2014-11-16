@@ -50,12 +50,18 @@ $rc			= $Config->route;
  * If user is registered, provider not found or this is request for final authentication and session does not corresponds - return user to the base url
  */
 if (
-	$User->user() ||
+	(
+		$User->user() &&
+		(
+			!isset($rc[0]) ||
+			$rc[0] != 'merge_confirmation'
+		)
+	) ||
 	!(
 		isset($rc[0]) &&
 		(
 			(
-				$Config->module('HybridAuth')->providers[$rc[0]] &&
+				isset($Config->module('HybridAuth')->providers[$rc[0]]) &&
 				$Config->module('HybridAuth')->providers[$rc[0]]['enabled']
 			) ||
 			(
@@ -68,7 +74,7 @@ if (
 		isset($rc[2]) && strpos($rc[2], $User->get_session()) !== 0
 	)
 ) {
-	header('Location: '.$Config->base_url());
+	header('Location: '.(_getcookie('HybridAuth_referer') ?: $Config->base_url()));
 	code_header(301);
 	interface_off();
 	return;
@@ -97,7 +103,10 @@ if (isset($rc[1]) && $rc[0] == 'merge_confirmation') {
 					'%s',
 					'%s',
 					'%s'
-				)",
+				)
+			ON DUPLICATE KEY UPDATE
+				`id`		= VALUES(`id`),
+				`profile`	= VALUES(`profile`)",
 			$data['id'],
 			$data['provider'],
 			$data['identifier'],
@@ -445,7 +454,7 @@ if (isset($rc[1]) && $rc[1] == 'endpoint') {
 			email_form:
 			$Index->form			= true;
 			$Index->buttons			= false;
-			$Index->post_buttons	= h::{'button[type=submit]'}($L->submit);
+			$Index->custom_buttons	= h::{'button.uk-button[type=submit]'}($L->submit);
 			$Index->content(
 				h::{'p.cs-center'}(
 					$L->please_type_your_email.':'.
@@ -471,7 +480,7 @@ if (isset($rc[1]) && $rc[1] == 'endpoint') {
 		'HybridAuth/registration/before',
 		[
 			'provider'		=> $rc[0],
-			'email'			=> $_POST['email'],
+			'email'			=> strtolower($_POST['email']),
 			'identifier'	=> $HybridAuth_data['identifier'],
 			'profile'		=> $HybridAuth_data['profile']
 		]
@@ -482,7 +491,6 @@ if (isset($rc[1]) && $rc[1] == 'endpoint') {
 		if ($result === false) {
 			$Page->title($L->please_type_correct_email);
 			$Page->warning($L->please_type_correct_email);
-			sleep(1);
 			goto email_form;
 		} elseif ($result == 'error') {
 			$Page->title($L->reg_server_error);
@@ -497,7 +505,7 @@ if (isset($rc[1]) && $rc[1] == 'endpoint') {
 			/**
 			 * Send merging confirmation mail
 			 */
-			$id							= $User->get_id(hash('sha224', $_POST['email']));
+			$id							= $User->get_id(hash('sha224', strtolower($_POST['email'])));
 			$HybridAuth_data['id']		= $id;
 			$HybridAuth_data['referer']	= _getcookie('HybridAuth_referer') ?: $Config->base_url();
 			_setcookie('HybridAuth_referer', '');
@@ -557,7 +565,7 @@ if (isset($rc[1]) && $rc[1] == 'endpoint') {
 			);
 			$profile_info	= $HybridAuth_data['profile_info'];
 			$contacts		= $HybridAuth_data['contacts'];
-			$email			= $_POST['email'];
+			$email			= strtolower($_POST['email']);
 			try {
 				$HybridAuth		= get_hybridauth_instance($rc[0]);
 				$adapter		= $HybridAuth->getAdapter($rc[0]);
@@ -617,6 +625,37 @@ if (isset($rc[1]) && $rc[1] == 'endpoint') {
 				header('Refresh: 5; url='.(_getcookie('HybridAuth_referer') ?: $Config->base_url()));
 				_setcookie('HybridAuth_referer', '');
 			}
+		} else {
+			$profile_info	= $HybridAuth_data['profile_info'];
+			$body			= $L->reg_need_confirmation_mail_body(
+				isset($profile_info['username']) ? $profile_info['username'] : strstr($result['email'], '@', true),
+				get_core_ml_text('name'),
+				$Config->core_url().'/profile/registration_confirmation/'.$result['reg_key'],
+				$L->time($Config->core['registration_confirmation_time'], 'd')
+			);
+			if ($Mail->send_to(
+				$_POST['email'],
+				$L->reg_need_confirmation_mail(get_core_ml_text('name')),
+				$body
+			)) {
+				$contacts		= $HybridAuth_data['contacts'];
+				$existing_data	= $User->get(array_keys($profile_info), $User->id);
+				foreach ($profile_info as $item => $value) {
+					if (!$existing_data[$item] || $existing_data[$item] != $value) {
+						$User->set($item, $value, $User->id);
+					}
+				}
+				unset($existing_data, $item, $value);
+				update_user_contacts($contacts, $rc[0]);
+				_setcookie('HybridAuth_referer', '');
+				$Index->content($L->reg_confirmation);
+			} else {
+				$User->registration_cancel();
+				$Page->title($L->sending_reg_mail_error_title);
+				$Page->warning($L->sending_reg_mail_error);
+				header('Refresh: 5; url='.(_getcookie('HybridAuth_referer') ?: $Config->base_url()));
+				_setcookie('HybridAuth_referer', '');
+			}
 		}
 		$db->$db_id()->q(
 			"INSERT INTO `[prefix]users_social_integration`
@@ -636,36 +675,6 @@ if (isset($rc[1]) && $rc[1] == 'endpoint') {
 			$HybridAuth_data['identifier'],
 			$HybridAuth_data['profile']
 		);
-		$profile_info	= $HybridAuth_data['profile_info'];
-		$body			= $L->reg_need_confirmation_mail_body(
-			isset($profile_info['username']) ? $profile_info['username'] : strstr($result['email'], '@', true),
-			get_core_ml_text('name'),
-			$Config->core_url().'/profile/registration_confirmation/'.$result['reg_key'],
-			$L->time($Config->core['registration_confirmation_time'], 'd')
-		);
-		if ($Mail->send_to(
-			$_POST['email'],
-			$L->reg_need_confirmation_mail(get_core_ml_text('name')),
-			$body
-		)) {
-			$contacts		= $HybridAuth_data['contacts'];
-			$existing_data	= $User->get(array_keys($profile_info), $User->id);
-			foreach ($profile_info as $item => $value) {
-				if (!$existing_data[$item] || $existing_data[$item] != $value) {
-					$User->set($item, $value, $User->id);
-				}
-			}
-			unset($existing_data, $item, $value);
-			update_user_contacts($contacts, $rc[0]);
-			_setcookie('HybridAuth_referer', '');
-			$Index->content($L->reg_confirmation);
-		} else {
-			$User->registration_cancel();
-			$Page->title($L->sending_reg_mail_error_title);
-			$Page->warning($L->sending_reg_mail_error);
-			header('Refresh: 5; url='.(_getcookie('HybridAuth_referer') ?: $Config->base_url()));
-			_setcookie('HybridAuth_referer', '');
-		}
 	} else {
 		$Page->title($L->reg_server_error);
 		$Index->content($L->reg_server_error);

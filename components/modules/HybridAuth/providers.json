@@ -1,188 +1,227 @@
 {
-	"OpenID"		: {},
-	"Google"		: {
-		"keys"	: [
+	"AOL"           : {},
+	"Deezer"        : {
+		"keys" : [
+			"id",
+			"secret"
+		]
+	},
+	"Disqus"        : {
+		"keys" : [
+			"id",
+			"secret"
+		]
+	},
+	"DraugiemApi"   : {
+		"keys" : [
+			"key",
+			"secret"
+		]
+	},
+	"Facebook"      : {
+		"keys"           : [
 			"id",
 			"secret"
 		],
-		"info"	: "Authorized Redirect URIs: {base_url}/HybridAuth/{provider}?auth.done={provider}"
+		"scope"          : "email",
+		"trustForwarded" : 1
 	},
-	"Facebook"		: {
-		"keys"	: [
+	"Foursquare"    : {
+		"keys" : [
 			"id",
 			"secret"
 		],
-		"scope"	: "email"
+		"info" : "Callback URL: {base_url}/HybridAuth/{provider}?auth.done={provider}"
 	},
-	"Twitter"		: {
-		"keys"	: [
-			"key",
+	"Freeagent"     : {
+		"keys" : [
+			"id",
 			"secret"
-		],
-		"info"	: "Callback URL: {base_url}/HybridAuth/{provider}?auth.done={provider}"
+		]
 	},
-	"Vkontakte"		: {
-		"keys"	: [
+	"GitHub"        : {
+		"keys" : [
 			"id",
 			"secret"
 		],
-		"scope"	: ""
+		"info" : "Callback URL: {base_url}/HybridAuth/{provider}?auth.done={provider}"
 	},
-	"Odnoklassniki"	: {
-		"keys"	: [
-			"id",
-			"secret"
-		]
-	},
-	"Yahoo"			: {
-		"keys"	: [
+	"Goodreads"     : {
+		"keys" : [
 			"key",
 			"secret"
 		]
 	},
-	"MySpace"	: {
-		"keys"	: [
-			"key",
-			"secret"
-		]
-	},
-	"Live"			: {
-		"keys"	: [
-			"key",
-			"secret"
-		],
-		"info"	: "Redirect Domain: {base_url}"
-	},
-	"LinkedIn"		: {
-		"keys"	: [
-			"id",
-			"secret"
-		]
-	},
-	"Foursquare"	: {
-		"keys"	: [
+	"Google"        : {
+		"keys" : [
 			"id",
 			"secret"
 		],
-		"info"	: "Callback URL: {base_url}/HybridAuth/{provider}?auth.done={provider}"
+		"info" : "Authorized Redirect URIs: {base_url}/HybridAuth/{provider}?auth.done={provider}"
 	},
-	"AOL"			: {},
-	"GitHub"	: {
-		"keys"	: [
+	"Identica"      : {
+		"keys" : [
+			"key",
+			"secret"
+		]
+	},
+	"Instagram"     : {
+		"keys" : [
+			"id",
+			"secret"
+		]
+	},
+	"LastFM"        : {
+		"keys" : [
+			"id",
+			"secret"
+		]
+	},
+	"Latch"         : {},
+	"LinkedIn"      : {
+		"keys" : [
+			"id",
+			"secret"
+		]
+	},
+	"Live"          : {
+		"keys" : [
+			"key",
+			"secret"
+		],
+		"info" : "Redirect Domain: {base_url}"
+	},
+	"Mailru"        : {
+		"keys" : [
+			"id",
+			"secret"
+		]
+	},
+	"Murmur"        : {
+		"keys" : [
+			"key",
+			"secret"
+		]
+	},
+	"Odnoklassniki" : {
+		"keys" : [
+			"id",
+			"secret"
+		]
+	},
+	"OpenID"        : {},
+	"Paypal"        : {
+		"keys" : [
+			"id",
+			"secret"
+		]
+	},
+	"PaypalOpenID"  : {},
+	"PixelPin"      : {
+		"keys" : [
+			"id",
+			"secret"
+		]
+	},
+	"Pixnet"        : {
+		"keys" : [
+			"key",
+			"secret"
+		]
+	},
+	"Plurk"         : {
+		"keys" : [
+			"key",
+			"secret"
+		]
+	},
+	"px500"         : {
+		"keys" : [
+			"key",
+			"secret"
+		]
+	},
+	"QQ"            : {
+		"keys" : [
+			"key",
+			"secret"
+		]
+	},
+	"Sina"          : {
+		"keys" : [
+			"key",
+			"secret"
+		]
+	},
+	"Skyrock"       : {
+		"keys" : [
+			"key",
+			"secret"
+		]
+	},
+	"Steam"         : {},
+	"Tumblr"        : {
+		"keys" : [
+			"key",
+			"secret"
+		]
+	},
+	"TwitchTV"      : {
+		"keys" : [
 			"id",
 			"secret"
 		],
-		"info"	: "Callback URL: {base_url}/HybridAuth/{provider}?auth.done={provider}"
+		"info" : "Callback URL: {base_url}/HybridAuth/{provider}?auth.done={provider}"
 	},
-	"LastFM"		: {
-		"keys"	: [
-			"id",
-			"secret"
-		]
-	},
-	"Vimeo"			: {
-		"keys"	: [
+	"Twitter"       : {
+		"keys" : [
 			"key",
 			"secret"
 		],
-		"info"	: "Application Callback URL: {base_url}/HybridAuth/{provider}?auth.done={provider}"
+		"info" : "Callback URL: {base_url}/HybridAuth/{provider}?auth.done={provider}"
 	},
-	"Viadeo"		: {
-		"keys"	: [
+	"Viadeo"        : {
+		"keys" : [
 			"key",
 			"secret"
 		]
 	},
-	"Identica"		: {
-		"keys"	: [
+	"Vimeo"         : {
+		"keys" : [
 			"key",
 			"secret"
-		]
+		],
+		"info" : "Application Callback URL: {base_url}/HybridAuth/{provider}?auth.done={provider}"
 	},
-	"Tumblr"		: {
-		"keys"	: [
-			"key",
-			"secret"
-		]
-	},
-	"Goodreads"		: {
-		"keys"	: [
-			"key",
-			"secret"
-		]
-	},
-	"QQ"			: {
-		"keys"	: [
-			"key",
-			"secret"
-		]
-	},
-	"Sina"			: {
-		"keys"	: [
-			"key",
-			"secret"
-		]
-	},
-	"Murmur"		: {
-		"keys"	: [
-			"key",
-			"secret"
-		]
-	},
-	"Pixnet"		: {
-		"keys"	: [
-			"key",
-			"secret"
-		]
-	},
-	"Plurk"			: {
-		"keys"	: [
-			"key",
-			"secret"
-		]
-	},
-	"Skyrock"		: {
-		"keys"	: [
-			"key",
-			"secret"
-		]
-	},
-	"px500"			: {
-		"keys"	: [
-			"key",
-			"secret"
-		]
-	},
-	"Mailru"		: {
-		"keys"	: [
-			"id",
-			"secret"
-		]
-	},
-	"Yandex"		: {
-		"keys"	: [
-			"id",
-			"secret"
-		]
-	},
-	"Instagram"		: {
-		"keys"	: [
-			"id",
-			"secret"
-		]
-	},
-	"Disqus"		: {
-		"keys"	: [
-			"id",
-			"secret"
-		]
-	},
-	"TwitchTV"	: {
-		"keys"	: [
+	"Vkontakte"     : {
+		"keys"  : [
 			"id",
 			"secret"
 		],
-		"info"	: "Callback URL: {base_url}/HybridAuth/{provider}?auth.done={provider}"
+		"scope" : ""
 	},
-	"Steam"			: {}
+	"XING"          : {
+		"keys" : [
+			"key",
+			"secret"
+		]
+	},
+	"Yahoo"         : {
+		"keys" : [
+			"key",
+			"secret"
+		]
+	},
+	"Yammer"        : {
+		"keys" : [
+			"id",
+			"secret"
+		]
+	},
+	"Yandex"        : {
+		"keys" : [
+			"id",
+			"secret"
+		]
+	}
 }
