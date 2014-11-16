@@ -10,41 +10,9 @@ namespace	cs\modules\Blogs;
 use			h,
 			cs\Config,
 			cs\DB,
-			cs\Index,
 			cs\Language,
 			cs\Page,
 			cs\User;
-$Index					= Index::instance();
-$Index->title_auto		= false;
-$L						= Language::instance();
-$Page					= Page::instance();
-$Page
-	->title($L->administration)
-	->title($L->Blogs);
-$rc						= Config::instance()->route;
-$Index->main_sub_menu	= [
-	[
-		$L->browse_sections,
-		[
-			'href'	=> 'admin/Blogs/browse_sections',
-			'class'	=> isset($rc[0]) && $rc[0] == 'browse_sections' ? 'uk-active' : false
-		]
-	],
-	[
-		$L->browse_posts,
-		[
-			'href'	=> 'admin/Blogs/browse_posts',
-			'class'	=> isset($rc[0]) && $rc[0] == 'browse_posts' ? 'uk-active' : false
-		]
-	],
-	[
-		$L->general,
-		[
-			'href'	=> 'admin/Blogs',
-			'class'	=> !isset($rc[0]) || $rc[0] == 'general' ? 'uk-active' : false
-		]
-	]
-];
 function get_sections_rows ($structure = null, $level = 0, &$content = null) {
 	$L			= Language::instance();
 	$root		= false;
@@ -73,7 +41,7 @@ function get_sections_rows ($structure = null, $level = 0, &$content = null) {
 				'class'	=> "cs-blogs-padding-left-$level"
 			]
 		],
-		h::{'a.cs-button-compact'}(
+		h::{'a.uk-button.cs-button-compact'}(
 			[
 				h::icon('plus'),
 				[
@@ -82,7 +50,7 @@ function get_sections_rows ($structure = null, $level = 0, &$content = null) {
 				]
 			]
 		).
-		(!$root ? h::{'a.cs-button-compact'}(
+		(!$root ? h::{'a.uk-button.cs-button-compact'}(
 			[
 				h::icon('pencil'),
 				[
@@ -220,7 +188,7 @@ function get_posts_rows ($page = 1) {
 				).
 				h::br().
 				date($L->_datetime, $post['date']),
-				h::{'a.cs-button-compact'}(
+				h::{'a.uk-button.cs-button-compact'}(
 					[
 						h::icon('pencil'),
 						[

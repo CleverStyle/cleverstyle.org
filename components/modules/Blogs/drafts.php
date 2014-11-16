@@ -13,7 +13,13 @@ use			h,
 			cs\Index,
 			cs\Language,
 			cs\Page,
+			cs\Trigger,
 			cs\User;
+
+if (!Trigger::instance()->run('Blogs/drafts')) {
+	return;
+}
+
 $Config					= Config::instance();
 $module_data			= $Config->module('Blogs');
 $Index					= Index::instance();
@@ -28,7 +34,6 @@ $Page->title($L->drafts);
 $module					= path($L->Blogs);
 $Index->form			= true;
 $Index->buttons			= false;
-$Index->form_atributes	= ['class'	=> ''];
 $page					= isset($Config->route[1]) ? (int)$Config->route[1] : 1;
 $page					= $page > 0 ? $page : 1;
 if ($page > 1) {

@@ -11,9 +11,15 @@ use			h,
 			cs\Config,
 			cs\Index,
 			cs\Language,
+			cs\Page\Meta,
 			cs\Page,
 			cs\Trigger,
 			cs\User;
+
+if (!Trigger::instance()->run('Blogs/post')) {
+	return;
+}
+
 $Config					= Config::instance();
 $module_data			= $Config->module('Blogs');
 $L						= Language::instance();
@@ -52,26 +58,18 @@ $tags				= $Blogs->get_tag($post['tags']);
 $Page->Description	= description($post['short_content']);
 $Page->canonical_url(
 	"{$Config->base_url()}/$module/$post[path]:$post[id]"
-)->og(
-	'type',
-	'article'
-)->og(
-	'published_time',
-	date('Y-m-d', $post['date'] ?: TIME),
-	'article:'
-)->og(
-	'author',
-	$Config->base_url().'/'.path($L->profile).'/'.$User->get('login', $post['user']),
-	'article:'
-)->og(
-	'section',
-	$post['sections'] == [0] ? false : $Blogs->get_section($post['sections'][0])['title'],
-	'article:'
-)->og(
-	'tag',
-	$tags,
-	'article:'
 );
+$Meta	= Meta::instance();
+$Meta
+	->article()
+	->article('published_time', date('Y-m-d', $post['date'] ?: TIME))
+	->article('author', $Config->base_url().'/'.path($L->profile).'/'.$User->get('login', $post['user']))
+	->article('section', $post['sections'] == [0] ? false : $Blogs->get_section($post['sections'][0])['title'])
+	->article('tag', $tags);
+if (preg_match('/<img[^>]src=["\'](.*)["\']/Uims', $post['content'], $image)) {
+	$Meta->image($image[1]);
+}
+unset($image);
 $content			= uniqid('post_content');
 $Page->replace($content, $post['content']);
 Index::instance()->content(
@@ -80,7 +78,7 @@ Index::instance()->content(
 			(
 				$User->admin() &&
 				$User->get_permission('admin/Blogs', 'index') &&
-				$User->get_permission('admin/Blogs', 'edit_post') ? ' '.h::{'a.cs-button'}(
+				$User->get_permission('admin/Blogs', 'edit_post') ? ' '.h::{'a.uk-button'}(
 					[
 						h::icon('pencil'),
 						[
@@ -96,7 +94,7 @@ Index::instance()->content(
 						]
 					]
 				) : (
-					$User->id == $post['user'] ? ' '.h::{'a.cs-button-compact'}(
+					$User->id == $post['user'] ? ' '.h::{'a.uk-button.cs-button-compact'}(
 						h::icon('pencil'),
 						[
 							'href'			=> "$module/edit_post/$post[id]",

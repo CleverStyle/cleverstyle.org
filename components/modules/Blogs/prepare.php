@@ -14,48 +14,7 @@ use			h,
 			cs\Page,
 			cs\Trigger,
 			cs\User;
-if (!API) {
-	$Config							= Config::instance();
-	$Page							= Page::instance();
-	$L								= Language::instance();
-	Index::instance()->title_auto	= false;
-	$rc								= &$Config->route;
-	if (!isset($rc[0])) {
-		$rc[0]	= 'latest_posts';
-	}
-	switch ($rc[0]) {
-		case path($L->latest_posts):
-			$rc[0]	= 'latest_posts';
-		break;
-		case path($L->section):
-			$rc[0]	= 'section';
-		break;
-		case path($L->tag):
-			$rc[0]	= 'tag';
-		break;
-		case path($L->new_post):
-			$rc[0]	= 'new_post';
-		break;
-		case path($L->drafts):
-			$rc[0]	= 'drafts';
-		break;
-		case 'latest_posts':
-		case 'section':
-		case 'tag':
-		case 'new_post':
-		case 'edit_post':
-		case 'drafts':
-		break;
-		default:
-			if (mb_strpos($rc[0], ':') !== false) {
-				array_unshift($rc, 'post');
-			} else {
-				error_code(404);
-				return;
-			}
-		break;
-	}
-	$Page->title($L->Blogs);
+if (!api_path()) {
 	function get_sections_select_post (&$disabled, $current = null, $structure = null, $level = 0) {
 		$list	= [
 			'in'	=> [],
@@ -180,7 +139,7 @@ if (!API) {
 			 */
 			if ($User->admin() && $User->get_permission('admin/Blogs', 'index')) {
 				$Index->content(
-					h::{'a.cs-button'}(
+					h::{'a.uk-button'}(
 						h::icon('gears'),
 						[
 							'href'			=> 'admin/Blogs',
@@ -190,14 +149,14 @@ if (!API) {
 				);
 			}
 			$Index->content(
-				$User->admin() || !$module_data->new_posts_only_from_admins ? h::{'a.cs-button'}(
+				$User->admin() || !$module_data->new_posts_only_from_admins ? h::{'a.uk-button'}(
 					h::icon('pencil').$L->new_post,
 					[
 						'href'			=> "$module/new_post",
 						'data-title'	=> $L->new_post
 					]
 				).
-				h::{'a.cs-button'}(
+				h::{'a.uk-button'}(
 					h::icon('archive').$L->drafts,
 					[
 						'href'			=> "$module/".path($L->drafts),

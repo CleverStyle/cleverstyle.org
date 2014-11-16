@@ -28,7 +28,7 @@
       data = {
         id: $(this).data('id'),
         title: title.val() || title.text(),
-        sections: $('.cs-blogs-new-post-sections').val(),
+        sections: $('.cs-blogs-new-post-sections').val() || 0,
         content: content.val() || content.html(),
         tags: $('.cs-blogs-new-post-tags').val()
       };
@@ -49,6 +49,7 @@
     });
     return $('.cs-blogs-post-form').parents('form').submit(function() {
       var form;
+      window.onbeforeunload = null;
       form = $(this);
       if (!title.is('input')) {
         form.append($('<input name="title" class="uk-hidden" />').val(title.text()));

@@ -49,14 +49,14 @@ if (count($sections['in']) > 1) {
 	$sections	= false;
 }
 $Index->content(
-	h::{'p.lead.cs-center'}(
+	h::{'h2.cs-center'}(
 		$L->editing_of_post($post['title'])
 	).
 	h::{'div.cs-blogs-post-preview-content'}().
-	h::{'table.cs-table-borderless.cs-left-even.cs-right-odd.cs-blogs-post-form tr| td'}(
+	h::{'cs-table.cs-blogs-post-form[right-left] cs-table-row| cs-table-cell'}(
 		[
 			$L->post_title,
-			h::{'h1.cs-blogs-new-post-title.SIMPLEST_INLINE_EDITOR'}(
+			h::{'h1.cs-blogs-new-post-title[contenteditable=true]'}(
 				isset($_POST['title']) ? $_POST['title'] : $post['title']
 			)
 		],
@@ -90,16 +90,16 @@ $Index->content(
 	(
 		!$sections ? h::{'input[type=hidden][name=sections[]][value=0]'}() : ''
 	).
-	h::{'button.cs-blogs-post-preview'}(
+	h::{'button.uk-button.cs-blogs-post-preview'}(
 		$L->preview,
 		[
 			'data-id'	=> $post['id']
 		]
 	).
-	h::{'button[type=submit][name=mode][value=edit_post]'}(
+	h::{'button.uk-button[type=submit][name=mode][value=edit_post]'}(
 		$L->save
 	).
-	h::{'button[type=submit][name=mode][value=edit_post_draft]'}(
+	h::{'button.uk-button[type=submit][name=mode][value=edit_post_draft]'}(
 		$L->to_drafts
 	)
 );

@@ -20,10 +20,10 @@ $Index->buttons				= false;
 $Index->cancel_button_back	= true;
 $Index->action				= 'admin/Blogs/browse_posts';
 $Index->content(
-	h::{'p.lead.cs-center'}(
+	h::{'h2.cs-center'}(
 		$L->sure_to_delete_post($post['title'])
 	).
-	h::{'button[type=submit]'}($L->yes).
+	h::{'button.uk-button[type=submit]'}($L->yes).
 	h::{'input[type=hidden][name=id]'}([
 		'value'	=> $post['id']
 	]).

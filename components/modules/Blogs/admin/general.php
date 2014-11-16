@@ -18,7 +18,7 @@ $Index->apply_button	= false;
 $L						= Language::instance();
 Page::instance()->title($L->general);
 $Index->content(
-	h::{'table.cs-table-borderless.cs-left-even.cs-right-odd tr| td'}(
+	h::{'cs-table[right-left] cs-table-row| cs-table-cell'}(
 		[
 			h::info('posts_per_page'),
 			h::{'input[type=number][min=1]'}([
@@ -35,7 +35,7 @@ $Index->content(
 		],
 		[
 			h::info('enable_comments'),
-			h::{'input[type=radio]'}([
+			h::radio([
 				'name'		=> 'general[enable_comments]',
 				'value'		=> [0, 1],
 				'in'		=> [$L->no, $L->yes],
@@ -44,7 +44,7 @@ $Index->content(
 		],
 		[
 			h::info('new_posts_only_from_admins'),
-			h::{'input[type=radio]'}([
+			h::radio([
 				'name'		=> 'general[new_posts_only_from_admins]',
 				'value'		=> [0, 1],
 				'in'		=> [$L->no, $L->yes],
@@ -53,7 +53,7 @@ $Index->content(
 		],
 		[
 			h::info('allow_iframes_without_content'),
-			h::{'input[type=radio]'}([
+			h::radio([
 				'name'		=> 'general[allow_iframes_without_content]',
 				'value'		=> [0, 1],
 				'in'		=> [$L->no, $L->yes],

@@ -12,7 +12,14 @@ use			h,
 			cs\DB,
 			cs\Index,
 			cs\Language,
-			cs\Page;
+			cs\Page\Meta,
+			cs\Page,
+			cs\Trigger;
+
+if (!Trigger::instance()->run('Blogs/latest_posts')) {
+	return;
+}
+
 $Config					= Config::instance();
 $Index					= Index::instance();
 $L						= Language::instance();
@@ -25,11 +32,10 @@ $module					= path($L->Blogs);
 head_actions();
 $Index->form			= true;
 $Index->buttons			= false;
-$Index->form_atributes	= ['class'	=> ''];
 $page					= isset($Config->route[1]) ? (int)$Config->route[1] : 1;
 $page					= $page > 0 ? $page : 1;
 $Page->canonical_url($Config->base_url()."/$module/".path($L->latest_posts).($page > 1 ? "/$page" : ''));
-$Page->og('type', 'blog');
+Meta::instance()->blog();
 if ($page > 1) {
 	$Page->title($L->blogs_nav_page($page));
 }
