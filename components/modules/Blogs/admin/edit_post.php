@@ -3,7 +3,7 @@
  * @package		Blogs
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2015, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs\modules\Blogs;
@@ -25,7 +25,6 @@ $Index->form				= true;
 $Index->action				= 'admin/Blogs/browse_posts';
 $Index->buttons				= false;
 $Index->cancel_button_back	= true;
-$Index->reset_button		= true;
 $disabled					= [];
 $max_sections				= $Config->module('Blogs')->max_sections;
 $content					= uniqid('post_content');
