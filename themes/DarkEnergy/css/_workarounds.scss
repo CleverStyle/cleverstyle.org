@@ -7,7 +7,7 @@
  */
 
 .uk-article-title a,
-a {
+html /deep/ a {
 	color : #47adff;
 
 	&:hover {
