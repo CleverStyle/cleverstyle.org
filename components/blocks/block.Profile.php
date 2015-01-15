@@ -17,7 +17,7 @@ Trigger::instance()->register(
 		$Page		= Page::instance();
 		$Page->Html	= str_replace(
 			$content,
-			h::{'div.uk-text-center.uk-form'}(
+			h::{'div.uk-text-center.uk-form.cs-side-bar-profile'}(
 				h::{'img.uk-thumbnail'}([
 					'src'	=> User::instance()->avatar(128)
 				]).
