@@ -1,7 +1,7 @@
 ###*
  * @package		CleverStyle CMS
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2015, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
 ###
 L							= cs.Language
@@ -42,19 +42,22 @@ cs.hash						= (algo, data) ->
 ###
 cs.setcookie				= (name, value, expires) ->
 	name	= cs.cookie_prefix + name
+	options	=
+		path	: cs.cookie_path
+		domain	: cs.cookie_domain
+		secure	: cs.protocol == 'https'
 	if !value
-		return $.removeCookie(name)
+		return $.removeCookie(
+			name
+		)
 	if expires
 		date	= new Date()
 		date.setTime(expires * 1000)
-		expires	= date
+		options.expires	= date
 	!!$.cookie(
 		name
 		value
-		path	: cs.cookie_path
-		domain	: cs.cookie_domain
-		expires	: expires
-		secure	: cs.protocol == 'https'
+		options
 	)
 ###*
  * Function for getting of cookies, taking into account cookies prefix
@@ -118,7 +121,7 @@ cs.registration				= (email) ->
 					.appendTo('body')
 					.cs().modal('show')
 					.on(
-						'uk.modal.hide'
+						'hide.uk.modal'
 						->
 							$(this).remove()
 					)
@@ -127,7 +130,7 @@ cs.registration				= (email) ->
 					.appendTo('body')
 					.cs().modal('show')
 					.on(
-						'uk.modal.hide'
+						'hide.uk.modal'
 						->
 							location.reload()
 					)
@@ -153,7 +156,7 @@ cs.restore_password			= (email) ->
 					.appendTo('body')
 					.cs().modal('show')
 					.on(
-						'uk.modal.hide'
+						'hide.uk.modal'
 						->
 							$(this).remove()
 					)

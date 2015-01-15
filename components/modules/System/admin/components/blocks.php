@@ -4,7 +4,7 @@
  * @subpackage	System module
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2015, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs\modules\System\components\blocks;
@@ -371,7 +371,6 @@ if (isset($rc[2])) {
 	}
 }
 if ($form) {
-	$a->reset_button	= false;
 	$a->custom_buttons	.= h::{'button.uk-button.cs-reload-button'}(
 		$L->reset
 	);

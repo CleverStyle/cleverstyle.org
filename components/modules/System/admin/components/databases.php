@@ -4,7 +4,7 @@
  * @subpackage	System module
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2015, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs;
@@ -319,8 +319,8 @@ if (isset($rc[2])) {
 	}
 	unset($databases);
 	$a->content(
-		h::{'cs-table[list][with-header] cs-table-row| cs-table-cell'}(
-			[
+		h::{'cs-table[list][with-header]'}(
+			h::{'cs-table-row cs-table-cell'}(
 				$L->action,
 				$L->db_host,
 				$L->db_type,
@@ -328,8 +328,8 @@ if (isset($rc[2])) {
 				$L->db_name,
 				$L->db_user,
 				$L->db_charset
-			],
-			$db_list
+			).
+			h::{'cs-table-row| cs-table-cell'}($db_list ? [$db_list] : false)
 		).
 		h::{'cs-table[right-left] cs-table-row| cs-table-cell'}([
 			[

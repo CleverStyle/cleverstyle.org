@@ -4,7 +4,7 @@
  * @subpackage	System module
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2015, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 /**
@@ -137,9 +137,7 @@ if (isset($_POST['update_modules_list'])) {
 			}
 			clean_pcache();
 			unset($Cache->functionality);
-			if (file_exists(CACHE.'/classes_autoloading')) {
-				unlink(CACHE.'/classes_autoloading');
-			}
+			clean_classes_cache();
 		break;
 		case 'uninstall':
 			if ($module_data['active'] == -1 || $module_name == 'System' || $module_name == $Config->core['default_module']) {
@@ -196,9 +194,7 @@ if (isset($_POST['update_modules_list'])) {
 			$a->save();
 			clean_pcache();
 			unset($Cache->functionality);
-			if (file_exists(CACHE.'/classes_autoloading')) {
-				unlink(CACHE.'/classes_autoloading');
-			}
+			clean_classes_cache();
 		break;
 		case 'update':
 			/**
@@ -224,7 +220,7 @@ if (isset($_POST['update_modules_list'])) {
 			/**
 			 * Extracting new versions of files
 			 */
-			$tmp_file	= TEMP.'/'.$User->get_session().'_module_update.phar.php';
+			$tmp_file	= TEMP.'/'.$User->get_session().'_module_update.phar';
 			$tmp_dir	= "phar://$tmp_file";
 			$fs			= file_get_json("$tmp_dir/fs.json");
 			$extract	= array_product(
@@ -321,9 +317,7 @@ if (isset($_POST['update_modules_list'])) {
 			}
 			$a->save();
 			unset($Cache->functionality);
-			if (file_exists(CACHE.'/classes_autoloading')) {
-				unlink(CACHE.'/classes_autoloading');
-			}
+			clean_classes_cache();
 		break;
 		case 'update_system':
 			/**
@@ -343,7 +337,7 @@ if (isset($_POST['update_modules_list'])) {
 			/**
 			 * Extracting new versions of files
 			 */
-			$tmp_file	= TEMP.'/'.$User->get_session().'_update_system.phar.php';
+			$tmp_file	= TEMP.'/'.$User->get_session().'_update_system.phar';
 			$tmp_dir	= "phar://$tmp_file";
 			$fs			= file_get_json("$tmp_dir/fs.json")['core/fs.json'];
 			$fs			= file_get_json("$tmp_dir/fs/$fs");
@@ -432,9 +426,7 @@ if (isset($_POST['update_modules_list'])) {
 			}
 			$a->save();
 			clean_pcache();
-			if (file_exists(CACHE.'/classes_autoloading')) {
-				unlink(CACHE.'/classes_autoloading');
-			}
+			clean_classes_cache();
 		break;
 		case 'default_module':
 			if (
@@ -498,9 +490,7 @@ if (isset($_POST['update_modules_list'])) {
 				$Cache->functionality,
 				$Cache->languages
 			);
-			if (file_exists(CACHE.'/classes_autoloading')) {
-				unlink(CACHE.'/classes_autoloading');
-			}
+			clean_classes_cache();
 		break;
 		case 'disable':
 			$module_data['active'] = 0;
@@ -516,9 +506,7 @@ if (isset($_POST['update_modules_list'])) {
 				$Cache->functionality,
 				$Cache->languages
 			);
-			if (file_exists(CACHE.'/classes_autoloading')) {
-				unlink(CACHE.'/classes_autoloading');
-			}
+			clean_classes_cache();
 		break;
 		case 'remove':
 			if ($module_name == 'System' || $module_data['active'] != '-1') {

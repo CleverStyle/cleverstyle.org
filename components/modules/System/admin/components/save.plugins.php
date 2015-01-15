@@ -4,7 +4,7 @@
  * @subpackage	System module
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2015, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 /**
@@ -37,9 +37,7 @@ if (isset($_POST['mode'], $_POST['plugin'])) {
 				);
 				unset($Cache->functionality);
 			}
-			if (file_exists(CACHE.'/classes_autoloading')) {
-				unlink(CACHE.'/classes_autoloading');
-			}
+			clean_classes_cache();
 		break;
 		case 'disable':
 			if (in_array($plugin, $Config->components['plugins'])) {
@@ -54,9 +52,7 @@ if (isset($_POST['mode'], $_POST['plugin'])) {
 				);
 				unset($Cache->functionality);
 			}
-			if (file_exists(CACHE.'/classes_autoloading')) {
-				unlink(CACHE.'/classes_autoloading');
-			}
+			clean_classes_cache();
 		break;
 		case 'update':
 			/**
@@ -82,7 +78,7 @@ if (isset($_POST['mode'], $_POST['plugin'])) {
 			/**
 			 * Extracting new versions of files
 			 */
-			$tmp_file	= TEMP.'/'.User::instance()->get_session().'_plugin_update.phar.php';
+			$tmp_file	= TEMP.'/'.User::instance()->get_session().'_plugin_update.phar';
 			$tmp_dir	= "phar://$tmp_file";
 			$fs			= file_get_json("$tmp_dir/fs.json");
 			$extract	= array_product(
@@ -156,9 +152,7 @@ if (isset($_POST['mode'], $_POST['plugin'])) {
 			}
 			$Index->save();
 			unset($Cache->functionality);
-			if (file_exists(CACHE.'/classes_autoloading')) {
-				unlink(CACHE.'/classes_autoloading');
-			}
+			clean_classes_cache();
 		break;
 		case 'remove':
 			if (in_array($plugin, $Config->components['plugins'])) {

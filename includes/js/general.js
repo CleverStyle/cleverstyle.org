@@ -3,7 +3,7 @@
 /**
  * @package		CleverStyle CMS
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2015, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
 */
 
@@ -49,18 +49,18 @@
       return vsprintf(L[key].toString(), Array.prototype.slice.call(arguments, 1));
     };
     $('.cs-header-sign-in-slide').click(function() {
-      $('.cs-header-guest-form').hide('medium');
-      $('.cs-header-sign-in-form').show('medium');
+      $('.cs-header-guest-form').removeClass('active');
+      $('.cs-header-sign-in-form').addClass('active');
       return $('.cs-header-sign-in-email').focus();
     });
     $('.cs-header-registration-slide').click(function() {
-      $('.cs-header-guest-form').hide('medium');
-      $('.cs-header-registration-form').show('medium');
+      $('.cs-header-guest-form').removeClass('active');
+      $('.cs-header-registration-form').addClass('active');
       return $('.cs-header-registration-email').focus();
     });
     $('.cs-header-restore-password-slide').click(function() {
-      $('.cs-header-sign-in-form, .cs-header-registration-form').hide('medium');
-      $('.cs-header-restore-password-form').show('medium');
+      $('.cs-header-sign-in-form, .cs-header-registration-form').removeClass('active');
+      $('.cs-header-restore-password-form').addClass('active');
       return $('.cs-header-restore-password-email').focus();
     });
     $('.cs-header-registration-email').keyup(function(event) {
@@ -117,7 +117,7 @@
         cs.registration($('.cs-header-registration-email').val());
         return;
       }
-      modal = $("<div title=\"" + L.rules_agree + "\">\n	<div>\n		" + cs.rules_text + "\n		<p class=\"cs-right\">\n			<button class=\"cs-registration-continue uk-button uk-button-primary\">" + L.yes + "</button>\n		</p>\n	</div>\n</div>").appendTo('body').cs().modal('show').on('uk.modal.hide', function() {
+      modal = $("<div title=\"" + L.rules_agree + "\">\n	<div>\n		" + cs.rules_text + "\n		<p class=\"cs-right\">\n			<button class=\"cs-registration-continue uk-button uk-button-primary\">" + L.yes + "</button>\n		</p>\n	</div>\n</div>").appendTo('body').cs().modal('show').on('hide.uk.modal', function() {
         return $(this).remove();
       });
       return modal.find('.cs-registration-continue').click(function() {
@@ -132,8 +132,8 @@
       return cs.change_password($('.cs-profile-current-password').val(), $('.cs-profile-new-password').val());
     });
     $('.cs-header-back').click(function() {
-      $('.cs-header-guest-form').show('medium');
-      return $('.cs-header-registration-form, .cs-header-sign-in-form, .cs-header-restore-password-form').hide('medium');
+      $('.cs-header-guest-form').addClass('active');
+      return $('.cs-header-registration-form, .cs-header-sign-in-form, .cs-header-restore-password-form').removeClass('active');
     });
   });
 

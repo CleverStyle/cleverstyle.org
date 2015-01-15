@@ -2,7 +2,7 @@
 /**
  * @package		CleverStyle CMS
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2015, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs;
@@ -28,37 +28,21 @@ class Core {
 	 * Loading of base system configuration, creating of missing directories
 	 */
 	protected function construct () {
-		if (!file_exists(CONFIG.'/main.json')) {
-			error_code(500);
-			Page::instance()->error(
-				h::p('Config file not found, is system installed properly?').
-				h::a(
-					'How to install CleverStyle CMS',
-					[
-						'href'	=> 'https://github.com/nazar-pc/CleverStyle-CMS/wiki/Installation'
-					]
-				)
-			);
-			exit;
-		}
-		$this->config	= file_get_json_nocomments(CONFIG.'/main.json');
-		_include_once(CONFIG.'/main.php', false);
+		$this->config	= $this->load_config();
+		_include_once(DIR.'/config/main.php', false);
 		defined('DEBUG') || define('DEBUG', false);
-		define('DOMAIN', $this->config['domain']);
+		defined('DOMAIN') || define('DOMAIN', $this->config['domain']);
 		date_default_timezone_set($this->config['timezone']);
-		$clangs = file_exists(CACHE.'/languages_clangs') ? file_get_json(CACHE.'/languages_clangs') : false;
 		$this->set('fixed_language', false);
-		if ($clangs) {
-			if (is_array($clangs) && !empty($clangs)) {
-				$clang	= explode('/', trim($_SERVER['REQUEST_URI'], '/'), 2)[0];
-				if (in_array($clang, $clangs)) {
-					$this->set('fixed_language', true);
-					$this->set('language', array_flip($clangs)[$clang]);
-				}
-				unset($clang);
+		Trigger::instance()->register('System/Config/before_init', function () {
+			$clangs = file_exists(CACHE.'/languages_clangs') ? file_get_json(CACHE.'/languages_clangs') : Config::instance()->update_clangs();
+			$clang	= explode('/', trim($_SERVER['REQUEST_URI'], '/'), 2)[0];
+			if (in_array($clang, $clangs)) {
+				$this->config['fixed_language']	= true;
+				$this->config['language']		= array_flip($clangs)[$clang];
+				Language::instance()->reload_core_config();
 			}
-		}
-		unset($clangs);
+		});
 		if (!is_dir(STORAGE)) {
 			@mkdir(STORAGE, 0775);
 			file_put_contents(
@@ -112,6 +96,27 @@ AddEncoding gzip .html
 			}
 		}
 		$this->constructed	= true;
+	}
+	/**
+	 * Load main.json config file and return array of it contents
+	 *
+	 * @return array
+	 */
+	protected function load_config () {
+		if (!file_exists(DIR.'/config/main.json')) {
+			error_code(500);
+			Page::instance()->error(
+				h::p('Config file not found, is system installed properly?').
+				h::a(
+					'How to install CleverStyle CMS',
+					[
+						'href'	=> 'https://github.com/nazar-pc/CleverStyle-CMS/wiki/Installation'
+					]
+				)
+			);
+			exit;
+		}
+		return file_get_json_nocomments(DIR.'/config/main.json');
 	}
 	/**
 	 * Getting of base configuration parameter

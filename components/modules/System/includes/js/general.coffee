@@ -1,7 +1,7 @@
 ###*
  * @package		CleverStyle CMS
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2015, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
 ###
 $ ->
@@ -14,8 +14,6 @@ $ ->
 					$(@)
 						.find("option[value='" + $('#change_language').val() + "']")
 						.prop('selected', true)
-				$('#cs-system-license-open').click ->
-					$('#cs-system-license').cs().modal('show')
 				$('.cs-permissions-invert').click ->
 					$(@)
 						.parentsUntil('div')

@@ -2,7 +2,7 @@
 /**
  * @package		CleverStyle CMS
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2015, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs\DB;
@@ -119,6 +119,7 @@ abstract class _Abstract {
 			}
 			unset($param);
 		}
+		$db	= DB::instance(true);
 		if (is_array($query) && !empty($query)) {
 			$time_from	= microtime(true);
 			foreach ($query as &$q) {
@@ -132,7 +133,6 @@ abstract class _Abstract {
 				$q	= empty($local_params) ? $q : vsprintf($q, $local_params);
 			}
 			unset($local_params, $q);
-			$db						= DB::instance();
 			$this->queries['num']	+= count($query);
 			$db->queries			+= count($query);
 			$return					= $this->q_multi_internal($query);
@@ -154,7 +154,6 @@ abstract class _Abstract {
 			$this->queries['time'][]	= $this->query['time'];
 		}
 		++$this->queries['num'];
-		$db							= DB::instance();
 		$db->time					+= $this->query['time'];
 		++$db->queries;
 		return $result;
@@ -366,10 +365,10 @@ abstract class _Abstract {
 	/**
 	 * Method for simplified inserting of several rows
 	 *
-	 * @param string	$query
-	 * @param array[]	$params	Array of array of parameters for inserting
-	 * @param bool		$join	If true - inserting of several rows will be combined in one query. For this, be sure, that your query has keyword <i>VALUES</i>
-	 * 							in uppercase. Part of query after this keyword will be multiplied with coma separator.
+	 * @param string		$query
+	 * @param array|array[]	$params	Array of array of parameters for inserting
+	 * @param bool			$join	If true - inserting of several rows will be combined in one query. For this, be sure, that your query has keyword <i>VALUES</i>
+	 * 								in uppercase. Part of query after this keyword will be multiplied with coma separator.
 	 *
 	 * @return bool
 	 */
@@ -392,7 +391,7 @@ abstract class _Abstract {
 			$query		= $query[0].'VALUES'.$query[1].$query[2];
 			$params_	= [];
 			foreach ($params as $p) {
-				$params_	= array_merge($params_, $p);
+				$params_	= array_merge($params_, (array)$p);
 			}
 			unset($params, $p);
 			return (bool)$this->q($query, $params_);
@@ -440,7 +439,7 @@ abstract class _Abstract {
 	 * @param string $table
 	 * @param bool|string $like
 	 *
-	 * @return array|bool
+	 * @return string[]|bool
 	 */
 	function columns ($table, $like = false) {
 		if(!$table) {
@@ -462,14 +461,14 @@ abstract class _Abstract {
 	 *
 	 * @param bool $like
 	 *
-	 * @return array|bool
+	 * @return string[]|bool
 	 */
 	function tables ($like = false) {
 		if ($like) {
 			$like		= $this->s($like);
-			return $this->qfa("SHOW TABLES FROM `$this->database` LIKE $like");
+			return $this->qfas("SHOW TABLES FROM `$this->database` LIKE $like");
 		} else {
-			return $this->qfa("SHOW TABLES FROM `$this->database`");
+			return $this->qfas("SHOW TABLES FROM `$this->database`");
 		}
 	}
 	/**

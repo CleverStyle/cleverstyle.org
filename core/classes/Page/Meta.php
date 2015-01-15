@@ -2,7 +2,7 @@
 /**
  * @package		CleverStyle CMS
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2014, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2014-2015, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs\Page;
@@ -28,52 +28,11 @@ class Meta {
 	 * If false - &lt;head&gt; will not be added automatically, and should be in template if needed
 	 * @var bool
 	 */
-	public	$no_head	= false;
+	public	$no_head		= false;
 	protected	$links		= '';
 	protected	$og_data	= [];
 	protected	$og_type	= '';
-	/**
-	 * Open Graph protocol support
-	 *
-	 * Provides automatic addition of &lt;html prefix="og: http://ogp.me/ns#"&gt;, and is used for simplification of Open Graph protocol support
-	 *
-	 * @deprecated
-	 * @todo: Remove before release
-	 *
-	 * @param string			$property		Property name, but without <i>og:</i> prefix. For example, <i>title</i>
-	 * @param string|string[]	$content		Content, may be an array
-	 * @param string			$custom_prefix	If prefix should differ from <i>og:</i>, for example, <i>article:</i> - specify it here
-	 *
-	 * @return Meta
-	 */
-	function og ($property, $content, $custom_prefix = 'og:') {
-		if (
-			!$property ||
-			(
-				!$content &&
-				$content !== 0
-			)
-		) {
-			return $this;
-		}
-		if (is_array($content)) {
-			foreach ($content as $c) {
-				$this->og($property, $c, $custom_prefix);
-			}
-			return $this;
-		}
-		if (!isset($this->og_data[$property])) {
-			$this->og_data[$property]	= '';
-		}
-		if ($property == 'type') {
-			$this->og_type	= $content;
-		}
-		$this->og_data[$property]	.= h::meta([
-			'property'	=> $custom_prefix.$property,
-			'content'	=> $content
-		]);
-		return $this;
-	}
+	protected	$image_src	= false;
 	/**
 	 * Common wrapper to add all necessary meta tags with images
 	 *
@@ -86,10 +45,13 @@ class Meta {
 			return $this;
 		}
 		$images	= (array)$images;
-		$this->links	.= h::link([
-			'href'	=> $images[0],
-			'rel'	=> 'image_src'
-		]);
+		if (!$this->image_src) {
+			$this->image_src	= true;
+			$this->links		.= h::link([
+				'href'	=> $images[0],
+				'rel'	=> 'image_src'
+			]);
+		}
 		$this->__call('og', ['image', $images]);
 		return $this;
 	}
@@ -121,7 +83,7 @@ class Meta {
 			if (!isset($this->og_data[$params[0]])) {
 				$this->og_data[$params[0]]	= '';
 			}
-			$this->og_data[$params[0]]	= h::meta([
+			$this->og_data[$params[0]]	.= h::meta([
 				'property'	=> "$type:$params[0]",
 				'content'	=> $params[1]
 			]);

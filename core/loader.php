@@ -2,7 +2,7 @@
 /**
  * @package        CleverStyle CMS
  * @author         Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright      Copyright (c) 2011-2014, Nazar Mokrynskyi
+ * @copyright      Copyright (c) 2011-2015, Nazar Mokrynskyi
  * @license        MIT License, see license.txt
  */
 namespace cs;
@@ -10,11 +10,11 @@ namespace cs;
  * Fallback for PHP 5.5 hashing functions, that are not present in PHP 5.4
  */
 if (!defined('PASSWORD_DEFAULT')) {
-	require __DIR__.'/thirdparty/password_compat.php';
+	require DIR.'/core/thirdparty/password_compat.php';
 }
-require CORE.'/thirdparty/upf.php';               //Inclusion of Useful PHP Functions
+require DIR.'/core/thirdparty/upf.php';           //Inclusion of Useful PHP Functions
 _require_once(DIR.'/vendor/autoload.php', false); //Inclusion of composer's autoloader.php with user's dependencies
-require CORE.'/functions.php';                    //Inclusion of general system functions and system autoloader
+require DIR.'/core/functions.php';                //Inclusion of general system functions and system autoloader
 
 error_reporting(E_ALL);
 
@@ -26,49 +26,17 @@ header('Connection: close');
  * Defining of basic constants with paths to system directories
  */
 /**
- * Directory for configuration
- */
-define('CONFIG', DIR.'/config');
-/**
- * Directory for main core classes
- */
-define('CLASSES', CORE.'/classes');
-/**
- * Directory for thirdparty libraries
- */
-define('THIRDPARTY', CORE.'/thirdparty');
-/**
- * Directory for main core traits
- */
-define('TRAITS', CORE.'/traits');
-/**
  * Directory for cache, DB and storage engines
  */
-define('ENGINES', CORE.'/engines');
+define('ENGINES', DIR.'/core/engines');
 /**
  * Languages directory
  */
-define('LANGUAGES', CORE.'/languages');
+define('LANGUAGES', DIR.'/core/languages');
 /**
  * Languages directory
  */
 define('CUSTOM', DIR.'/custom');
-/**
- * Directory for CSS files
- */
-define('CSS', DIR.'/includes/css');
-/**
- * Directory for images
- */
-define('IMG', DIR.'/includes/img');
-/**
- * Directory for JavaScript files
- */
-define('JS', DIR.'/includes/js');
-/**
- * Directory for Web Components files
- */
-define('HTML', DIR.'/includes/html');
 /**
  * Templates directory
  */
@@ -119,6 +87,5 @@ unset($custom);
 /**
  * System running
  */
-Core::instance();
 Language::instance();
 Index::instance();

@@ -4,7 +4,7 @@
  * @subpackage	System module
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2013-2014, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2013-2015, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs;
@@ -16,6 +16,9 @@ Trigger::instance()
 	->register(
 		'System/Config/routing_replace',
 		function ($data) {
+			if ($data['rc'] == 'api/System/profile') {
+				$data['rc'] = 'api/System/profile/profile';
+			}
 			$rc		= explode('/', $data['rc']);
 			$Config	= Config::instance();
 			if (!isset($rc[0])) {
@@ -35,11 +38,17 @@ Trigger::instance()
 					case path($L->profile):
 						$rc[0]	= 'profile';
 				}
+			} else {
+				return;
 			}
 			if (isset($rc[1])) {
 				switch ($rc[1]) {
 					case path($L->settings):
 						$rc[1] = 'settings';
+					break;
+					default:
+						$rc[2]	= $rc[1];
+						$rc[1]	= 'info';
 				}
 				if (isset($rc[2])) {
 					switch ($rc[2]) {
@@ -69,13 +78,15 @@ Trigger::instance()
 				!$Core->fixed_language &&
 				$_SERVER['REQUEST_METHOD'] == 'GET' &&
 				$Cache->cache_state() &&
-				$Core->cache_engine != 'BlackHole'
+				$Core->cache_engine != 'BlackHole' &&
+				@$Config->route[0]	!= 'robots.txt'
 			) {
-				$clang	= Language::instance()->clang;
+				$clang			= Language::instance()->clang;
+				$query_string	= $_SERVER['QUERY_STRING'] ? "?$_SERVER[QUERY_STRING]" : '';
 				if (!home_page()) {
-					header("Location: /$clang/$relative_address", true, 301);
+					header("Location: /$clang/$relative_address$query_string", true, 301);
 				} else {
-					header("Location: /$clang", true, 301);
+					header("Location: /$clang$query_string", true, 301);
 				}
 			}
 			$base_url				= substr($Config->base_url(), 0, -3);

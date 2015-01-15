@@ -2,7 +2,7 @@
 /**
  * @package		CleverStyle CMS
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2015, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs;
@@ -223,7 +223,7 @@ class Page {
 				'<!--post_Body-->',
 				'<!--post_Html-->'
 			],
-			[
+			_rtrim([
 				$this->pre_Html,
 				$this->get_property_with_indentation('Head'),
 				$this->get_property_with_indentation('pre_Body'),
@@ -234,7 +234,7 @@ class Page {
 				$this->get_property_with_indentation('Right'),
 				$this->get_property_with_indentation('post_Body'),
 				$this->post_Html
-			],
+			], "\t"),
 			$this->Html
 		);
 		return $this;
@@ -324,7 +324,7 @@ class Page {
 	function atom ($href, $title = 'Atom Feed') {
 		return $this->link([
 			'href'	=> $href,
-			'title'	=> $title,
+			'title'	=> h::prepare_attr_value($title),
 			'rel'	=> 'alternate',
 			'type'	=> 'application/atom+xml'
 		]);
@@ -340,7 +340,7 @@ class Page {
 	function rss ($href, $title = 'RSS Feed') {
 		return $this->link([
 			'href'	=> $href,
-			'title'	=> $title,
+			'title'	=> h::prepare_attr_value($title),
 			'rel'	=> 'alternate',
 			'type'	=> 'application/rss+xml'
 		]);
@@ -520,20 +520,5 @@ class Page {
 		if ($ob) {
 			ob_end_flush();
 		}
-	}
-	/**
-	 * Open Graph protocol support
-	 *
-	 * @deprecated
-	 * @todo: Remove before release
-	 *
-	 * @param string          $property
-	 * @param string|string[] $content
-	 * @param string          $custom_prefix
-	 *
-	 * @return Page
-	 */
-	function og ($property, $content, $custom_prefix = 'og:') {
-		return Meta::instance()->og($property, $content, $custom_prefix);
 	}
 }

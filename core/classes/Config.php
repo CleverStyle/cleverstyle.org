@@ -2,7 +2,7 @@
 /**
  * @package		CleverStyle CMS
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2015, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace cs;
@@ -14,6 +14,10 @@ namespace cs;
  *
  *  System/Config/routing_replace
  *  ['rc'	=> <i>&$rc</i>]		//Reference to string with current route, this string can be changed
+ *
+ *  System/Config/before_init
+ *
+ *  System/Config/after_init
  *
  * @property mixed[] $core			Property with most general configuration properties
  * @property mixed[] $db			Property, that stores configuration of databases, except the main database, parameters of which are written in configuration file
@@ -78,10 +82,12 @@ class Config {
 			}
 			unset($part, $value);
 		}
+		Trigger::instance()->run('System/Config/before_init');
 		/**
 		 * System initialization with current configuration
 		 */
 		$this->init();
+		Trigger::instance()->run('System/Config/after_init');
 		if (!file_exists(MODULES.'/'.$this->core['default_module'])) {
 			$this->core['default_module']	= 'System';
 			$this->save();

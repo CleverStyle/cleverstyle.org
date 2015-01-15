@@ -2,7 +2,7 @@
 /**
  * @package		CleverStyle CMS
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2014, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2014-2015, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs\Page;
@@ -174,8 +174,9 @@ trait Includes {
 		if ($core) {
 			if ($mode == 'file') {
 				$this->core_css[0][]	= h::link([
-					'href'	=> $add,
-					'rel'	=> 'stylesheet'
+					'href'				=> $add,
+					'rel'				=> 'stylesheet',
+					'shim-shadowdom'	=> ''
 				]);
 			} elseif ($mode == 'code') {
 				$this->core_css[1][]	 = $add."\n";
@@ -183,8 +184,9 @@ trait Includes {
 		} else {
 			if ($mode == 'file') {
 				$this->css[0][]			= h::link([
-					'href'	=> $add,
-					'rel'	=> 'stylesheet'
+					'href'				=> $add,
+					'rel'				=> 'stylesheet',
+					'shim-shadowdom'	=> ''
 				]);
 			} elseif ($mode == 'code') {
 				$this->css[1][]			 = $add."\n";
@@ -270,7 +272,7 @@ trait Includes {
 		/**
 		 * If CSS and JavaScript compression enabled
 		 */
-		if ($Config->core['cache_compress_js_css']) {
+		if ($Config->core['cache_compress_js_css'] && !admin_path()) {
 			$this->add_includes_on_page_with_compression($Config);
 		} else {
 			/**
@@ -369,7 +371,7 @@ trait Includes {
 	}
 	protected function add_includes_on_page_without_compression ($Config) {
 		if ($Config) {
-			$this->includes_dependencies_and_map($dependencies, $includes_map);
+			$this->includes_dependencies_and_map($dependencies, $includes_map, admin_path());
 			/**
 			 * Add system includes
 			 */
@@ -400,25 +402,13 @@ trait Includes {
 					)
 				) {
 					if ($is_dependency) {
-						if (isset($local_includes['css'])) {
-							$dependencies_includes['css'] = array_merge($dependencies_includes['css'], $local_includes['css']);
-						}
-						if (isset($local_includes['js'])) {
-							$dependencies_includes['js'] = array_merge($dependencies_includes['js'], $local_includes['js']);
-						}
-						if (isset($local_includes['html'])) {
-							$dependencies_includes['html'] = array_merge($dependencies_includes['html'], $local_includes['html']);
-						}
+						$dependencies_includes['css']  = array_merge($dependencies_includes['css'], @$local_includes['css'] ?: []);
+						$dependencies_includes['js']   = array_merge($dependencies_includes['js'], @$local_includes['js'] ?: []);
+						$dependencies_includes['html'] = array_merge($dependencies_includes['html'], @$local_includes['html'] ?: []);
 					} else {
-						if (isset($local_includes['css'])) {
-							$includes['css'] = array_merge($includes['css'], $local_includes['css']);
-						}
-						if (isset($local_includes['js'])) {
-							$includes['js'] = array_merge($includes['js'], $local_includes['js']);
-						}
-						if (isset($local_includes['html'])) {
-							$includes['html'] = array_merge($includes['html'], $local_includes['html']);
-						}
+						$includes['css']  = array_merge($includes['css'], @$local_includes['css'] ?: []);
+						$includes['js']   = array_merge($includes['js'], @$local_includes['js'] ?: []);
+						$includes['html'] = array_merge($includes['html'], @$local_includes['html'] ?: []);
 					}
 				}
 			}
@@ -500,11 +490,12 @@ trait Includes {
 	/**
 	 * Getting of JavaScript and CSS files list to be included
 	 *
-	 * @param bool		$absolute	If <i>true</i> - absolute paths to files will be returned
+	 * @param bool		$absolute		If <i>true</i> - absolute paths to files will be returned
+	 * @param bool		$with_disabled
 	 *
 	 * @return array
 	 */
-	protected function get_includes_list ($absolute = false) {
+	protected function get_includes_list ($absolute = false, $with_disabled = false) {
 		$theme_dir		= THEMES."/$this->theme";
 		$theme_pdir		= "themes/$this->theme";
 		$get_files		= function ($dir, $prefix_path) {
@@ -526,22 +517,28 @@ trait Includes {
 		 */
 		$includes	= [
 			'css' => array_merge(
-				$get_files(CSS, $absolute ? true : 'includes/css'),
+				$get_files(DIR.'/includes/css', $absolute ? true : 'includes/css'),
 				$get_files("$theme_dir/css", $absolute ? true : "$theme_pdir/css")
 			),
 			'js' => array_merge(
-				$get_files(JS, $absolute ? true : 'includes/js'),
+				$get_files(DIR.'/includes/js', $absolute ? true : 'includes/js'),
 				$get_files("$theme_dir/js", $absolute ? true : "$theme_pdir/js")
 			),
 			'html' => array_merge(
-				$get_files(HTML, $absolute ? true : 'includes/html'),
+				$get_files(DIR.'/includes/html', $absolute ? true : 'includes/html'),
 				$get_files("$theme_dir/html", $absolute ? true : "$theme_pdir/html")
 			)
 		];
 		unset($theme_dir, $theme_pdir);
 		$Config		= Config::instance();
 		foreach ($Config->components['modules'] as $module_name => $module_data) {
-			if ($module_data['active'] == -1) {
+			if (
+				$module_data['active'] == -1 ||
+				(
+					$module_data['active'] == 0 &&
+					!$with_disabled
+				)
+			) {
 				continue;
 			}
 			$includes['css']	= array_merge(
@@ -601,12 +598,13 @@ trait Includes {
 	 *
 	 * @param array	$dependencies
 	 * @param array	$includes_map
+	 * @param bool	$with_disabled
 	 */
-	protected function includes_dependencies_and_map (&$dependencies, &$includes_map) {
+	protected function includes_dependencies_and_map (&$dependencies, &$includes_map, $with_disabled = false) {
 		/**
 		 * Get all includes
 		 */
-		$all_includes			= $this->get_includes_list(true);
+		$all_includes			= $this->get_includes_list(true, $with_disabled);
 		$includes_map			= [];
 		$dependencies			= [];
 		$dependencies_aliases	= [];
@@ -617,7 +615,13 @@ trait Includes {
 		 */
 		$Config			= Config::instance();
 		foreach ($Config->components['modules'] as $module_name => $module_data) {
-			if ($module_data['active'] == -1) {
+			if (
+				$module_data['active'] == -1 ||
+				(
+					$module_data['active'] == 0 &&
+					!$with_disabled
+				)
+			) {
 				continue;
 			}
 			if (file_exists(MODULES."/$module_name/meta.json")) {
@@ -637,7 +641,15 @@ trait Includes {
 				}
 				if (isset($meta['provide'])) {
 					foreach ((array)$meta['provide'] as $p) {
-						$dependencies_aliases[$p]	= $module_name;
+						/**
+						 * If provides sub-functionality of other component (Blog/post_patch) - inverse "providing" to "dependency"
+						 */
+						if (strpos($p, '/') !== false) {
+							$p                  = explode('/', $p)[0];
+							$dependencies[$p][] = $module_name;
+						} else {
+							$dependencies_aliases[$p]	= $module_name;
+						}
 					}
 					unset($p);
 				}
@@ -678,7 +690,15 @@ trait Includes {
 				}
 				if (isset($meta['provide'])) {
 					foreach ((array)$meta['provide'] as $p) {
-						$dependencies_aliases[$p]	= $plugin_name;
+						/**
+						 * If provides sub-functionality of other component (Blog/post_patch) - inverse "providing" to "dependency"
+						 */
+						if (strpos($p, '/') !== false) {
+							$p                  = explode('/', $p)[0];
+							$dependencies[$p][] = $plugin_name;
+						} else {
+							$dependencies_aliases[$p]	= $plugin_name;
+						}
 					}
 					unset($p);
 				}

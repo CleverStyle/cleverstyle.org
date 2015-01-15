@@ -1,2 +1,5 @@
 Deny from all
 RewriteEngine Off
+<Files *>
+	SetHandler default-handler
+</Files>

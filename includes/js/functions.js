@@ -3,7 +3,7 @@
 /**
  * @package		CleverStyle CMS
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2015, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
 */
 
@@ -69,22 +69,22 @@
 
 
   cs.setcookie = function(name, value, expires) {
-    var date;
+    var date, options;
     name = cs.cookie_prefix + name;
+    options = {
+      path: cs.cookie_path,
+      domain: cs.cookie_domain,
+      secure: cs.protocol === 'https'
+    };
     if (!value) {
       return $.removeCookie(name);
     }
     if (expires) {
       date = new Date();
       date.setTime(expires * 1000);
-      expires = date;
+      options.expires = date;
     }
-    return !!$.cookie(name, value, {
-      path: cs.cookie_path,
-      domain: cs.cookie_domain,
-      expires: expires,
-      secure: cs.protocol === 'https'
-    });
+    return !!$.cookie(name, value, options);
   };
 
   /**
@@ -167,11 +167,11 @@
       type: 'post',
       success: function(result) {
         if (result === 'reg_confirmation') {
-          return $('<div>' + L.reg_confirmation + '</div>').appendTo('body').cs().modal('show').on('uk.modal.hide', function() {
+          return $('<div>' + L.reg_confirmation + '</div>').appendTo('body').cs().modal('show').on('hide.uk.modal', function() {
             return $(this).remove();
           });
         } else if (result === 'reg_success') {
-          return $('<div>' + L.reg_success + '</div>').appendTo('body').cs().modal('show').on('uk.modal.hide', function() {
+          return $('<div>' + L.reg_success + '</div>').appendTo('body').cs().modal('show').on('hide.uk.modal', function() {
             return location.reload();
           });
         }
@@ -201,7 +201,7 @@
       type: 'post',
       success: function(result) {
         if (result === 'OK') {
-          return $('<div>' + L.restore_password_confirmation + '</div>').appendTo('body').cs().modal('show').on('uk.modal.hide', function() {
+          return $('<div>' + L.restore_password_confirmation + '</div>').appendTo('body').cs().modal('show').on('hide.uk.modal', function() {
             return $(this).remove();
           });
         }

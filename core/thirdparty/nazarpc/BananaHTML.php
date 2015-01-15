@@ -1,9 +1,9 @@
 <?php
 /**
  * @package		BananaHTML
- * @version		2.1.2
+ * @version		2.1.6
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2015, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	nazarpc;
@@ -254,7 +254,7 @@ class BananaHTML {
 			) &&
 			$level
 		) {
-			$in		= $level ? static::level("\n$in\n", $level) : "\n$in\n";
+			$in		= $level ? "\n".static::level("$in\n", $level) : "\n$in\n";
 ;		}
 		return "<$tag$add>$in</$tag>".($level ? "\n" : '');
 	}
@@ -275,7 +275,7 @@ class BananaHTML {
 			return false;
 		}
 		$add	.= XHTML_TAGS_STYLE ? ' /' : '';
-		return "<$tag$add> $in\n";
+		return "<$tag$add>".($in ? " $in" : '')."\n";
 	}
 	/**
 	 * Rendering of form tag, default method is post, if form method is post - special session key in hidden input is added for security.
@@ -827,7 +827,7 @@ class BananaHTML {
 	 * @return string
 	 */
 	static function __callStatic ($input, $data) {
-		if ($data === false) {
+		if ($data === false || $data === [false]) {
 			return false;
 		}
 		if (is_scalar($data)) {
@@ -1185,7 +1185,7 @@ class BananaHTML {
 	 *
 	 * @return string|string[]
 	 */
-	protected static function prepare_attr_value ($text) {
+	static function prepare_attr_value ($text) {
 		if (is_array($text)) {
 			foreach ($text as &$val) {
 				$val = static::prepare_attr_value($val);

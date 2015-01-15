@@ -4,7 +4,7 @@
  * @subpackage	System module
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2015, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs;
@@ -36,7 +36,7 @@ if (isset($Config->route[1])) {
 		$Page->error('User is not in your contacts');
 	}
 	if ($single) {
-		$Page->json($User->get($fields, $id));
+		$Page->json($User->get($fields, $id[0]));
 	} else {
 		$Page->json(array_map(
 			function ($id) use ($fields, $User) {

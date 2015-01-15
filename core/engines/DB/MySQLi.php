@@ -2,7 +2,7 @@
 /**
  * @package		CleverStyle CMS
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2015, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs\DB;
@@ -48,11 +48,10 @@ class MySQLi extends _Abstract {
 		} else {
 			return false;
 		}
-		$this->connecting_time	= microtime(true) - $this->connecting_time;
-		$db						= DB::instance();
-		$db->time				+= $this->connecting_time;
-		$this->db_type			= 'mysql';
-		$this->prefix			= $prefix;
+		$this->connecting_time		= microtime(true) - $this->connecting_time;
+		DB::instance(true)->time	+= $this->connecting_time;
+		$this->db_type				= 'mysql';
+		$this->prefix				= $prefix;
 		return $this;
 	}
 	/**

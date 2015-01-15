@@ -4,7 +4,7 @@
  * @subpackage	System module
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2015, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs\modules\System\users\users;
@@ -424,7 +424,6 @@ if (isset($rc[2], $rc[3])) {
 				break;
 			}
 			$a->apply_button		= false;
-			$a->reset_button		= false;
 			$a->cancel_button_back	= true;
 			$Group					= Group::instance();
 			$user_groups			= array_reverse($User->get_groups($rc[3]));

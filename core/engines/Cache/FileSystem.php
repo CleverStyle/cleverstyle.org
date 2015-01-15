@@ -2,13 +2,14 @@
 /**
  * @package		CleverStyle CMS
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2015, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs\Cache;
-use			cs\Config,
-			cs\Core,
-			cs\Language;
+use
+	cs\Config,
+	cs\Core,
+	cs\Language;
 /**
  * Provides cache functionality based on file system structure.
  * Require base configuration option Core::instance()->cache_size with maximum allowed cache size in MB, 0 means without limitation (is not recommended)
@@ -149,7 +150,8 @@ class FileSystem extends _Abstract {
 				/**
 				 * Rename to random name in order to immediately invalidate nested elements, actual deletion done right after this
 				 */
-				$new_path	= $path_in_filesystem.uniqid();
+				$random_id	= uniqid();
+				$new_path	= $path_in_filesystem.$random_id;
 				rename($path_in_filesystem, $new_path);
 				/**
 				 * Speed-up of files deletion
@@ -173,7 +175,7 @@ class FileSystem extends _Abstract {
 				}
 				$files = get_files_list($new_path, false, 'fd');
 				foreach ($files as $file) {
-					$this->del($item."/$file", false);
+					$this->del($item.$random_id."/$file", false);
 				}
 				unset($files, $file);
 				return @rmdir($new_path);

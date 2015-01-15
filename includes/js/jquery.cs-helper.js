@@ -3,7 +3,7 @@
 /**
  * @package		UIkit Helper
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2013-2014, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2013-2015, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
 */
 
@@ -35,10 +35,10 @@
             }
           }).first().addClass('uk-active');
           $this.data('tab', UI.tab($this, {
-            connect: content
+            connect: content,
+            animation: 'fade'
           }));
-          content.addClass('uk-switcher uk-margin').children(':first').addClass('uk-active');
-          return content.data('switcher', UI.switcher(content));
+          return content.addClass('uk-switcher uk-margin').children(':first').addClass('uk-active');
         });
       },
       /**
@@ -119,11 +119,11 @@
         }
         style = width ? ' style="width:' + width + 'px;"' : '';
         close = close ? "<a class=\"uk-modal-close uk-close\"></a>" : '';
-        return $("<div>\n	<div class=\"uk-form\"" + style + ">\n		" + close + "\n		" + content + "\n	</div>\n</div>").appendTo('body').cs().modal('show').on('uk.modal.hide', function() {
+        return $("<div>\n	<div class=\"uk-form\"" + style + ">\n		" + close + "\n		" + content + "\n	</div>\n</div>").appendTo('body').cs().modal('show').on('hide.uk.modal', function() {
           return $(this).remove();
         });
       }
     };
-  })(jQuery, jQuery.UIkit);
+  })(jQuery, UIkit);
 
 }).call(this);

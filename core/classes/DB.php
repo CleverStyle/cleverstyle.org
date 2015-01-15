@@ -2,7 +2,7 @@
 /**
  * @package		CleverStyle CMS
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2015, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace cs;
@@ -141,7 +141,7 @@ class DB {
 		if (is_int($connection) || $connection == '0') {
 			return $this->connecting($connection, isset($mode[0]) ? (bool)$mode[0] : false);
 		} elseif (method_exists('\\cs\\DB\\_Abstract', $connection)) {
-			return call_user_func_array([$this->{0}, $connection], $mode);
+			return call_user_func_array([$this->db(0), $connection], $mode);
 		} else {
 			return False_class::instance();
 		}

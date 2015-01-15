@@ -3,7 +3,7 @@
  * @package		ClevereStyle CMS
  * @subpackage	CleverStyle theme
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2014, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2014-2015, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs\themes\CleverStyle;
@@ -79,7 +79,7 @@ function get_header_info () {
 	$L		= Language::instance();
 	$User	= User::instance(true);
 	if ($User->user()) {
-		$content	= h::{'div.cs-header-user-block'}(
+		$content	= h::{'div.cs-header-user-block.active'}(
 			h::b(
 				"$L->hello, ".$User->username().'! '.
 				h::{'icon.cs-header-sign-out-process'}(
@@ -115,7 +115,7 @@ function get_header_info () {
 			]
 		);
 		$content	=
-			h::{'div.cs-header-guest-form'}(
+			h::{'div.cs-header-guest-form.active'}(
 				h::b("$L->hello, $L->guest!").
 				h::div(
 					h::{'button.uk-button.cs-button-compact.cs-header-sign-in-slide.uk-icon-sign-in'}($L->sign_in).
@@ -135,60 +135,51 @@ function get_header_info () {
 				]).
 				h::br().
 				h::{'button.uk-button.cs-button-compact.cs-header-restore-password-process.uk-button.uk-icon-question[tabindex=2]'}($L->restore_password).
-				h::{'button.uk-button.cs-button-compact.uk-button.cs-header-back[tabindex=3]'}(
+				h::{'button.uk-button.cs-button-compact.uk-button.cs-header-back'}(
 					h::icon('chevron-down'),
 					[
 						'data-title'	=> $L->back
 					]
-				),
-				[
-					'style'	=> 'display: none;'
-				]
+				)
 			).
 			h::{'div.cs-header-registration-form'}(
-				h::{'input.cs-header-registration-email[type=email][tabindex=1]'}([
+				h::{'input.cs-header-registration-email[type=email]'}([
 					'placeholder'		=> $L->email,
 					'autocapitalize'	=> 'off',
 					'autocorrect'		=> 'off'
 				]).
 				h::br().
-				h::{'button.uk-button.cs-button-compact.cs-header-registration-process.uk-button.uk-icon-pencil[tabindex=2]'}($L->sign_up).
-				h::{'button.uk-button.cs-button-compact.cs-header-back[tabindex=4]'}(
+				h::{'button.uk-button.cs-button-compact.cs-header-registration-process.uk-button.uk-icon-pencil'}($L->sign_up).
+				h::{'button.uk-button.cs-button-compact.cs-header-back'}(
 					h::icon('chevron-down'),
 					[
 						'data-title'	=> $L->back
 					]
-				),
-				[
-					'style'	=> 'display: none;'
-				]
+				)
 			).
 			h::{'form.cs-header-sign-in-form'}(
-				h::{'input.cs-header-sign-in-email[tabindex=1]'}([
+				h::{'input.cs-header-sign-in-email'}([
 					'placeholder'		=> $L->login_or_email,
 					'autocapitalize'	=> 'off',
 					'autocorrect'		=> 'off'
 				]).
-				h::{'input.cs-header-user-password[type=password][tabindex=2]'}([
+				h::{'input.cs-header-user-password[type=password]'}([
 					'placeholder'	=> $L->password
 				]).
 				h::br().
-				h::{'button.uk-button.cs-button-compact.uk-icon-sign-in[tabindex=3][type=submit]'}($L->sign_in).
-				h::{'button.uk-button.cs-button-compact.cs-header-back[tabindex=5]'}(
+				h::{'button.uk-button.cs-button-compact.uk-icon-sign-in[type=submit]'}($L->sign_in).
+				h::{'button.uk-button.cs-button-compact.cs-header-back'}(
 					h::icon('chevron-down'),
 					[
 						'data-title'	=> $L->back
 					]
 				).
-				h::{'button.uk-button.cs-button-compact.cs-header-restore-password-slide[tabindex=4]'}(
+				h::{'button.uk-button.cs-button-compact.cs-header-restore-password-slide'}(
 					h::icon('question'),
 					[
 						'data-title'	=> $L->restore_password
 					]
-				),
-				[
-					'style'	=> 'display: none;'
-				]
+				)
 			).
 			$external_systems_list;
 	}

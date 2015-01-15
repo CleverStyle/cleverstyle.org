@@ -4,17 +4,17 @@
  * @subpackage	System module
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2015, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs\modules\System;
-use			h,
-			cs\Config,
-			cs\Core,
-			cs\Index,
-			cs\Language,
-			cs\Page,
-			cs\User;
+use
+	h,
+	cs\Config,
+	cs\Index,
+	cs\Language,
+	cs\Page,
+	cs\User;
 $Config			= Config::instance();
 $L				= Language::instance();
 $Page			= Page::instance();
@@ -54,7 +54,7 @@ if (
 				if ($_FILES['upload_module']['error'] != UPLOAD_ERR_OK) {
 					break;
 				}
-				$tmp_file = TEMP.'/'.md5($_FILES['upload_plugin']['tmp_name'].MICROTIME).'.phar.php';
+				$tmp_file = TEMP.'/'.md5($_FILES['upload_plugin']['tmp_name'].MICROTIME).'.phar';
 				move_uploaded_file($_FILES['upload_plugin']['tmp_name'], $tmp_file);
 				$tmp_dir	= "phar://$tmp_file";
 				$plugin		= file_get_contents("$tmp_dir/dir");
@@ -348,13 +348,13 @@ $plugins_for_removal = array_values(array_filter(
 	}
 ));
 $a->content(
-	h::{'cs-table[center][list][with-header] cs-table-row| cs-table-cell'}(
-		[
+	h::{'cs-table[center][list][with-header]'}(
+		h::{'cs-table-row cs-table-cell'}(
 			$L->plugin_name,
 			$L->state,
 			$L->action
-		],
-		$plugins_list ?: false
+		).
+		h::{'cs-table-row| cs-table-cell'}($plugins_list ?: false)
 	).
 	h::p(
 		h::{'input[type=file][name=upload_plugin]'}([

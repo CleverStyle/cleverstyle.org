@@ -1,10 +1,10 @@
 ###*
  * @package		UIkit Helper
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2013-2014, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2013-2015, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
 ###
-do ($=jQuery, UI = jQuery.UIkit) ->
+do ($=jQuery, UI = UIkit) ->
 	helpers	=
 		###*
 		 * Tabs with UIkit
@@ -28,13 +28,15 @@ do ($=jQuery, UI = jQuery.UIkit) ->
 						.first()
 							.addClass('uk-active')
 				$this
-					.data('tab', UI.tab($this, {connect:content}))
+					.data('tab', UI.tab(
+						$this
+						connect		: content
+						animation	: 'fade'
+					))
 				content
 					.addClass('uk-switcher uk-margin')
 					.children(':first')
 						.addClass('uk-active')
-				content
-					.data('switcher', UI.switcher(content))
 		###*
 		 * Dialog with UIkit
 		 *
@@ -109,5 +111,5 @@ do ($=jQuery, UI = jQuery.UIkit) ->
 			""")
 				.appendTo('body')
 				.cs().modal('show')
-				.on 'uk.modal.hide', ->
+				.on 'hide.uk.modal', ->
 					$(@).remove()

@@ -2,7 +2,7 @@
  * @package		CleverStyle CMS
  * @subpackage	CleverStyle theme
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2015, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 
@@ -27,9 +27,24 @@ body > header {
 
 		> div,
 		> form {
-			padding-left : 48px;
-			white-space  : nowrap;
-			word-wrap    : normal;
+			height                   : 0;
+			opacity                  : 0;
+			padding-left             : 48px;
+			transform                : scaleY(0);
+			-webkit-transform        : scaleY(0);
+			transform-origin         : center top;
+			-webkit-transform-origin : center top;
+			transition               : height .3s ease-in-out, opacity .3s ease-in-out, transform .3s ease-in-out, -webkit-transform .3s ease-in-out;
+			white-space              : nowrap;
+			word-wrap                : normal;
+			z-index                  : 1;
+
+			&.active {
+				height            : 42px;
+				opacity           : 1;
+				transform         : scaleY(1);
+				-webkit-transform : scaleY(1);
+			}
 		}
 
 		button {
