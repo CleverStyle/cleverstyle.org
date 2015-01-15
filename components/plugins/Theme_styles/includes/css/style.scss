@@ -29,7 +29,10 @@
 				height : 95px;
 			}
 
-			&.cs-header-guest-form,
+			&.cs-header-guest-form {
+				height : 55px;
+			}
+
 			&.cs-header-user-block {
 				height : 43px;
 			}
