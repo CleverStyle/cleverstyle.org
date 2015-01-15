@@ -7,7 +7,7 @@
  * @license		MIT License, see license.txt
  */
 namespace	cs;
-$address	= MODULE == 'Home' ? '' : '/'.Config::instance()->server['relative_address'];
+$address	= current_module() == 'Home' ? '' : '/'.Config::instance()->server['relative_address'];
 ?>
 <nav>
 	<a href="/en<?=$address?>" hreflang="en">English</a>
