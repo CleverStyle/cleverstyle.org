@@ -47,3 +47,15 @@
 		margin-top : 5px;
 	}
 }
+
+html /deep/ {
+	:not(pre) > code[class*="language-"],
+	pre[class*="language-"] {
+		background : #262626 !important;
+	}
+
+	code[class*="language-"],
+	pre[class*="language-"] {
+		font-family : "DejaVu Sans Mono", "Monaco", "Courier New", monospace !important;
+	}
+}
