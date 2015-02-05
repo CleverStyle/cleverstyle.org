@@ -10,10 +10,10 @@
 namespace cs\modules\Content;
 
 use
-	cs\Trigger,
+	cs\Event,
 	cs\User;
 
-Trigger::instance()->register(
+Event::instance()->on(
 	'admin/System/components/modules/uninstall/process',
 	function ($data) {
 		if ($data['name'] != 'Content' || !User::instance()->admin()) {

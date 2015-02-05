@@ -11,14 +11,14 @@ namespace cs\modules\Content;
 
 use
 	cs\Config,
-	cs\Page,
-	cs\Trigger;
+	cs\Event,
+	cs\Page;
 
-Trigger::instance()->register(
+Event::instance()->on(
 	'System/Page/display',
 	function () {
 		$module_data = Config::instance()->module('Content');
-		if ($module_data->active() && $module_data->simple_insert) {
+		if ($module_data->simple_insert && $module_data->active()) {
 			$Page          = Page::instance();
 			$Page->Content = preg_replace_callback(
 				'/{(Content|Content_title):(.+)}/Uims',
