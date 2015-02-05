@@ -3,14 +3,15 @@
  * @package		Static Pages
  * @category	modules
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2014, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2015, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs\modules\Static_pages;
-use			cs\Cache,
-			cs\User,
-			cs\Trigger;
-Trigger::instance()->register(
+use
+	cs\Cache,
+	cs\Event,
+	cs\User;
+Event::instance()->on(
 	'admin/System/components/modules/uninstall/process',
 	function ($data) {
 		if ($data['name'] != 'Static_pages' || !User::instance()->admin()) {
