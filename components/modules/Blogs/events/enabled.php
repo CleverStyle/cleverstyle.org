@@ -10,15 +10,15 @@ namespace cs\modules\Blogs;
 
 use
 	cs\Config,
-	cs\Trigger,
+	cs\Event,
 	cs\User;
 
-Trigger::instance()
-	->register(
+Event::instance()
+	->on(
 		'api/Comments/add',
 		function ($data) {
 			$Comments = null;
-			Trigger::instance()->run(
+			Event::instance()->fire(
 				'Comments/instance',
 				[
 					'Comments' => &$Comments
@@ -43,11 +43,11 @@ Trigger::instance()
 			return false;
 		}
 	)
-	->register(
+	->on(
 		'api/Comments/edit',
 		function ($data) {
 			$Comments = null;
-			Trigger::instance()->run(
+			Event::instance()->fire(
 				'Comments/instance',
 				[
 					'Comments' => &$Comments
@@ -74,11 +74,11 @@ Trigger::instance()
 			return false;
 		}
 	)
-	->register(
+	->on(
 		'api/Comments/delete',
 		function ($data) {
 			$Comments = null;
-			Trigger::instance()->run(
+			Event::instance()->fire(
 				'Comments/instance',
 				[
 					'Comments' => &$Comments

@@ -10,9 +10,9 @@ namespace	cs\modules\Blogs;
 use			cs\Cache,
 			cs\Config,
 			cs\DB,
-			cs\Trigger,
+			cs\Event,
 			cs\User;
-Trigger::instance()->register(
+Event::instance()->on(
 	'admin/System/components/modules/uninstall/process',
 	function ($data) {
 		if ($data['name'] != 'Blogs' || !User::instance()->admin()) {
