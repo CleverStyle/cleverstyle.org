@@ -26,7 +26,10 @@ abstract class Base extends BananaHTML {
 	 * @return string
 	 */
 	protected static function url_with_hash ($url) {
-		return $_SERVER['REQUEST_URI'].$url;
+		/**
+		 * @var \cs\_SERVER $_SERVER
+		 */
+		return $_SERVER->request_uri.$url;
 	}
 	/**
 	 * Convert relative URL to absolute
@@ -56,7 +59,7 @@ abstract class Base extends BananaHTML {
 			$User = User::instance(true)
 		) {
 			return static::input([
-				'value'	=> $User->get_session(),
+				'value'	=> $User->get_session_id(),
 				'type'	=> 'hidden',
 				'name'	=> 'session'
 			]);

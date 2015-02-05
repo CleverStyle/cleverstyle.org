@@ -8,7 +8,7 @@
 namespace cs;
 
 /**
- * Provides next triggers:
+ * Provides next events:
  *  System/Config/pre_routing_replace
  *  ['rc'	=> <i>&$rc</i>]		//Reference to string with current route, this string can be changed
  *
@@ -82,12 +82,12 @@ class Config {
 			}
 			unset($part, $value);
 		}
-		Trigger::instance()->run('System/Config/before_init');
+		Event::instance()->fire('System/Config/before_init');
 		/**
 		 * System initialization with current configuration
 		 */
 		$this->init();
-		Trigger::instance()->run('System/Config/after_init');
+		Event::instance()->fire('System/Config/after_init');
 		if (!file_exists(MODULES.'/'.$this->core['default_module'])) {
 			$this->core['default_module']	= 'System';
 			$this->save();
@@ -101,7 +101,7 @@ class Config {
 	 * Engine initialization (or reinitialization if necessary)
 	 */
 	protected function init () {
-		Language::instance()->change('');
+		Language::instance()->init();
 		$Page	= Page::instance();
 		$Page->init(
 			get_core_ml_text('name'),
@@ -129,13 +129,12 @@ class Config {
 	 * @return bool
 	 */
 	protected function check_ip ($ips) {
-		if (!is_array($ips) || empty($ips)) {
+		if (!$ips || !is_array($ips)) {
 			return false;
 		}
-		$REMOTE_ADDR			= preg_replace('/[^a-f0-9\.:]/i', '', $_SERVER['REMOTE_ADDR']);
-		$HTTP_X_REAL_IP			= @preg_replace('/[^a-f0-9\.:]/i', '', $_SERVER['HTTP_X_REAL_IP']) ?: false;
-		$HTTP_X_FORWARDED_FOR	= @preg_replace('/[^a-f0-9\.:]/i', '', $_SERVER['HTTP_X_FORWARDED_FOR']) ?: false;
-		$HTTP_CLIENT_IP			= @preg_replace('/[^a-f0-9\.:]/i', '', $_SERVER['HTTP_CLIENT_IP']) ?: false;
+		/**
+		 * @var _SERVER $_SERVER
+		 */
 		foreach ($ips as $ip) {
 			if ($ip) {
 				$char = mb_substr($ip, 0, 1);
@@ -143,10 +142,11 @@ class Config {
 					$ip = "/$ip/";
 				}
 				if (
-					_preg_match($ip, $REMOTE_ADDR) ||
-					@_preg_match($ip, $HTTP_X_REAL_IP) ||
-					@_preg_match($ip, $HTTP_X_FORWARDED_FOR) ||
-					@_preg_match($ip, $HTTP_CLIENT_IP)
+					_preg_match($ip, $_SERVER->remote_addr) ||
+					(
+						$_SERVER->ip &&
+						_preg_match($ip, $_SERVER->ip)
+					)
 				) {
 					return true;
 				}
@@ -160,18 +160,13 @@ class Config {
 	protected function routing () {
 		$L								= Language::instance();
 		$server							= &$this->server;
-		$server['raw_relative_address']	= urldecode(trim($_SERVER['REQUEST_URI'], '/'));
+		/**
+		 * @var _SERVER $_SERVER
+		 */
+		$server['raw_relative_address']	= urldecode(trim($_SERVER->request_uri, '/'));
 		$server['raw_relative_address']	= null_byte_filter($server['raw_relative_address']);
-		if (Core::instance()->fixed_language) {
-			$server['raw_relative_address']	= explode('/', $server['raw_relative_address'], 2);
-			$server['raw_relative_address']	= isset($server['raw_relative_address'][1]) ? $server['raw_relative_address'][1] : '';
-		}
-		$server['host']					= $_SERVER['HTTP_HOST'];
-		if (isset($_SERVER['HTTP_X_FORWARDED_PROTO'])) {
-			$server['protocol']	= $_SERVER['HTTP_X_FORWARDED_PROTO'];
-		} else {
-			$server['protocol'] = @$_SERVER['HTTPS'] == 'on' ? 'https' : 'http';
-		}
+		$server['host']		= $_SERVER->host;
+		$server['protocol']	= $_SERVER->secure ? 'https' : 'http';
 		/**
 		 * Search for url matching in all mirrors
 		 */
@@ -181,7 +176,7 @@ class Config {
 			$server['mirrors'][$protocol][]	= $urls[0];
 			if ($protocol == $server['protocol'] && $server['mirror_index'] === -1) {
 				foreach ($urls as $url) {
-					if (mb_strpos("$_SERVER[HTTP_HOST]$server[raw_relative_address]", $url) === 0) {
+					if (mb_strpos("$server[host]$server[raw_relative_address]", $url) === 0) {
 						$server['mirror_index']	= $i;
 						break;
 					}
@@ -237,11 +232,11 @@ class Config {
 	 * @return bool
 	 */
 	protected function is_referer_local () {
-		if (@strpos($_SERVER['HTTP_REFERER'], '://') === false) {
+		if (!$_SERVER->referer) {
 			return false;
 		}
 		$referer	= [
-			'url'		=> $_SERVER['HTTP_REFERER'],
+			'url'		=> $_SERVER->referer,
 			'host'		=> '',
 			'protocol'	=> '',
 			'local'		=> false
@@ -273,12 +268,16 @@ class Config {
 	 *                    								Array contains next elements: route, relative_address, ADMIN, API, MODULE, HOME
 	 */
 	function process_route ($raw_relative_address) {
-		$rc	= explode('?', $raw_relative_address, 2)[0];
-		$rc	= trim($rc, '/');
+		$rc = explode('?', $raw_relative_address, 2)[0];
+		$rc = trim($rc, '/');
+		if (Language::instance()->url_language($rc)) {
+			$rc = explode('/', $rc, 2);
+			$rc = isset($rc[1]) ? $rc[1] : '';
+		}
 		/**
 		 * Routing replacing
 		 */
-		Trigger::instance()->run('System/Config/pre_routing_replace', [
+		Event::instance()->fire('System/Config/pre_routing_replace', [
 			'rc'	=> &$rc
 		]);
 		if (!empty($this->routing['in'])) {
@@ -287,7 +286,7 @@ class Config {
 			}
 			unset($i, $search);
 		}
-		Trigger::instance()->run('System/Config/routing_replace', [
+		Event::instance()->fire('System/Config/routing_replace', [
 			'rc'	=> &$rc
 		]);
 		/**
@@ -383,21 +382,6 @@ class Config {
 		asort($this->core['languages']);
 	}
 	/**
-	 * Load and save clangs of all languages in cache for multilingual functionality.
-	 * Used by system
-	 *
-	 * @return array	clangs
-	 */
-	function update_clangs () {
-		$clangs		= [];
-		foreach ($this->core['active_languages'] as $language) {
-			$clangs[$language]	= file_get_json_nocomments(LANGUAGES."/$language.json")['clang'];
-		}
-		unset($language);
-		file_put_json(CACHE.'/languages_clangs', $clangs);
-		return $clangs;
-	}
-	/**
 	 * Reloading of settings cache
 	 *
 	 * @return bool
@@ -450,16 +434,18 @@ class Config {
 		} else {
 			unset($this->core['cache_not_saved']);
 		}
-		Cache::instance()->config	= [
-			'core'			=> $this->core,
-			'db'			=> $this->db,
-			'storage'		=> $this->storage,
-			'components'	=> $this->components,
-			'replace'		=> $this->replace,
-			'routing'		=> $this->routing
+		$Cache         = Cache::instance();
+		$Cache->config = [
+			'core'       => $this->core,
+			'db'         => $this->db,
+			'storage'    => $this->storage,
+			'components' => $this->components,
+			'replace'    => $this->replace,
+			'routing'    => $this->routing
 		];
-		$L							= Language::instance();
-		if (User::instance(true) && $this->core['multilingual']) {
+		unset($Cache->{'languages'});
+		$L = Language::instance();
+		if ($this->core['multilingual'] && User::instance(true)) {
 			$L->change(User::instance()->language);
 		} else {
 			$L->change($this->core['language']);
@@ -558,8 +544,9 @@ class Config {
 			return '';
 		}
 		$base_url	= $this->server['protocol'].'://'.$this->server['host'];
-		if (Core::instance()->fixed_language) {
-			$base_url	.= '/'.Language::instance()->clang;
+		$L			= Language::instance();
+		if ($L->url_language()) {
+			$base_url	.= '/'.$L->clang;
 		}
 		return $base_url;
 	}

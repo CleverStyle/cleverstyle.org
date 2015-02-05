@@ -9,7 +9,7 @@ namespace	cs\User;
 use
 	cs\Config,
 	cs\Core,
-	cs\Trigger,
+	cs\Event,
 	cs\User;
 
 /**
@@ -76,7 +76,7 @@ trait Management {
 			return false;
 		}
 		$this->delete_unconfirmed_users();
-		if (!Trigger::instance()->run(
+		if (!Event::instance()->fire(
 			'System/User/registration/before',
 			[
 				'email'	=> $email
@@ -87,7 +87,13 @@ trait Management {
 		$email_hash		= hash('sha224', $email);
 		$login			= strstr($email, '@', true);
 		$login_hash		= hash('sha224', $login);
-		if ($login && in_array($login, file_get_json(MODULES.'/System/index.json')['profile']) || $this->get_id($login_hash) !== false) {
+		if (
+			$this->get_id($login_hash) !== false ||
+			(
+				$login &&
+				in_array($login, file_get_json(MODULES.'/System/index.json')['profile'])
+			)
+		) {
 			$login		= $email;
 			$login_hash	= $email_hash;
 		}
@@ -102,7 +108,10 @@ trait Management {
 		}
 		$Config			= Config::instance();
 		$password		= password_generate($Config->core['password_min_length'], $Config->core['password_min_strength']);
-		$reg_key		= md5($password.$this->ip);
+		/**
+		 * @var \cs\_SERVER $_SERVER
+		 */
+		$reg_key		= md5(openssl_random_pseudo_bytes(1000));
 		$confirmation	= $confirmation && $Config->core['require_registration_confirmation'];
 		if ($this->db_prime()->q(
 			"INSERT INTO `[prefix]users` (
@@ -128,8 +137,8 @@ trait Management {
 			$login_hash,
 			$email,
 			$email_hash,
-			TIME,
-			ip2hex($this->ip),
+			time(),
+			ip2hex($_SERVER->ip),
 			$reg_key,
 			!$confirmation ? 1 : -1
 		)) {
@@ -141,7 +150,7 @@ trait Management {
 			if (!$confirmation && $auto_sign_in && $Config->core['auto_sign_in_after_registration']) {
 				$this->add_session($this->reg_id);
 			}
-			if (!Trigger::instance()->run(
+			if (!Event::instance()->fire(
 				'System/User/registration/after',
 				[
 					'id'	=> $this->reg_id
@@ -174,7 +183,7 @@ trait Management {
 		if (!is_md5($reg_key)) {
 			return false;
 		}
-		if (!Trigger::instance()->run(
+		if (!Event::instance()->fire(
 			'System/User/registration/confirmation/before',
 			[
 				'reg_key'	=> $reg_key
@@ -207,7 +216,7 @@ trait Management {
 		$this->set('status', User::STATUS_ACTIVE, $this->reg_id);
 		$this->set_groups([User::USER_GROUP_ID], $this->reg_id);
 		$this->add_session($this->reg_id);
-		if (!Trigger::instance()->run(
+		if (!Event::instance()->fire(
 			'System/User/registration/confirmation/after',
 			[
 				'id'	=> $this->reg_id
@@ -238,7 +247,7 @@ trait Management {
 	 * Checks for unconfirmed registrations and deletes expired
 	 */
 	protected function delete_unconfirmed_users () {
-		$reg_date		= TIME - Config::instance()->core['registration_confirmation_time'] * 86400;	//1 day = 86400 seconds
+		$reg_date		= time() - Config::instance()->core['registration_confirmation_time'] * 86400;	//1 day = 86400 seconds
 		$ids			= $this->db_prime()->qfas([
 			"SELECT `id`
 			FROM `[prefix]users`
@@ -323,10 +332,10 @@ trait Management {
 	 */
 	function restore_password ($user) {
 		if ($user && $user != User::GUEST_ID) {
-			$reg_key		= md5(MICROTIME.$this->ip);
+			$reg_key		= md5(openssl_random_pseudo_bytes(1000));
 			if ($this->set('reg_key', $reg_key, $user)) {
 				$data					= $this->get('data', $user);
-				$data['restore_until']	= TIME + Config::instance()->core['registration_confirmation_time'] * 86400;
+				$data['restore_until']	= time() + Config::instance()->core['registration_confirmation_time'] * 86400;
 				if ($this->set('data', $data, $user)) {
 					return $reg_key;
 				}
@@ -361,7 +370,7 @@ trait Management {
 		$data		= $this->get('data', $id);
 		if (!isset($data['restore_until'])) {
 			return false;
-		} elseif ($data['restore_until'] < TIME) {
+		} elseif ($data['restore_until'] < time()) {
 			unset($data['restore_until']);
 			$this->set('data', $data, $id);
 			return false;
@@ -393,7 +402,7 @@ trait Management {
 	 */
 	protected function del_user_internal ($user, $update = true) {
 		$Cache	= $this->cache;
-		Trigger::instance()->run(
+		Event::instance()->fire(
 			'System/User/del/before',
 			[
 				'id'	=> $user
@@ -427,7 +436,7 @@ trait Management {
 				WHERE `id` = $user
 				LIMIT 1"
 			);
-			Trigger::instance()->run(
+			Event::instance()->fire(
 				'System/User/del/after',
 				[
 					'id'	=> $user
@@ -465,7 +474,7 @@ trait Management {
 		)) {
 			$id	= $this->db_prime()->id();
 			$this->set_groups([User::BOT_GROUP_ID], $id);
-			Trigger::instance()->run(
+			Event::instance()->fire(
 				'System/User/add_bot',
 				[
 					'id'	=> $id
@@ -521,7 +530,7 @@ trait Management {
 			return [];
 		}
 		$contacts	= [];
-		Trigger::instance()->run(
+		Event::instance()->fire(
 			'System/User/get_contacts',
 			[
 				'id'		=> $user,

@@ -8,7 +8,7 @@
  * @license		MIT License, see license.txt
  */
 namespace cs;
-Trigger::instance()->register(
+Event::instance()->on(
 	'admin/System/Menu',
 	function () {
 		$Config		= Config::instance();
