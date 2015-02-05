@@ -7,15 +7,16 @@
  * @license		MIT License, see license.txt
  */
 /**
- * Supports next triggers:
+ * Supports next events:
  *  Comments/instance
  *  [
  *   'Comments'		=> <i>&$Comments</i>
  *  ]
  */
 namespace	cs\modules\Comments;
-use			cs\Trigger;
-Trigger::instance()->register(
+use
+	cs\Event;
+Event::instance()->on(
 	'Comments/instance',
 	function ($data) {
 		$data['Comments']	= Comments::instance();
