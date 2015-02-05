@@ -8,7 +8,7 @@
  * @license		GNU GPL v2, see license.txt
  */
 /**
- * Supports next triggers:
+ * Supports next events:
  *  System/upload_files/add_tag
  *  [
  *   'url'		=> url	//Required
@@ -22,13 +22,14 @@
  *  ]
  */
 namespace	cs\modules\Plupload;
-use			cs\Config,
-			cs\DB,
-			cs\Page,
-			cs\Storage,
-			cs\Trigger;
-Trigger::instance()
-	->register(
+use
+	cs\Config,
+	cs\DB,
+	cs\Event,
+	cs\Page,
+	cs\Storage;
+Event::instance()
+	->on(
 		'System/Page/pre_display',
 		function () {
 			$Config	= Config::instance();
@@ -38,7 +39,7 @@ Trigger::instance()
 			], 'cs.plupload');
 		}
 	)
-	->register(
+	->on(
 		'System/upload_files/add_tag',
 		function ($data) {
 			if (!isset($data['url'], $data['tag'])) {
@@ -70,7 +71,7 @@ Trigger::instance()
 			);
 		}
 	)
-	->register(
+	->on(
 		'System/upload_files/del_tag',
 		function ($data) {
 			if (!isset($data['url']) && !isset($data['tag'])) {

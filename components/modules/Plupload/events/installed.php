@@ -8,11 +8,12 @@
  * @license		GNU GPL v2, see license.txt
  */
 namespace	cs\modules\Plupload;
-use			cs\Config,
-			cs\DB,
-			cs\Storage,
-			cs\Trigger;
-Trigger::instance()->register(
+use
+	cs\Config,
+	cs\DB,
+	cs\Event,
+	cs\Storage;
+Event::instance()->on(
 	'admin/System/components/modules/uninstall/process',
 	function ($data) {
 		if ($data['name'] != 'Plupload') {

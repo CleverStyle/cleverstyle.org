@@ -8,7 +8,7 @@
  * @license		GNU GPL v2, see license.txt
  */
 namespace	cs;
-Trigger::instance()->register(
+Event::instance()->on(
 	'admin/System/components/modules/install/process',
 	function ($data) {
 		if ($data['name'] == 'Plupload') {
