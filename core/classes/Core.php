@@ -80,15 +80,20 @@ AddEncoding gzip .html
 		 * Support for JSON requests, filling $_POST array for request method different than POST
 		 */
 		if (isset($_SERVER->content_type)) {
-			if (strpos($_SERVER->content_type, 'application/json') === 0) {
-				$_POST		= _json_decode(@file_get_contents('php://input')) ?: [];
-				$_REQUEST	= array_merge($_REQUEST, $_POST);
+			if (preg_match('#^application/([^+\s]+\+)?json#', $_SERVER->content_type)) {
+				foreach (_json_decode(@file_get_contents('php://input')) ?: [] as $i => $v) {
+					$_POST[$i]    = $v;
+					$_REQUEST[$i] = $v;
+				}
 			} elseif (
 				strtolower($_SERVER->request_method) !== 'post' &&
 				strpos($_SERVER->content_type, 'application/x-www-form-urlencoded') === 0
 			) {
-				@parse_str(file_get_contents('php://input'), $_POST);
-				$_REQUEST	= array_merge($_REQUEST, $_POST);
+				@parse_str(file_get_contents('php://input'), $POST);
+				foreach ($POST as $i => $v) {
+					$_POST[$i]    = $v;
+					$_REQUEST[$i] = $v;
+				}
 			}
 		}
 		$this->constructed	= true;
@@ -210,7 +215,7 @@ AddEncoding gzip .html
 		);
 		list($host, $url)	= explode('/', $url, 2);
 		$host				= explode(':', $host);
-		$socket				= fsockopen($host[0], isset($host[1]) ? $host[1] : $protocol == 'http' ? 80 : 443, $errno, $errstr);
+		$socket				= fsockopen($host[0], isset($host[1]) ? $host[1] : ($protocol == 'http' ? 80 : 443), $errno, $errstr);
 		$host				= implode(':', $host);
 		if(!is_resource($socket)) {
 			trigger_error("#$errno $errstr", E_USER_WARNING);

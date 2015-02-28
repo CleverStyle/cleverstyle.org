@@ -119,7 +119,7 @@ class Index {
 		) {
 			if (!$this->set_permission_group("admin/$this->module")) {
 				error_code(403);
-				exit;
+				throw new \ExitException;
 			}
 			$this->working_directory = $admin_path;
 			$this->form              = true;
@@ -130,7 +130,7 @@ class Index {
 		) {
 			if (!$this->set_permission_group("api/$this->module")) {
 				error_code(403);
-				exit;
+				throw new \ExitException;
 			}
 			$this->working_directory = $api_path;
 			$this->in_api            = true;
@@ -141,12 +141,12 @@ class Index {
 		) {
 			if (!$this->set_permission_group($this->module)) {
 				error_code(403);
-				exit;
+				throw new \ExitException;
 			}
 			$this->working_directory = MODULES."/$this->module";
 		} else {
 			error_code(404);
-			exit;
+			throw new \ExitException;
 		}
 		unset($admin_path, $api_path);
 		Event::instance()->fire('System/Index/construct');
@@ -154,9 +154,9 @@ class Index {
 		 * Plugins processing
 		 */
 		foreach ($Config->components['plugins'] as $plugin) {
-			_include_once(PLUGINS."/$plugin/index.php", false);
+			_include(PLUGINS."/$plugin/index.php", false, false);
 		}
-		_include_once("$this->working_directory/prepare.php", false);
+		_include("$this->working_directory/prepare.php", false, false);
 		/**
 		 * @var _SERVER $_SERVER
 		 */
@@ -306,18 +306,18 @@ class Index {
 		return !error_code();
 	}
 	protected function files_router_handler_internal ($dir, $basename, $required) {
-		$included = _include_once("$dir/$basename.php", false) !== false;
+		$included = _include("$dir/$basename.php", false, false) !== false;
 		if (!api_path()) {
 			return;
 		}
-		$included = _include_once("$dir/$basename.$this->request_method.php", false) !== false || $included;
+		$included = _include("$dir/$basename.$this->request_method.php", false, false) !== false || $included;
 		if ($included || !$required) {
 			return;
 		}
 		if ($methods = get_files_list($dir, "/^$basename\\.[a-z]+\\.php$/")) {
 			$methods = _strtoupper(_substr($methods, strlen($basename) + 1, -4));
 			$methods = implode(', ', $methods);
-			header("Allow: $methods");
+			_header("Allow: $methods");
 			error_code(405);
 		} else {
 			error_code(404);
@@ -378,7 +378,7 @@ class Index {
 		if ($methods) {
 			$methods = _strtoupper(_substr($methods, strlen($method_name) + 1, -4));
 			$methods = implode(', ', $methods);
-			header("Allow: $methods");
+			_header("Allow: $methods");
 			error_code(405);
 		} else {
 			error_code(404);

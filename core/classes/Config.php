@@ -191,7 +191,7 @@ class Config {
 		if ($server['mirror_index'] === -1) {
 			code_header(400);
 			trigger_error($L->mirror_not_allowed, E_USER_ERROR);
-			exit;
+			throw new \ExitException;
 		}
 		/**
 		 * Remove trailing slashes
@@ -202,12 +202,12 @@ class Config {
 		 */
 		if (mb_strpos($server['raw_relative_address'], 'redirect/') === 0) {
 			if ($this->is_referer_local()) {
-				header('Location: '.substr($server['raw_relative_address'], 9));
+				_header('Location: '.substr($server['raw_relative_address'], 9));
 			} else {
 				error_code(400);
 				Page::instance()->error();
 			}
-			exit;
+			throw new \ExitException;
 		}
 		$processed_route	= $this->process_route($server['raw_relative_address']);
 		if (!$processed_route) {
@@ -222,7 +222,7 @@ class Config {
 		current_module($processed_route['MODULE']);
 		home_page($processed_route['HOME']);
 		if ($processed_route['API']) {
-			header('Content-Type: application/json; charset=utf-8', true);
+			_header('Content-Type: application/json; charset=utf-8', true);
 			interface_off();
 		}
 	}
@@ -529,10 +529,9 @@ class Config {
 		/**
 		 * Allow modification only for administrators or requests from methods of Config class
 		 */
-		if (!isset($this->$item) || !User::instance(true)->admin()) {
-			return false;
+		if (isset($this->$item) && User::instance(true)->admin()) {
+			$this->$item = $data;
 		}
-		return $this->$item = $data;
 	}
 	/**
 	 * Get base url of current mirror including language suffix

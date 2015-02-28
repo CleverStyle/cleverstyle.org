@@ -110,7 +110,7 @@ class Page {
 	 */
 	function json ($add) {
 		if (!api_path()) {
-			header('Content-Type: application/json; charset=utf-8', true);
+			_header('Content-Type: application/json; charset=utf-8', true);
 			interface_off();
 		}
 		$this->Content	= _json_encode($add);
@@ -129,7 +129,7 @@ class Page {
 			$this->theme	= 'CleverStyle';
 		}
 		$theme_dir	= THEMES."/$this->theme";
-		_include_once("$theme_dir/prepare.php", false);
+		_include("$theme_dir/prepare.php", false, false);
 		ob_start();
 		/**
 		 * If website is closed and user is not an administrator - send `503 Service Unavailable` header and show closed site page
@@ -138,15 +138,15 @@ class Page {
 			!Config::instance()->core['site_mode'] &&
 			!User::instance(true)->admin() &&
 			code_header(503) &&
-			!_include_once("$theme_dir/closed.php", false) &&
-			!_include_once("$theme_dir/closed.html", false)
+			!_include("$theme_dir/closed.php", false, false) &&
+			!_include("$theme_dir/closed.html", false, false)
 		) {
 			echo
 				"<!doctype html>\n".
 				h::title(get_core_ml_text('closed_title')).
 				get_core_ml_text('closed_text');
 		} else {
-			_include_once("$theme_dir/index.php", false) || _include_once("$theme_dir/index.html");
+			_include("$theme_dir/index.php", false, false) || _include("$theme_dir/index.html");
 		}
 		$this->Html = ob_get_clean();
 		return $this;
@@ -245,9 +245,9 @@ class Page {
 	protected function get_favicon_path () {
 		$theme_favicon	= "$this->theme/img/favicon";
 		if (file_exists(THEMES."/$theme_favicon.png")) {
-			return "$theme_favicon.png";
+			return "themes/$theme_favicon.png";
 		} elseif (file_exists(THEMES."/$theme_favicon.ico")) {
-			return "$theme_favicon.ico";
+			return "themes/$theme_favicon.ico";
 		}
 		return 'favicon.ico';
 	}
@@ -442,9 +442,9 @@ class Page {
 		 * Hack for 403 after sign out in administration
 		 */
 		if (!api_path() && error_code() == 403 && _getcookie('sign_out')) {
-			header('Location: /', true, 302);
+			_header('Location: /', true, 302);
 			$this->Content	= '';
-			exit;
+			throw new \ExitException;
 		}
 		interface_off();
 		$error	= code_header(error_code());
@@ -455,7 +455,7 @@ class Page {
 		}
 		if ($json || api_path()) {
 			if ($json) {
-				header('Content-Type: application/json; charset=utf-8', true);
+				_header('Content-Type: application/json; charset=utf-8', true);
 				interface_off();
 			}
 			$this->json([
@@ -465,8 +465,8 @@ class Page {
 		} else {
 			ob_start();
 			if (
-				!_include_once(THEMES."/$this->theme/error.html", false) &&
-				!_include_once(THEMES."/$this->theme/error.php", false)
+				!_include(THEMES."/$this->theme/error.html", false, false) &&
+				!_include(THEMES."/$this->theme/error.php", false, false)
 			) {
 				echo "<!doctype html>\n".
 					h::title(code_header($error)).
@@ -475,7 +475,7 @@ class Page {
 			$this->Content	= ob_get_clean();
 		}
 		$this->__finish();
-		exit;
+		throw new \ExitException;
 	}
 	/**
 	 * Page generation

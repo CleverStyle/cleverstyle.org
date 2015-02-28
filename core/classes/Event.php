@@ -6,8 +6,6 @@
  * @license   MIT License, see license.txt
  */
 namespace cs;
-use
-	cs\Event\Once_wrapper;
 /**
  * Event class
  *
@@ -79,15 +77,11 @@ class Event {
 		if (!isset($this->callbacks[$event])) {
 			$this->callbacks[$event] = [];
 		}
-		$Event     = $this;
-		$callback_ = new Once_wrapper(function () use ($event, $callback, $Event) {
-			/**
-			 * @var Once_wrapper $this
-			 */
-			$Event->off($event, $this);
+		$wrapped_callback = function () use (&$wrapped_callback, $event, $callback) {
+			$this->off($event, $wrapped_callback);
 			call_user_func_array($callback, func_get_args());
-		});
-		return $this->on($event, $callback_);
+		};
+		return $this->on($event, $wrapped_callback);
 	}
 	/**
 	 * Fire event
@@ -124,15 +118,15 @@ class Event {
 	protected function initialize () {
 		$modules = get_files_list(MODULES, false, 'd');
 		foreach ($modules as $module) {
-			_include_once(MODULES."/$module/trigger.php", false); //TODO remove in future versions
-			_include_once(MODULES."/$module/events.php", false);
+			_include(MODULES."/$module/trigger.php", false, false); //TODO remove in future versions
+			_include(MODULES."/$module/events.php", false, false);
 		}
 		unset($modules, $module);
 		$plugins = get_files_list(PLUGINS, false, 'd');
 		if (!empty($plugins)) {
 			foreach ($plugins as $plugin) {
-				_include_once(PLUGINS."/$plugin/trigger.php", false); //TODO remove in future versions
-				_include_once(PLUGINS."/$plugin/events.php", false);
+				_include(PLUGINS."/$plugin/trigger.php", false, false); //TODO remove in future versions
+				_include(PLUGINS."/$plugin/events.php", false, false);
 			}
 		}
 		unset($plugins, $plugin);
