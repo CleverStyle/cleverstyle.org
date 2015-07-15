@@ -10,7 +10,7 @@
 namespace	cs;
 Event::instance()
 	->on(
-		'System/Config/pre_routing_replace',
+		'System/Config/init/after',
 		function () {
 			switch (Config::instance()->components['modules']['Plupload']['active']) {
 				case 1:

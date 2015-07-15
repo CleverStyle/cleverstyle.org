@@ -7,7 +7,7 @@
  * @license        MIT License, see license.txt
  */
 namespace	cs;
-Trigger::instance()->register(
+Event::instance()->on(
 	'System/Page/pre_display',
 	function () {
 		if (User::instance()->admin() || !in_array('Metrics', Config::instance()->components['plugins'])) {

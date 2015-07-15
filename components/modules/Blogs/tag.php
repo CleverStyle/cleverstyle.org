@@ -9,12 +9,12 @@
 namespace cs\modules\Blogs;
 use            h,
 	cs\Config,
-	cs\DB,
 	cs\Event,
 	cs\Index,
 	cs\Language,
 	cs\Page\Meta,
-	cs\Page;
+	cs\Page,
+	cs\Route;
 
 if (!Event::instance()->fire('Blogs/tag')) {
 	return;
@@ -23,7 +23,7 @@ if (!Event::instance()->fire('Blogs/tag')) {
 $Config = Config::instance();
 $Index  = Index::instance();
 $Page   = Page::instance();
-$rc     = array_slice($Config->route, 1);
+$rc     = array_slice(Route::instance()->route, 1);
 if (!isset($rc[0])) {
 	error_code(404);
 	return;

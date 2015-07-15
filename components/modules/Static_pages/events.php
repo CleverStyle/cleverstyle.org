@@ -12,9 +12,12 @@ use
 	cs\Event;
 Event::instance()
 	->on(
-		'System/Config/routing_replace',
+		'System/Route/routing_replace',
 		function ($data) {
-			if (!Config::instance()->module('Static_pages')->active() && substr($data['rc'], 0, 5) != 'admin') {
+			if (
+				substr($data['rc'], 0, 5) != 'admin' &&
+				!Config::instance()->module('Static_pages')->active()
+			) {
 				return;
 			}
 			$rc						= explode('/', $data['rc']);
@@ -34,7 +37,6 @@ Event::instance()
 				foreach ($categories as $category) {
 					if (isset($structure['categories'][$category])) {
 						$structure				= $structure['categories'][$category];
-						$path[]					= $structure['path'];
 					}
 				}
 				unset($category);

@@ -14,6 +14,7 @@ use
 	cs\Index,
 	cs\Language,
 	cs\Page,
+	cs\Route,
 	cs\User;
 
 if (!Event::instance()->fire('Blogs/edit_post')) {
@@ -25,14 +26,15 @@ $Config						= Config::instance();
 $module_data				= $Config->module('Blogs');
 $L							= Language::instance();
 $Page						= Page::instance();
+$Route						= Route::instance();
 $User						= User::instance();
 if ($module_data->new_posts_only_from_admins && !$User->admin()) {
 	error_code(403);
 	return;
 }
 if (
-	!isset($Config->route[1]) ||
-	!($post = $Blogs->get($Config->route[1]))
+	!isset($Route->route[1]) ||
+	!($post = $Blogs->get($Route->route[1]))
 ) {
 	error_code(404);
 	return;
@@ -78,7 +80,7 @@ if (isset($_POST['title'], $_POST['sections'], $_POST['content'], $_POST['tags']
 			if ($save) {
 				if ($Blogs->set($post['id'], $_POST['title'], null, $_POST['content'], $_POST['sections'], _trim(explode(',', $_POST['tags'])), $draft)) {
 					interface_off();
-					header('Location: '.$Config->base_url()."/$module/$post[path]:$post[id]");
+					_header('Location: '.$Config->base_url()."/$module/$post[path]:$post[id]");
 					return;
 				} else {
 					$Page->warning($L->post_saving_error);
@@ -88,7 +90,7 @@ if (isset($_POST['title'], $_POST['sections'], $_POST['content'], $_POST['tags']
 		case 'delete':
 			if ($Blogs->del($post['id'])) {
 				interface_off();
-				header('Location: '.$Config->base_url()."/$module");
+				_header('Location: '.$Config->base_url()."/$module");
 				return;
 			} else {
 				$Page->warning($L->post_deleting_error);
