@@ -653,11 +653,11 @@ function xap ($in, $html = 'text', $iframe = false) {
 	} elseif ($html === true) {
 		$in = preg_replace(
 			'/
-				<[^a-z=>]*(link|script|object|applet|embed)[^>]*>?	# Open tag
+				<[^a-z=>]*(link|script|object|applet|embed|[a-z0-9]+-[a-z0-9]+)[^>]*>?	# Open tag
 				(
-					.*												# Some content
-					<\/[^>]*\\1[^>]*>								# Close tag (with reference for tag name to open tag)
-				)?													# Section is optional
+					.*																	# Some content
+					<\/[^>]*\\1[^>]*>													# Close tag (with reference for tag name to open tag)
+				)?																		# Section is optional
 			/xims',
 			'',
 			$in
@@ -690,6 +690,21 @@ function xap ($in, $html = 'text', $iframe = false) {
 				'',
 				$in
 			);
+			$in = preg_replace_callback(
+				'/
+					<[^\/a-z=>]*iframe[^>]*>
+				/xims',
+				function ($matches) {
+					$result = preg_replace('/sandbox\s*=\s*([\'"])?[^\\1>]*\\1?/ims', '', $matches[0]);
+					$result = str_replace(
+						'>',
+						' sandbox="allow-same-origin allow-forms allow-popups allow-scripts">',
+						$result
+					);
+					return $result;
+				},
+				$in
+			);
 		}
 		$in = preg_replace(
 			'/(script|data|vbscript):/i',
@@ -702,7 +717,7 @@ function xap ($in, $html = 'text', $iframe = false) {
 			$in
 		);
 		$in = preg_replace(
-			'/<[^>]*\s(on[a-z]+|dynsrc|lowsrc|formaction)=[^>]*>?/ims',
+			'/<[^>]*\s(on[a-z]+|dynsrc|lowsrc|formaction|is)=[^>]*>?/ims',
 			'',
 			$in
 		);

@@ -109,10 +109,8 @@ class Page {
 	 * @return Page
 	 */
 	function json ($add) {
-		if (!api_path()) {
-			_header('Content-Type: application/json; charset=utf-8', true);
-			interface_off();
-		}
+		_header('Content-Type: application/json; charset=utf-8', true);
+		interface_off();
 		$this->Content	= _json_encode($add);
 		return $this;
 	}
@@ -426,9 +424,11 @@ class Page {
 	/**
 	 * Error pages processing
 	 *
-	 * @param null|string|string[]	$custom_text	Custom error text instead of text like "404 Not Found",
-	 * 												or array with two elements: [error, error_description]
-	 * @param bool					$json			Force JSON return format
+	 * @param null|string|string[] $custom_text       Custom error text instead of text like "404 Not Found",
+	 *                                                or array with two elements: [error, error_description]
+	 * @param bool                 $json              Force JSON return format
+	 *
+	 * @throws \ExitException
 	 */
 	function error ($custom_text = null, $json = false) {
 		if ($this->error_showed) {
@@ -489,21 +489,14 @@ class Page {
 		}
 		$this->finish_called_once	= true;
 		/**
-		 * Check whether gzip compression required, and apply it if so
-		 */
-		$ob		= false;
-		if (Config::instance(true)->core['gzip_compression'] && !zlib_compression()) {
-			ob_start('ob_gzhandler');
-			$ob = true;
-		}
-		/**
 		 * For AJAX and API requests only content without page template
 		 */
-		if (!$this->interface) {
+		$api = api_path();
+		if ($api || !$this->interface) {
 			/**
 			 * Processing of replacing in content
 			 */
-			echo $this->process_replacing($this->Content ?: (api_path() ? 'null' : ''));
+			echo $this->process_replacing($this->Content ?: ($api ? 'null' : ''));
 		} else {
 			Event::instance()->fire('System/Page/pre_display');
 			/**
@@ -516,9 +509,6 @@ class Page {
 			$this->Html = $this->process_replacing($this->Html);
 			Event::instance()->fire('System/Page/display');
 			echo rtrim($this->Html);
-		}
-		if ($ob) {
-			ob_end_flush();
 		}
 	}
 }

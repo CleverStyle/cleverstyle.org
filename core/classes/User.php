@@ -37,15 +37,6 @@
  *  	'id'		=> <i>user_id</i>,
  *  	'contacts'	=> <i>&$contacts</i>	//Array of user id
  *  ]
- *
- *  System/User/del_session/before
- *  ['id' => session_id]
- *
- *  System/User/del_session/after
- *  ['id' => session_id]
- *
- *  System/User/del_all_sessions
- *  ['id'	=> <i>user_id</i>]
  */
 namespace	cs;
 use
@@ -55,8 +46,7 @@ use
 	cs\User\Data as User_data,
 	cs\User\Group as User_group,
 	cs\User\Management as User_management,
-	cs\User\Permission as User_permission,
-	cs\User\Session as User_sessions;
+	cs\User\Permission as User_permission;
 /**
  * Class for users manipulating
  *
@@ -74,7 +64,7 @@ use
  * @property	string	$reg_key		random md5 hash, generated during registration
  * @property	int		$status			'-1' - not activated (for example after registration), 0 - inactive, 1 - active
  * @property	int		$block_until	unix timestamp
- * @property	int		$last_sign_in		unix timestamp
+ * @property	int		$last_sign_in	unix timestamp
  * @property	string	$last_ip		hex value, obtained by function ip2hex()
  * @property	int		$last_online	unix timestamp
  * @property	string	$avatar
@@ -89,8 +79,7 @@ class User {
 		User_data,
 		User_group,
 		User_management,
-		User_permission,
-		User_sessions;
+		User_permission;
 	/**
 	 * Id of system guest user
 	 */
@@ -123,26 +112,6 @@ class User {
 	 * Status of not activated user
 	 */
 	const		STATUS_NOT_ACTIVATED	= -1;
-	protected	$is_admin		= false;
-	protected	$is_user		= false;
-	protected	$is_bot			= false;
-	protected	$is_guest		= false;
-	protected	$is_system		= false;
-	/**
-	 * Id of current user
-	 * @var bool|int
-	 */
-	protected	$id				= false;
-	/**
-	 * Current state of initialization
-	 * @var bool
-	 */
-	protected	$init			= false;
-	/**
-	 * Copy of columns list of users table for internal needs without Cache usage
-	 * @var array
-	 */
-	protected	$users_columns	= [];
 	/**
 	 * @var Prefix
 	 */
@@ -155,16 +124,11 @@ class User {
 	protected function cdb () {
 		return Config::instance()->module('System')->db('users');
 	}
-	/**
-	 * Defining user id, type, session, personal settings
-	 */
-	function construct () {
-		$Cache	= $this->cache	= new Prefix('users');
+	protected function construct () {
+		$this->cache	= new Prefix('users');
 		$Config	= Config::instance();
 		Event::instance()->fire('System/User/construct/before');
-		$this->users_columns = $Cache->get('columns', function () {
-			return $this->db()->columns('[prefix]users');
-		});
+		$this->initialize_data();
 		if ($this->request_from_system($Config)) {
 			/**
 			 * No need to do anything else for system, just exit from constructor
@@ -172,134 +136,16 @@ class User {
 			return;
 		}
 		/**
-		 * If session exists
+		 * Initialize session
 		 */
-		if (_getcookie('session')) {
-			$this->id = $this->load_session();
-		/**
-		 * Try to detect bot, not necessary for API request
-		 */
-		} elseif (!api_path()) {
-			/**
-			 * Loading bots list
-			 */
-			$bots = $Cache->get('bots', function () {
-				return $this->db()->qfa([
-					"SELECT
-						`u`.`id`,
-						`u`.`login`,
-						`u`.`email`
-					FROM `[prefix]users` AS `u`
-						INNER JOIN `[prefix]users_groups` AS `g`
-					ON `u`.`id` = `g`.`id`
-					WHERE
-						`g`.`group`		= '%s' AND
-						`u`.`status`	= '%s'",
-					self::BOT_GROUP_ID,
-					self::STATUS_ACTIVE
-				]) ?: [];
-			});
-			/**
-			 * @var _SERVER $_SERVER
-			 */
-			/**
-			 * For bots: login is user agent, email is IP
-			 */
-			$bot_hash	= hash('sha224', $_SERVER->user_agent.$_SERVER->ip);
-			/**
-			 * If list is not empty - try to find bot
-			 */
-			if (is_array($bots) && !empty($bots)) {
-				/**
-				 * Load data
-				 */
-				$this->id = $Cache->$bot_hash;
-				if ($this->id === false) {
-					/**
-					 * If no data - try to find bot in list of known bots
-					 */
-					foreach ($bots as $bot) {
-						if (
-							$bot['login'] &&
-							(
-								strpos($_SERVER->user_agent, $bot['login']) !== false ||
-								_preg_match($bot['login'], $_SERVER->user_agent)
-							)
-						) {
-							$this->id	= $bot['id'];
-							break;
-						}
-						if (
-							$bot['email'] &&
-							(
-								$_SERVER->ip == $bot['email'] ||
-								_preg_match($bot['email'], $_SERVER->ip)
-							)
-						) {
-							$this->id	= $bot['id'];
-							break;
-						}
-					}
-					unset($bots, $bot, $login, $email);
-					/**
-					 * If found id - this is bot
-					 */
-					if ($this->id) {
-						$Cache->$bot_hash	= $this->id;
-						/**
-						 * Searching for last bot session, if exists - load it, otherwise create new one
-						 */
-						$last_session		= $this->get_data('last_session');
-						$id					= $this->id;
-						if ($last_session) {
-							$this->load_session($last_session);
-						}
-						if (!$last_session || $this->id == self::GUEST_ID) {
-							$this->add_session($id);
-							$this->set_data('last_session', $this->get_session_id());
-						}
-						unset($id, $last_session);
-					}
-				}
-			}
-			unset($bots, $bot_hash);
-		}
-		if (!$this->id) {
-			$this->id	= self::GUEST_ID;
-			/**
-			 * Do not create session for API request
-			 */
-			if (!api_path()) {
-				$this->add_session();
-			}
-		}
-		$this->update_user_is();
-		/**
-		 * If not guest - apply some individual settings
-		 */
-		if ($this->id != self::GUEST_ID) {
-			if ($this->timezone && date_default_timezone_get() != $this->timezone) {
-				date_default_timezone_set($this->timezone);
-			}
-			$L = Language::instance();
-			/**
-			 * Change language if configuration is multilingual and this is not page with localized url
-			 */
-			if ($Config->core['multilingual'] && !$L->url_language()) {
-				$L->change($this->language);
-			}
-		}
-		/**
-		 * Security check
-		 */
-		if (!isset($_REQUEST['session']) || $_REQUEST['session'] != $this->get_session_id()) {
-			foreach (array_keys((array)$_POST) as $key) {
-				unset($_POST[$key], $_REQUEST[$key]);
-			}
-		}
-		$this->init	= true;
+		Session::instance();
 		Event::instance()->fire('System/User/construct/after');
 	}
+	/**
+	 * Is used for `\cs\Core::api_request()`
+	 * @deprecated
+	 * @todo Remove in future versions
+	 */
 	protected function request_from_system ($Config) {
 		/**
 		 * @var _SERVER $_SERVER
@@ -328,7 +174,7 @@ class User {
 		 */
 		$key_data = Key::instance()->get(
 			$Config->module('System')->db('keys'),
-			$key = array_slice($rc, -1)[0],
+			array_slice($rc, -1)[0],
 			true
 		);
 		if (!is_array($key_data)) {
@@ -348,74 +194,6 @@ class User {
 		$this->sign_in_result(false, hash('sha224', 'system'));
 		unset($_POST['data']);
 		return false;
-	}
-	/**
-	 * Updates information about who is user accessed by methods ::guest() ::bot() ::user() admin() ::system()
-	 */
-	protected function update_user_is () {
-		$this->is_guest		= false;
-		$this->is_bot		= false;
-		$this->is_user		= false;
-		$this->is_admin		= false;
-		$this->is_system	= false;
-		if ($this->id == self::GUEST_ID) {
-			$this->is_guest = true;
-			return;
-		} else {
-			/**
-			 * Checking of user type
-			 */
-			$groups = $this->get_groups() ?: [];
-			if (in_array(self::ADMIN_GROUP_ID, $groups)) {
-				$this->is_admin	= Config::instance()->can_be_admin;
-				$this->is_user	= true;
-			} elseif (in_array(self::USER_GROUP_ID, $groups)) {
-				$this->is_user	= true;
-			} elseif (in_array(self::BOT_GROUP_ID, $groups)) {
-				$this->is_guest	= true;
-				$this->is_bot	= true;
-			}
-		}
-	}
-	/**
-	 * Is admin
-	 *
-	 * @return bool
-	 */
-	function admin () {
-		return $this->is_admin;
-	}
-	/**
-	 * Is user
-	 *
-	 * @return bool
-	 */
-	function user () {
-		return $this->is_user;
-	}
-	/**
-	 * Is guest
-	 *
-	 * @return bool
-	 */
-	function guest () {
-		return $this->is_guest;
-	}
-	/**
-	 * Is bot
-	 *
-	 * @return bool
-	 */
-	function bot () {
-		return $this->is_bot;
-	}
-	/**
-	 * Is system
-	 *
-	 * @return bool
-	 */
-	function system () {
-		return $this->is_system;
 	}
 	/**
 	 * Check number of sign in attempts (is used by system)
@@ -439,7 +217,8 @@ class User {
 			WHERE
 				`expire` > $time AND
 				(
-					`login_hash` = '%s' OR `ip` = '%s'
+					`login_hash`	= '%s' OR
+					`ip`			= '%s'
 				)",
 			$login_hash,
 			ip2hex($_SERVER->ip)
@@ -495,11 +274,212 @@ class User {
 		}
 	}
 	/**
-	 * Returns array of users columns, available for getting of data
+	 * Get data item of current user
 	 *
-	 * @return array
+	 * @param string|string[]		$item
+	 *
+	 * @return array|bool|string
 	 */
-	function get_users_columns () {
-		return $this->users_columns;
+	function __get ($item) {
+		if ($item == 'id') {
+			return Session::instance()->get_user();
+		}
+		return $this->get($item);
+	}
+	/**
+	 * Set data item of current user
+	 *
+	 * @param array|string	$item	Item-value array may be specified for setting several items at once
+	 * @param mixed|null	$value
+	 *
+	 * @return bool
+	 */
+	function __set ($item, $value = null) {
+		$this->set($item, $value);
+	}
+	/**
+	 * Is admin
+	 *
+	 * Proxy to \cs\Session::instance()->admin() for convenience
+	 *
+	 * @return bool
+	 */
+	function admin () {
+		return Session::instance()->admin();
+	}
+	/**
+	 * Is user
+	 *
+	 * Proxy to \cs\Session::instance()->user() for convenience
+	 *
+	 * @return bool
+	 */
+	function user () {
+		return Session::instance()->user();
+	}
+	/**
+	 * Is guest
+	 *
+	 * Proxy to \cs\Session::instance()->guest() for convenience
+	 *
+	 * @return bool
+	 */
+	function guest () {
+		return Session::instance()->guest();
+	}
+	/**
+	 * Is bot
+	 *
+	 * Proxy to \cs\Session::instance()->bot() for convenience
+	 *
+	 * @return bool
+	 */
+	function bot () {
+		return Session::instance()->bot();
+	}
+	/**
+	 * Is system
+	 *
+	 * @deprecated
+	 * @todo Remove in future versions
+	 *
+	 * Proxy to \cs\Session::instance()->system() for convenience
+	 *
+	 * @return bool
+	 */
+	function system () {
+		return Session::instance()->system();
+	}
+	/**
+	 * Returns id of current session
+	 *
+	 * @deprecated
+	 * @todo Remove in future versions
+	 *
+	 * @return bool|string
+	 */
+	function get_session_id () {
+		trigger_error('calling User::get_session_id() is deprecated, use Session::get_id() instead', E_USER_DEPRECATED);
+		return Session::instance()->get_id();
+	}
+	/**
+	 * Returns session details by session id
+	 *
+	 * @deprecated
+	 * @todo Remove in future versions
+	 *
+	 * @param null|string $session_id If `null` - loaded from `$this->session_id`, and if that also empty - from cookies
+	 *
+	 * @return bool|array
+	 */
+	function get_session ($session_id) {
+		trigger_error('calling User::get_session() without arguments is deprecated, use Session::get_session_id() instead', E_USER_DEPRECATED);
+		return Session::instance()->get($session_id);
+	}
+	/**
+	 * Load session by id and return id of session owner (user), updates last_sign_in, last_ip and last_online information
+	 *
+	 * @deprecated
+	 * @todo Remove in future versions
+	 *
+	 * @param null|string $session_id If not specified - loaded from `$this->session_id`, and if that also empty - from cookies
+	 *
+	 * @return int User id
+	 */
+	function load_session ($session_id = null) {
+		trigger_error('calling User::load_session() is deprecated, use Session::load() instead', E_USER_DEPRECATED);
+		return Session::instance()->load($session_id);
+	}
+	/**
+	 * Create the session for the user with specified id
+	 *
+	 * @deprecated
+	 * @todo Remove in future versions
+	 *
+	 * @param bool|int $user
+	 * @param bool     $delete_current_session
+	 *
+	 * @return bool
+	 */
+	function add_session ($user = false, $delete_current_session = true) {
+		trigger_error('calling User::add_session() is deprecated, use Session::add() instead', E_USER_DEPRECATED);
+		return Session::instance()->add($user, $delete_current_session);
+	}
+	/**
+	 * Destroying of the session
+	 *
+	 * @deprecated
+	 * @todo Remove in future versions
+	 *
+	 * @param null|string $session_id
+	 *
+	 * @return bool
+	 */
+	function del_session ($session_id = null) {
+		trigger_error('calling User::del_session() is deprecated, use Session::del() instead', E_USER_DEPRECATED);
+		return Session::instance()->del($session_id);
+	}
+	/**
+	 * Deletion of all user sessions
+	 *
+	 * @deprecated
+	 * @todo Remove in future versions
+	 *
+	 * @param bool|int $user If not specified - current user assumed
+	 *
+	 * @return bool
+	 */
+	function del_all_sessions ($user = false) {
+		trigger_error('calling User::del_all_sessions() is deprecated, use Session::del_all() instead', E_USER_DEPRECATED);
+		return Session::instance()->del_all($user);
+	}
+	/**
+	 * Get data, stored with session
+	 *
+	 * @deprecated
+	 * @todo Remove in future versions
+	 *
+	 * @param string      $item
+	 * @param null|string $session_id
+	 *
+	 * @return bool|mixed
+	 *
+	 */
+	function get_session_data ($item, $session_id = null) {
+		trigger_error('calling User::get_session_data() is deprecated, use Session::get_data() instead', E_USER_DEPRECATED);
+		return Session::instance()->get_data($item, $session_id);
+	}
+	/**
+	 * Store data with session
+	 *
+	 * @param string      $item
+	 * @param mixed       $value
+	 * @param null|string $session_id
+	 *
+	 * @return bool
+	 *
+	 */
+	function set_session_data ($item, $value, $session_id = null) {
+		trigger_error('calling User::set_session_data() is deprecated, use Session::set_data() instead', E_USER_DEPRECATED);
+		return Session::instance()->set_data($item, $value, $session_id);
+	}
+	/**
+	 * Delete data, stored with session
+	 *
+	 * @param string      $item
+	 * @param null|string $session_id
+	 *
+	 * @return bool
+	 *
+	 */
+	function del_session_data ($item, $session_id = null) {
+		trigger_error('calling User::del_session_data() is deprecated, use Session::del_data() instead', E_USER_DEPRECATED);
+		return Session::instance()->del_data($item, $session_id);
+	}
+	/**
+	 * Saving changes of cache and users data
+	 */
+	function __finish () {
+		$this->save_cache_and_user_data();
 	}
 }

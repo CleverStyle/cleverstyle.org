@@ -33,20 +33,25 @@ class Core {
 		defined('DEBUG') || define('DEBUG', false);
 		defined('DOMAIN') || define('DOMAIN', $this->config['domain']);
 		date_default_timezone_set($this->config['timezone']);
-		if (!is_dir(STORAGE)) {
-			@mkdir(STORAGE, 0775);
+		if (!is_dir(PUBLIC_STORAGE)) {
+			@mkdir(PUBLIC_STORAGE, 0775, true);
 			file_put_contents(
-				STORAGE.'/.htaccess',
-				'Allow From All'
+				PUBLIC_STORAGE.'/.htaccess',
+				'Allow From All
+<ifModule mod_headers.c>
+	Header always append X-Frame-Options DENY
+	Header set Content-Type application/octet-stream
+</ifModule>
+'
 			);
 		}
 		if (!is_dir(CACHE)) {
 			@mkdir(CACHE, 0770);
 		}
-		if (!is_dir(PCACHE)) {
-			@mkdir(PCACHE, 0770);
+		if (!is_dir(PUBLIC_CACHE)) {
+			@mkdir(PUBLIC_CACHE, 0770);
 			file_put_contents(
-				PCACHE.'/.htaccess',
+				PUBLIC_CACHE.'/.htaccess',
 				'<FilesMatch "\.(css|js|html)$">
 	Allow From All
 </FilesMatch>
@@ -70,7 +75,7 @@ AddEncoding gzip .html
 			@mkdir(TEMP, 0775);
 			file_put_contents(
 				TEMP.'/.htaccess',
-				'Allow From All'
+				"Allow From All\n"
 			);
 		}
 		/**
@@ -115,7 +120,6 @@ AddEncoding gzip .html
 					]
 				)
 			);
-			exit;
 		}
 		return file_get_json_nocomments(DIR.'/config/main.json');
 	}
@@ -161,6 +165,9 @@ AddEncoding gzip .html
 	}
 	/**
 	 * Sending system api request to all mirrors
+	 *
+	 * @deprecated
+	 * @todo Remove in future versions
 	 *
 	 * @param string	$path	Path for api request, for example <i>System/admin/setcookie<i>, where
 	 * 							<i>System</b> - module name, <i>admin/setcookie</b> - path to action file in current module api structure

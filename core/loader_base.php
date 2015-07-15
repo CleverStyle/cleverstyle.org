@@ -7,6 +7,8 @@
  */
 /**
  * Fallback for PHP 5.5 hashing functions, that are not present in PHP 5.4
+ *
+ * @todo Remove in future versions
  */
 if (!defined('PASSWORD_DEFAULT')) {
 	require DIR.'/core/thirdparty/password_compat.php';
@@ -53,25 +55,29 @@ define('MODULES', DIR.'/components/modules');
  */
 define('PLUGINS', DIR.'/components/plugins');
 /**
+ * General storage directory
+ */
+define('STORAGE', DIR.'/storage');
+/**
  * Local public storage for current domain
  */
-define('STORAGE', DIR.'/storage/public');
+define('PUBLIC_STORAGE', STORAGE.'/public');
 /**
  * Cache directory for current domain
  */
-define('CACHE', DIR.'/storage/cache');
+define('CACHE', STORAGE.'/cache');
 /**
  * Log directory for current domain
  */
-define('LOGS', DIR.'/storage/logs');
+define('LOGS', STORAGE.'/logs');
 /**
  * Temp directory for current domain
  */
-define('TEMP', DIR.'/storage/temp');
+define('TEMP', STORAGE.'/temp');
 /**
  * Directory with public cache (available from the outside)
  */
-define('PCACHE', DIR.'/storage/pcache');
+define('PUBLIC_CACHE', STORAGE.'/pcache');
 /**
  * Themes dir
  */

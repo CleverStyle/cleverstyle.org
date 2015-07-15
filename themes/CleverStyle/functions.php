@@ -28,7 +28,7 @@ function get_main_menu () {
 	/**
 	 * Administration item if allowed
 	 */
-	if ($User->admin() || ($Config->can_be_admin && $Config->core['ip_admin_list_only'])) {
+	if ($User->admin() || ($Config->can_be_admin() && $Config->core['ip_admin_list_only'])) {
 		$main_menu_items[] = h::a(
 			$L->administration,
 			[
@@ -50,9 +50,10 @@ function get_main_menu () {
 	 */
 	foreach ($Config->components['modules'] as $module => $module_data) {
 		if (
+			$module != 'System' &&
 			$module_data['active'] == 1 &&
 			$module != $Config->core['default_module'] &&
-			$module != 'System' &&
+			!@file_get_json(MODULES."/$module/meta.json")['hide_in_menu'] &&
 			$User->get_permission($module, 'index') &&
 			(
 				file_exists(MODULES."/$module/index.php") ||
