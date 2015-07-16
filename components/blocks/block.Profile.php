@@ -11,7 +11,7 @@ use			h;
 include_once THEMES.'/CleverStyle/functions.php';
 $content	= uniqid('Profile_block_');
 echo $content;
-Trigger::instance()->register(
+Event::instance()->on(
 	'System/Page/display',
 	function () use ($content) {
 		$Page		= Page::instance();
