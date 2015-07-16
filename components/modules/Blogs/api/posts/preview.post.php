@@ -1,10 +1,10 @@
 <?php
 /**
- * @package        Blogs
- * @category       modules
- * @author         Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright      Copyright (c) 2011-2015, Nazar Mokrynskyi
- * @license        MIT License, see license.txt
+ * @package   Blogs
+ * @category  modules
+ * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
+ * @copyright Copyright (c) 2011-2015, Nazar Mokrynskyi
+ * @license   MIT License, see license.txt
  */
 namespace cs\modules\Blogs;
 use
@@ -41,8 +41,9 @@ if (empty($_POST['tags'])) {
 	$Page->json($Page->Top);
 	return;
 }
-$Blogs       = Blogs::instance();
-$post        = isset($_POST['id']) ? $Blogs->get($_POST['id']) : [
+$Posts       = Posts::instance();
+$Sections    = Sections::instance();
+$post        = isset($_POST['id']) ? $Posts->get($_POST['id']) : [
 	'date'           => TIME,
 	'user'           => $User->id,
 	'comments_count' => 0
@@ -58,8 +59,8 @@ $Page->json(
 				implode(
 					', ',
 					array_map(
-						function ($section) use ($Blogs, $L, $module) {
-							$section = $Blogs->get_section($section);
+						function ($section) use ($Sections, $L, $module) {
+							$section = $Sections->get($section);
 							return h::a(
 								$section['title'],
 								[

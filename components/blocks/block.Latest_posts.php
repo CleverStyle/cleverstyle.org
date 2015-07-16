@@ -17,7 +17,7 @@ $module	= path($L->Blogs);
 /**
  * Show administration, new post, draft actions
  */
-$Blogs	= Blogs::instance();
+$Blogs	= Posts::instance();
 $cdb	= DB::instance()->{$Config->module('Blogs')->db('posts')};
 $posts	= $cdb->qfas(
 	"SELECT `id`

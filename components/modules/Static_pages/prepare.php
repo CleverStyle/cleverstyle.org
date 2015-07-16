@@ -16,38 +16,45 @@ use
 	cs\Page,
 	cs\Route,
 	cs\User;
-$Config       = Config::instance();
-$Index        = Index::instance();
-$L            = Language::instance();
-$Static_pages = Static_pages::instance();
-$page         = $Static_pages->get(
-	home_page() ? $Static_pages->get_structure()['pages']['index'] : Route::instance()->route[0]
+$Config     = Config::instance();
+$Index      = Index::instance();
+$L          = Language::instance();
+$Pages      = Pages::instance();
+$Categories = Categories::instance();
+$page       = $Pages->get(
+	home_page() ? $Pages->get_structure()['pages']['index'] : Route::instance()->route[0]
 );
-$Page         = Page::instance();
-$User         = User::instance();
+$Page       = Page::instance();
+$User       = User::instance();
 if (isset($_POST['save'])) {
-	if (!$User->get_permission('admin/Static_pages', 'edit_page')) {
+	if (!$User->get_permission('admin/Pages', 'edit_page')) {
 		error_code(403);
 		return;
 	}
 	$Index->save(
-		$Static_pages->set($page['id'], $page['category'], $_POST['title'], $page['path'], $_POST['content'], $page['interface'])
+		$Pages->set($page['id'], $page['category'], $_POST['title'], $page['path'], $_POST['content'], $page['interface'])
 	);
-	$page = $Static_pages->get($page['id']);
+	$page = $Pages->get($page['id']);
 }
 if ($page['interface']) {
 	if (!home_page()) {
 		$Page->Title[1] = $page['title'];
 	}
 	$Page->Description = description($page['content']);
-	$canonical_url     = $Config->base_url();
+	$Meta              = Meta::instance();
+	$Meta->article();
+	if (preg_match_all('/<img[^>]*src=[\'"]([^\'"]+)[\'"]/i', $page['content'], $images)) {
+		$Meta->image($images[1]);
+	}
+	unset($images);
+	$canonical_url = $Config->base_url();
 	if (home_page()) {
 		$Page->canonical_url($canonical_url);
 	} else {
 		$category      = $page['category'];
 		$canonical_url = [];
 		while ($category) {
-			$category        = $Static_pages->get_category($category);
+			$category        = $Categories->get($category);
 			$canonical_url[] = $category['path'];
 			$category        = $category['parent'];
 		}
@@ -56,7 +63,6 @@ if ($page['interface']) {
 		$canonical_url   = $Config->base_url().'/'.implode('/', $canonical_url);
 		$Page->canonical_url($canonical_url);
 	}
-	Meta::instance()->article();
 	$is_admin = $User->admin();
 	if (isset($_GET['edit'])) {
 		if (!$is_admin) {
@@ -103,8 +109,8 @@ if ($page['interface']) {
 		);
 	} else {
 		$Page->content(
-			h::p($is_admin
-				? h::{'a.uk-button'}(
+			h::p(
+				$is_admin ? h::{'a.uk-button'}(
 					[
 						h::icon('pencil'),
 						[
@@ -115,12 +121,11 @@ if ($page['interface']) {
 					[
 						h::icon('trash-o'),
 						[
-							'href'       => "admin/Static_pages/delete_page/$page[id]",
+							'href'       => "admin/Pages/delete_page/$page[id]",
 							'data-title' => $L->delete
 						]
 					]
-				)
-				: false
+				) : false
 			).
 			h::section($page['content'])
 		);

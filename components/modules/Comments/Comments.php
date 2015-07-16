@@ -262,7 +262,8 @@ class Comments {
 	 * @return int
 	 */
 	function count ($item) {
-		$L	= Language::instance();
+		$item = (int)$item;
+		$L    = Language::instance();
 		return $this->cache->get("$item/count/$L->clang", function () use ($item)  {
 			return $this->count_internal($this->tree_data($item)) ?: 0;
 		});
@@ -273,7 +274,7 @@ class Comments {
 		}
 		$count	= 0;
 		foreach ($data as &$d) {
-			$count	+= $this->count_internal($d['comments'], $count) + 1;
+			$count	+= $this->count_internal($d['comments']) + 1;
 		}
 		return $count;
 	}

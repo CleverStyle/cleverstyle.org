@@ -14,39 +14,38 @@ use
 	cs\Page,
 	cs\User;
 
-$Config = Config::instance();
-$L      = Language::instance();
-$Page   = Page::instance();
-$User   = User::instance();
-$title  = [
+$Config   = Config::instance();
+$L        = Language::instance();
+$Page     = Page::instance();
+$User     = User::instance();
+$title    = [
 	get_core_ml_text('name'),
 	$L->Blogs
 ];
-$Blogs  = Blogs::instance();
-$number = $Config->module('Blogs')->posts_per_page;
+$Posts    = Posts::instance();
+$Sections = Sections::instance();
+$Tags     = Tags::instance();
+$number   = $Config->module('Blogs')->posts_per_page;
 if (isset($_GET['section'])) {
-	$section = $Blogs->get_section($_GET['section']);
+	$section = $Sections->get($_GET['section']);
 	if (!$section) {
 		error_code(404);
 		return;
 	}
 	$title[] = $L->section;
 	$title[] = $section['title'];
-	$posts   = $Blogs->get_for_section($section['id'], 1, $number);
+	$posts   = $Posts->get_for_section($section['id'], 1, $number);
 } elseif (isset($_GET['tag'])) {
-	$tag = [
-		'id'   => (int)$_GET['tag'],
-		'text' => $Blogs->get_tag($_GET['tag'])
-	];
-	if (!$tag['text']) {
+	$tag = $Tags->get($_GET['tag']);
+	if (!$tag) {
 		error_code(404);
 		return;
 	}
 	$title[] = $L->tag;
 	$title[] = $tag['text'];
-	$posts   = $Blogs->get_for_tag($tag['id'], $L->clang, 1, $number);
+	$posts   = $Posts->get_for_tag($tag['id'], $L->clang, 1, $number);
 } else {
-	$posts = $Blogs->get_latest_posts(1, $number);
+	$posts = $Posts->get_latest_posts(1, $number);
 }
 $title[]  = $L->latest_posts;
 $title    = implode($Config->core['title_delimiter'], $title);
@@ -63,6 +62,7 @@ function get_favicon_path ($theme) {
 	}
 	return 'favicon.ico';
 }
+
 /**
  * @var \cs\_SERVER $_SERVER
  */
@@ -71,43 +71,65 @@ $Page->content(
 	h::feed(
 		h::title($title).
 		h::id($Config->core_url().$_SERVER->request_uri).
-		str_replace('>', '/>', h::link([
-			'href' => $Config->core_url().$_SERVER->request_uri,
-			'rel'  => 'self'
-		])).
+		str_replace(
+			'>',
+			'/>',
+			h::link(
+				[
+					'href' => $Config->core_url().$_SERVER->request_uri,
+					'rel'  => 'self'
+				]
+			)
+		).
 		h::updated(date('c')).
 		'<icon>'.get_favicon_path($Config->core['theme'])."</icon>\n".
-		h::entry(array_map(function ($post) use ($Blogs, $User, $base_url) {
-			$post = $Blogs->get($post);
-			return
-				h::title($post['title']).
-				h::id("$base_url/Blogs/:$post[id]").
-				h::updated(date('c', $post['date'])).
-				h::published(date('c', $post['date'])).
-				str_replace('>', '/>', h::link([
-					'href' => "$base_url/Blogs/:$post[id]"
-				])).
-				h::{'author name'}($User->username($post['user'])).
-				h::category($post['sections'] == ['0'] ? false : array_map(function ($category) {
-					return [
-						'term'  => h::prepare_attr_value($category['title']),
-						'label' => h::prepare_attr_value($category['title']),
-						'level' => 0
-					];
-				}, $Blogs->get_section($post['sections']))).
-				h::summary(
-					htmlentities($post['short_content']),
-					[
-						'type' => 'html'
-					]
-				).
-				h::content(
-					htmlentities($post['content']),
-					[
-						'type' => 'html'
-					]
-				);
-		}, $posts ?: [])),
+		h::entry(
+			array_map(
+				function ($post) use ($Posts, $Sections, $User, $base_url) {
+					$post = $Posts->get($post);
+					return
+						h::title($post['title']).
+						h::id("$base_url/Blogs/:$post[id]").
+						h::updated(date('c', $post['date'])).
+						h::published(date('c', $post['date'])).
+						str_replace(
+							'>',
+							'/>',
+							h::link(
+								[
+									'href' => "$base_url/Blogs/:$post[id]"
+								]
+							)
+						).
+						h::{'author name'}($User->username($post['user'])).
+						h::category(
+							$post['sections'] == ['0'] ? false : array_map(
+								function ($category) {
+									return [
+										'term'  => h::prepare_attr_value($category['title']),
+										'label' => h::prepare_attr_value($category['title']),
+										'level' => 0
+									];
+								},
+								$Sections->get($post['sections'])
+							)
+						).
+						h::summary(
+							htmlentities($post['short_content']),
+							[
+								'type' => 'html'
+							]
+						).
+						h::content(
+							htmlentities($post['content']),
+							[
+								'type' => 'html'
+							]
+						);
+				},
+				$posts ?: []
+			)
+		),
 		[
 			'xmlns'    => 'http://www.w3.org/2005/Atom',
 			'xml:lang' => $L->clang,

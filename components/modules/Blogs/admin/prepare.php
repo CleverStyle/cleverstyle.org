@@ -18,7 +18,7 @@ function get_sections_rows ($structure = null, $level = 0, &$content = null) {
 	$root		= false;
 	$module		= path($L->Blogs);
 	if ($structure === null) {
-		$structure			= Blogs::instance()->get_sections_structure();
+		$structure			= Sections::instance()->get_structure();
 		$structure['title']	= $L->root_section;
 		$root				= true;
 		$content			= [];
@@ -74,39 +74,13 @@ function get_sections_rows ($structure = null, $level = 0, &$content = null) {
 	}
 	return [$content];
 }
-function get_sections_select_post (&$disabled, $current = null, $structure = null, $level = 0) {
-	$list	= [
-		'in'	=> [],
-		'value'	=> []
-	];
-	if ($structure === null) {
-		$structure			= Blogs::instance()->get_sections_structure();
-		$list['in'][]		= Language::instance()->root_section;
-		$list['value'][]	= 0;
-	} else {
-		if ($structure['id'] == $current) {
-			return $list;
-		}
-		$list['in'][]		= str_repeat('&nbsp;', $level).$structure['title'];
-		$list['value'][]	= $structure['id'];
-	}
-	if (!empty($structure['sections'])) {
-		$disabled[]			= $structure['id'];
-		foreach ($structure['sections'] as $section) {
-			$tmp			= get_sections_select_post($disabled, $current, $section, $level+1);
-			$list['in']		= array_merge($list['in'], $tmp['in']);
-			$list['value']	= array_merge($list['value'], $tmp['value']);
-		}
-	}
-	return $list;
-}
 function get_sections_select_section ($current = null, $structure = null, $level = 0) {
 	$list	= [
 		'in'	=> [],
 		'value'	=> []
 	];
 	if ($structure === null) {
-		$structure			= Blogs::instance()->get_sections_structure();
+		$structure			= Sections::instance()->get_structure();
 		$list['in'][]		= Language::instance()->root_section;
 		$list['value'][]	= 0;
 	} else {
@@ -126,7 +100,8 @@ function get_sections_select_section ($current = null, $structure = null, $level
 	return $list;
 }
 function get_posts_rows ($page = 1) {
-	$Blogs		= Blogs::instance();
+	$Posts		= Posts::instance();
+	$Sections	= Sections::instance();
 	$Config		= Config::instance();
 	$L			= Language::instance();
 	$User		= User::instance();
@@ -145,9 +120,9 @@ function get_posts_rows ($page = 1) {
 	$content	= [];
 	if ($posts) {
 		foreach ($posts as $post) {
-			$post		= $Blogs->get($post);
+			$post		= $Posts->get($post);
 			foreach ($post['sections'] as &$section) {
-				$section	= $section ? $Blogs->get_section($section) : [
+				$section	= $section ? $Sections->get($section) : [
 					'title'	=> $L->root_section
 				];
 				$section	= h::a(
@@ -177,7 +152,7 @@ function get_posts_rows ($page = 1) {
 								]
 							);
 						},
-						$Blogs->get_tag($post['tags'])
+						$post['tags']
 					)
 				),
 				h::a(
@@ -192,7 +167,7 @@ function get_posts_rows ($page = 1) {
 					[
 						h::icon('pencil'),
 						[
-							'href'			=> "admin/Blogs/edit_post/$post[id]",
+							'href'			=> "Blogs/edit_post/$post[id]",
 							'data-title'	=> $L->edit
 						]
 					],
