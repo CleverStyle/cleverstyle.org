@@ -11,9 +11,7 @@
 	document.head.querySelectorAll('.cs-config')
 	(config) ->
 		target		= config.getAttribute('target').split('.')
-		data		= JSON.parse(
-			config.innerHTML.substring(4, config.innerHTML.length - 3).replace('-  ', '-', 'g')
-		)
+		data		= JSON.parse(config.innerHTML)
 		destination	= window
 		target.forEach (target_part, i) ->
 			if target_part != 'window'
@@ -31,3 +29,16 @@
 			return
 		return
 )
+L	= cs.Language
+for own key, translation of L
+	L[key]		= (do (translation) ->
+		result	= ->
+			vsprintf(translation, Array::slice.call(arguments))
+		result.toString	= ->
+			translation
+		result
+	)
+L.get		= (key) ->
+	L[key].toString()
+L.format	= (key) ->
+	vsprintf(L[key].toString(), Array::slice.call(arguments, 1))

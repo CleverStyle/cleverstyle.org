@@ -325,168 +325,227 @@ function get_core_ml_text ($item) {
 	}
 	return Text::instance()->process($Config->module('System')->db('texts'), $Config->core[$item], true);
 }
+
+if (!function_exists('code_header')) {
+	/**
+	 * Sends header with string representation of http status code, for example "404 Not Found" for corresponding server protocol
+	 *
+	 * @deprecated
+	 * @todo remove in future versions
+	 *
+	 * @param int $code Status code
+	 *
+	 * @return null|string String representation of status code code
+	 */
+	function code_header ($code) {
+		return status_code($code);
+	}
+}
+
+/**
+ * Sends header with string representation of http status code, for example "404 Not Found" for corresponding server protocol
+ *
+ * @param int $code Status code
+ *
+ * @return null|string String representation of status code code
+ */
+function status_code ($code) {
+	$string_code = status_code_string($code);
+	if (!$string_code) {
+		return null;
+	}
+	_header("$_SERVER[SERVER_PROTOCOL] $string_code", true, (int)$code);
+	return $string_code;
+}
+
+/**
+ * String representation of HTTP status code
+ *
+ * @param int $code
+ *
+ * @return null|string
+ */
+function status_code_string ($code){
+	switch ($code) {
+		case 201:
+			$string_code = '201 Created';
+			break;
+		case 202:
+			$string_code = '202 Accepted';
+			break;
+		case 301:
+			$string_code = '301 Moved Permanently';
+			break;
+		case 302:
+			$string_code = '302 Found';
+			break;
+		case 303:
+			$string_code = '303 See Other';
+			break;
+		case 307:
+			$string_code = '307 Temporary Redirect';
+			break;
+		case 400:
+			$string_code = '400 Bad Request';
+			break;
+		case 403:
+			$string_code = '403 Forbidden';
+			break;
+		case 404:
+			$string_code = '404 Not Found';
+			break;
+		case 405:
+			$string_code = '405 Method Not Allowed';
+			break;
+		case 409:
+			$string_code = '409 Conflict';
+			break;
+		case 429:
+			$string_code = '429 Too Many Requests';
+			break;
+		case 500:
+			$string_code = '500 Internal Server Error';
+			break;
+		case 501:
+			$string_code = '501 Not Implemented';
+			break;
+		case 503:
+			$string_code = '503 Service Unavailable';
+			break;
+		default:
+			return null;
+	}
+	return $string_code;
+}
+
 /**
  * Pages navigation based on links
  *
- * @param int				$page		Current page
- * @param int				$total		Total pages number
- * @param callable|string	$url		if string - it will be formatted with sprintf with one parameter - page number<br>
- * 										if callable - one parameter will be given, callable should return url string
- * @param bool				$head_links	If <b>true</b> - links with rel="prev" and rel="next" will be added
+ * @param int             $page       Current page
+ * @param int             $total      Total pages number
+ * @param callable|string $url        if string - it will be formatted with sprintf with one parameter - page number<br>
+ *                                    if callable - one parameter will be given, callable should return url string
+ * @param bool            $head_links If <b>true</b> - links with rel="prev" and rel="next" will be added
  *
- * @return bool|string					<b>false</b> if single page, otherwise string, set of navigation links
+ * @return bool|string <b>false</b> if single page, otherwise string, set of navigation links
  */
 function pages ($page, $total, $url, $head_links = false) {
 	if ($total == 1) {
 		return false;
 	}
-	$Page	= Page::instance();
-	$output	= [];
+	$Page   = Page::instance();
+	$output = [];
 	if (is_callable($url)) {
-		$url_func	= $url;
+		$url_func = $url;
 	} else {
-		$original_url	= $url;
-		$url_func		= function ($page) use ($original_url) {
+		$original_url = $url;
+		$url_func     = function ($page) use ($original_url) {
 			return sprintf($original_url, $page);
 		};
 	}
-	$base_url	= Config::instance()->base_url();
-	$url		= function ($page) use ($url_func, $base_url) {
-		$url	= $url_func($page);
+	$base_url          = Config::instance()->base_url();
+	$url               = function ($page) use ($url_func, $base_url) {
+		$url = $url_func($page);
 		if (is_string($url) && strpos($url, 'http') !== 0) {
-			$url	= $base_url.'/'.ltrim($url, '/');
+			$url = ltrim($url, '/');
+			$url = "$base_url/$url";
 		}
 		return $url;
 	};
+	$render_head_links = function ($i) use ($Page, $page, $url) {
+		$href = is_callable($url) ? $url($i) : sprintf($url, $i);
+		switch ($i) {
+			case $page - 1:
+				$rel = 'prev';
+				break;
+			case $page + 1:
+				$rel = 'next';
+				break;
+			case $page:
+				$Page->canonical_url($href);
+			/**
+			 * This is not a mistake, break is not needed here
+			 */
+			default:
+				return;
+		}
+		$Page->link(
+			[
+				'href' => $href,
+				'rel'  => $rel
+			]
+		);
+	};
+	$render_page_item  = function ($i) use ($page, $url, $head_links, $render_head_links) {
+		if ($head_links) {
+			$render_head_links($i);
+		}
+		return [
+			$i,
+			[
+				'href'  => $i == $page ? false : $url($i),
+				'class' => $i == $page ? 'uk-button uk-button-primary uk-frozen' : 'uk-button'
+			]
+		];
+	};
 	if ($total <= 11) {
 		for ($i = 1; $i <= $total; ++$i) {
-			$output[]	= [
-				$i,
-				[
-					'href'	=> $i == $page ? false : $url($i),
-					'class'	=> $i == $page ? 'uk-button uk-button-primary uk-frozen' : 'uk-button'
-				]
-			];
-			if ($head_links && ($i == $page - 1 || $i == $page + 1)) {
-				$Page->link([
-					'href'	=> is_callable($url) ? $url($i) : sprintf($url, $i),
-					'rel'	=> $i == $page - 1 ? 'prev' : ($i == $page + 1 ? 'next' : false)
-				]);
-			}
+			$output[] = $render_page_item($i);
 		}
 	} else {
 		if ($page <= 5) {
 			for ($i = 1; $i <= 7; ++$i) {
-				$output[]	= [
-					$i,
-					[
-						'href'	=> $i == $page ? false : $url($i),
-						'class'	=> $i == $page ? 'uk-button uk-button-primary uk-frozen' : 'uk-button'
-					]
-				];
-				if ($head_links&& ($i == $page - 1 || $i == $page + 1)) {
-					$Page->link([
-						'href'	=> is_callable($url) ? $url($i) : sprintf($url, $i),
-						'rel'	=> $i == $page - 1 ? 'prev' : ($i == $page + 1 ? 'next' : false)
-					]);
-				}
+				$output[] = $render_page_item($i);
 			}
-			$output[]	= [
+			$output[] = [
 				'...',
 				[
-					'class'	=> 'uk-button uk-frozen'
+					'class' => 'uk-button uk-frozen'
 				]
 			];
 			for ($i = $total - 2; $i <= $total; ++$i) {
-				$output[]	= [
-					$i,
-					[
-						'href'	=> is_callable($url) ? $url($i) : sprintf($url, $i),
-						'class'	=> 'uk-button'
-					]
-				];
+				$output[] = $render_page_item($i);
 			}
 		} elseif ($page >= $total - 4) {
 			for ($i = 1; $i <= 3; ++$i) {
-				$output[]	= [
-					$i,
-					[
-						'href'	=> is_callable($url) ? $url($i) : sprintf($url, $i),
-						'class'	=> 'uk-button'
-					]
-				];
+				$output[] = $render_page_item($i);
 			}
-			$output[]	= [
+			$output[] = [
 				'...',
 				[
-					'class'	=> 'uk-button uk-frozen'
+					'class' => 'uk-button uk-frozen'
 				]
 			];
 			for ($i = $total - 6; $i <= $total; ++$i) {
-				$output[]	= [
-					$i,
-					[
-						'href'	=> $i == $page ? false : $url($i),
-						'class'	=> $i == $page ? 'uk-button uk-button-primary uk-frozen' : 'uk-button'
-					]
-				];
-				if ($head_links && ($i == $page - 1 || $i == $page + 1)) {
-					$Page->link([
-						'href'	=> is_callable($url) ? $url($i) : sprintf($url, $i),
-						'rel'	=> $i == $page - 1 ? 'prev' : ($i == $page + 1 ? 'next' : false)
-					]);
-				}
+				$output[] = $render_page_item($i);
 			}
 		} else {
 			for ($i = 1; $i <= 2; ++$i) {
-				$output[]	= [
-					$i,
-					[
-						'href'	=> is_callable($url) ? $url($i) : sprintf($url, $i),
-						'class'	=> 'uk-button'
-					]
-				];
+				$output[] = $render_page_item($i);
 			}
-			$output[]	= [
+			$output[] = [
 				'...',
 				[
-					'class'	=> 'uk-button uk-frozen'
+					'class' => 'uk-button uk-frozen'
 				]
 			];
 			for ($i = $page - 1; $i <= $page + 3; ++$i) {
-				$output[]	= [
-					$i,
-					[
-						'href'	=> $i == $page ? false : $url($i),
-						'class'	=> $i == $page ? 'uk-button uk-button-primary uk-frozen' : 'uk-button'
-					]
-				];
-				if ($head_links && ($i == $page - 1 || $i == $page + 1)) {
-					$Page->link([
-						'href'	=> is_callable($url) ? $url($i) : sprintf($url, $i),
-						'rel'	=> $i == $page - 1 ? 'prev' : ($i == $page + 1 ? 'next' : false)
-					]);
-				}
+				$output[] = $render_page_item($i);
 			}
-			$output[]	= [
+			$output[] = [
 				'...',
 				[
-					'class'	=> 'uk-button uk-frozen'
+					'class' => 'uk-button uk-frozen'
 				]
 			];
 			for ($i = $total - 1; $i <= $total; ++$i) {
-				$output[]	= [
-					$i,
-					[
-						'href'	=> is_callable($url) ? $url($i) : sprintf($url, $i),
-						'class'	=> 'uk-button'
-					]
-				];
+				$output[] = $render_page_item($i);
 			}
 		}
 	}
 	return h::a($output);
 }
+
 /**
  * Pages navigation based on buttons (for search forms, etc.)
  *
@@ -631,55 +690,50 @@ function pages_buttons ($page, $total, $url = false) {
 	}
 	return h::{'button.uk-button[name=page]'}($output);
 }
+
 /**
  * Checks whether specified functionality available or not
  *
- * @param string|string[]	$functionality	One functionality or array of them
+ * @param string|string[] $functionality One functionality or array of them
  *
- * @return bool								<i>true</i> if all functionality available, <i>false</i> otherwise
+ * @return bool `true` if all functionality available, `false` otherwise
  */
 function functionality ($functionality) {
 	if (is_array($functionality)) {
-		$result	= true;
+		$result = true;
 		foreach ($functionality as $f) {
-			$result	= $result && functionality($f);
+			$result = $result && functionality($f);
 		}
 		return $result;
 	}
-	$all	= Cache::instance()->get("functionality", function () {
-		$functionality	= [];
-		$components		= Config::instance()->components;
-		foreach ($components['modules'] as $module => $module_data) {
-			if ($module_data['active'] != 1 || !file_exists(MODULES."/$module/meta.json")) {
-				continue;
+	$all = Cache::instance()->get(
+		"functionality",
+		function () {
+			$functionality = [];
+			$components    = Config::instance()->components;
+			foreach ($components['modules'] as $module => $module_data) {
+				if ($module_data['active'] != 1 || !file_exists(MODULES."/$module/meta.json")) {
+					continue;
+				}
+				$functionality[] = [$module];
+				$meta            = file_get_json(MODULES."/$module/meta.json");
+				if (isset($meta['provide'])) {
+					$functionality[] = (array)$meta['provide'];
+				}
 			}
-			$meta			= file_get_json(MODULES."/$module/meta.json");
-			if (!isset($meta['provide'])) {
-				continue;
+			foreach ($components['plugins'] as $plugin) {
+				if (!file_exists(PLUGINS."/$plugin/meta.json")) {
+					continue;
+				}
+				$functionality[] = [$plugin];
+				$meta            = file_get_json(PLUGINS."/$plugin/meta.json");
+				if (isset($meta['provide'])) {
+					$functionality[] = (array)$meta['provide'];
+				}
 			}
-			/** @noinspection SlowArrayOperationsInLoopInspection */
-			$functionality	= array_merge(
-				$functionality,
-				(array)$meta['provide']
-			);
+			return call_user_func_array('array_merge', $functionality);
 		}
-		unset($module, $module_data, $meta);
-		foreach ($components['plugins'] as $plugin) {
-			if (!file_exists(PLUGINS."/$plugin/meta.json")) {
-				continue;
-			}
-			$meta			= file_get_json(PLUGINS."/$plugin/meta.json");
-			if (!isset($meta['provide'])) {
-				continue;
-			}
-			/** @noinspection SlowArrayOperationsInLoopInspection */
-			$functionality	= array_merge(
-				$functionality,
-				(array)$meta['provide']
-			);
-		}
-		return $functionality;
-	});
+	);
 	return in_array($functionality, $all);
 }
 /**

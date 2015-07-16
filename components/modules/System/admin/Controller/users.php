@@ -22,9 +22,11 @@ use
 
 trait users {
 	static function users_general () {
-		$Config = Config::instance();
-		$L      = Language::instance();
-		Index::instance()->content(
+		$Config              = Config::instance();
+		$Index               = Index::instance();
+		$L                   = Language::instance();
+		$Index->apply_button = true;
+		$Index->content(
 			static::vertical_table(
 				static::core_input('session_expire', 'number', null, false, 1, false, $L->seconds),
 				static::core_input('online_time', 'number', null, false, 1, false, $L->seconds),
@@ -107,7 +109,6 @@ trait users {
 		);
 	}
 	static function users_groups () {
-		$Config = Config::instance();
 		$L      = Language::instance();
 		$Page   = Page::instance();
 		$Group  = Group::instance();
@@ -116,7 +117,6 @@ trait users {
 		if (isset($rc[2])) {
 			switch ($rc[2]) {
 				case 'add':
-					$a->apply_button       = false;
 					$a->cancel_button_back = true;
 					$Page->title($L->adding_a_group);
 					$a->content(
@@ -139,7 +139,6 @@ trait users {
 					if (!isset($rc[3])) {
 						break;
 					}
-					$a->apply_button       = false;
 					$a->cancel_button_back = true;
 					$group_data            = $Group->get($rc[3]);
 					$Page->title(
@@ -211,64 +210,13 @@ trait users {
 					if (!isset($rc[3])) {
 						break;
 					}
-					$a->apply_button       = false;
 					$a->cancel_button_back = true;
-					$permissions           = Permission::instance()->get_all();
-					$group_permissions     = $Group->get_permissions($rc[3]);
-					$tabs                  = [];
-					$tabs_content          = '';
-					$blocks                = [];
-					foreach ($Config->components['blocks'] as $block) {
-						$blocks[$block['index']] = $block['title'];
-					}
-					unset($block);
-					foreach ($permissions as $group => $list) {
-						$tabs[]  = h::a(
-							$group,
-							[
-								'href' => '#permissions_group_'.strtr($group, '/', '_')
-							]
-						);
-						$content = [];
-						foreach ($list as $label => $id) {
-							$content[] = h::cs_table_cell(
-								$group == 'Block' ? Text::instance()->process($Config->module('System')->db('texts'), $blocks[$label]) : $label,
-								h::radio(
-									[
-										'name'    => "permission[$id]",
-										'checked' => isset($group_permissions[$id]) ? $group_permissions[$id] : -1,
-										'value'   => [-1, 0, 1],
-										'in'      => [$L->not_specified, $L->deny, $L->allow]
-									]
-								)
-							);
-						}
-						if (count($list) % 2) {
-							$content[] = h::cs_table_cell().h::cs_table_cell();
-						}
-						$count    = count($content);
-						$content_ = [];
-						for ($i = 0; $i < $count; $i += 2) {
-							$content_[] = $content[$i].$content[$i + 1];
-						}
-						$tabs_content .= h::div(
-							h::{'p.cs-left'}(
-								h::{'button.uk-button.cs-permissions-invert'}($L->invert).
-								h::{'button.uk-button.cs-permissions-deny-all'}($L->deny_all).
-								h::{'button.uk-button.cs-permissions-allow-all'}($L->allow_all)
-							).
-							h::{'cs-table[right-left] cs-table-row'}($content_),
-							[
-								'id' => 'permissions_group_'.strtr($group, '/', '_')
-							]
-						);
-					}
-					unset($content, $content_, $count, $i, $permissions, $group, $list, $label, $id, $blocks);
 					$Page->title(
 						$L->permissions_for_group(
 							$Group->get($rc[3], 'title')
 						)
 					);
+					list ($tabs, $tabs_content) = static::render_permissions_form($Group->get_permissions($rc[3]) ?: []);
 					$a->content(
 						h::{'h2.cs-center'}(
 							$L->permissions_for_group(
@@ -349,10 +297,79 @@ trait users {
 			);
 		}
 	}
+	/**
+	 * @param array $current_permissions
+	 * @param bool  $for_user
+	 *
+	 * @return array
+	 */
+	static function render_permissions_form ($current_permissions, $for_user = false) {
+		$Config       = Config::instance();
+		$L            = Language::instance();
+		$permissions  = Permission::instance()->get_all();
+		$tabs         = [];
+		$tabs_content = '';
+		$blocks       = [];
+		foreach ($Config->components['blocks'] as $block) {
+			$blocks[$block['index']] = $block['title'];
+		}
+		unset($block);
+		foreach ($permissions as $group => $list) {
+			$tabs[]  = h::a(
+				$group,
+				[
+					'href' => '#permissions_group_'.strtr($group, '/', '_')
+				]
+			);
+			$content = [];
+			foreach ($list as $label => $id) {
+				$content[] = h::cs_table_cell(
+					$group == 'Block' ? Text::instance()->process($Config->module('System')->db('texts'), $blocks[$label]) : $label,
+					h::radio(
+						[
+							'name'    => "permission[$id]",
+							'checked' => isset($current_permissions[$id]) ? $current_permissions[$id] : -1,
+							'value'   => [-1, 0, 1],
+							'in'      => [
+								$for_user ? $L->inherited.' ('.(isset($user_permissions[$id]) && !$user_permissions[$id] ? '-' : '+').')' : $L->not_specified,
+								$L->deny,
+								$L->allow
+							]
+						]
+					)
+				);
+			}
+			if (count($list) % 2) {
+				$content[] = h::cs_table_cell().h::cs_table_cell();
+			}
+			$count    = count($content);
+			$content_ = [];
+			for ($i = 0; $i < $count; $i += 2) {
+				$content_[] = $content[$i].$content[$i + 1];
+			}
+			$tabs_content .= h::div(
+				h::{'p.cs-left'}(
+					h::{'button.uk-button.cs-permissions-invert'}($L->invert).
+					h::{'button.uk-button.cs-permissions-deny-all'}($L->deny_all).
+					h::{'button.uk-button.cs-permissions-allow-all'}($L->allow_all)
+				).
+				h::{'cs-table[right-left] cs-table-row'}($content_),
+				[
+					'id' => 'permissions_group_'.strtr($group, '/', '_')
+				]
+			);
+		}
+		return [
+			$tabs,
+			$tabs_content
+		];
+	}
 	static function users_mail () {
-		$Config = Config::instance();
-		$L      = Language::instance();
-		Index::instance()->content(
+		$Config              = Config::instance();
+		$Index               = Index::instance();
+		$L                   = Language::instance();
+		$Index->apply_button = true;
+		$Index->content(
 			static::vertical_table(
 				[
 					[
@@ -363,7 +380,7 @@ trait users {
 								'checked' => $Config->core['smtp'],
 								'value'   => [0, 1],
 								'in'      => [$L->off, $L->on],
-								'OnClick' => ["$('#smtp_form').parent().parent().hide();", "$('#smtp_form').parent().parent().show();"]
+								'OnClick' => ["$('#smtp_form').parent().parent().children().hide();", "$('#smtp_form').parent().parent().children().show();"]
 							]
 						)
 					],
@@ -449,7 +466,6 @@ trait users {
 		if (isset($rc[2])) {
 			switch ($rc[2]) {
 				case 'add':
-					$a->apply_button       = false;
 					$a->cancel_button_back = true;
 					$Page->title($L->adding_permission);
 					$a->content(
@@ -472,7 +488,6 @@ trait users {
 					if (!isset($rc[3])) {
 						break;
 					}
-					$a->apply_button       = false;
 					$a->cancel_button_back = true;
 					$permission            = $Permission->get($rc[3]);
 					$Page->title(
@@ -606,11 +621,13 @@ trait users {
 	}
 	static function users_security () {
 		$Config = Config::instance();
+		$Index  = Index::instance();
 		$L      = Language::instance();
 		/**
 		 * @var \cs\_SERVER $_SERVER
 		 */
-		Index::instance()->content(
+		$Index->apply_button = true;
+		$Index->content(
 			static::vertical_table(
 				[
 					[
@@ -671,7 +688,6 @@ trait users {
 			$is_bot = in_array(3, (array)$User->get_groups($rc[3]));
 			switch ($rc[2]) {
 				case 'add':
-					$a->apply_button       = false;
 					$a->cancel_button_back = true;
 					$Page->title($L->adding_a_user);
 					$a->content(
@@ -687,7 +703,6 @@ trait users {
 					);
 					break;
 				case 'add_bot':
-					$a->apply_button       = false;
 					$a->cancel_button_back = true;
 					$Page->title($L->adding_a_bot);
 					$a->content(
@@ -716,7 +731,6 @@ trait users {
 					if ($is_bot || $rc[3] == User::GUEST_ID || $rc[3] == User::ROOT_ID) {
 						break;
 					}
-					$a->apply_button       = false;
 					$a->cancel_button_back = true;
 					$content               = $content_ = '';
 					$user_data             = $User->get($search_columns, $rc[3]);
@@ -764,7 +778,6 @@ trait users {
 					);
 					break;
 				case 'edit':
-					$a->apply_button       = false;
 					$a->cancel_button_back = true;
 					if (!$is_bot) {
 						if ($rc[3] == User::GUEST_ID || $rc[3] == User::ROOT_ID) {
@@ -801,123 +814,123 @@ trait users {
 								)
 							).
 							static::vertical_table(
-									[
-										'id',
-										$rc[3]
-									],
-									[
-										$L->registration_date,
-										$user_data['reg_date'] ? date($L->_date, $user_data['reg_date']) : $L->undefined
-									],
-									[
-										$L->registration_ip,
-										$reg_ip[0] ? $reg_ip[0].($reg_ip[1] ? h::br().$reg_ip[1] : '') : $L->undefined
-									],
-									[
-										$L->last_sign_in,
-										$user_data['last_sign_in'] ? date($L->_datetime, $user_data['last_sign_in']) : $L->undefined
-									],
-									[
-										$L->last_ip,
-										$last_ip[0] ? $last_ip[0].($last_ip[1] ? h::br().$last_ip[1] : '') : $L->undefined
-									],
-									[
-										$L->last_online,
-										$user_data['last_online'] ? date($L->_datetime, $user_data['last_online']) : $L->undefined
-									],
-									[
-										$L->login,
-										h::input(
-											[
-												'name'  => 'user[login]',
-												'value' => $user_data['login']
-											]
-										)
-									],
-									[
-										$L->username,
-										h::input(
-											[
-												'name'  => 'user[username]',
-												'value' => $user_data['username']
-											]
-										)
-									],
-									[
-										$L->email,
-										h::input(
-											[
-												'name'  => 'user[email]',
-												'value' => $user_data['email']
-											]
-										)
-									],
-									[
-										$L->password_only_for_changing.h::{'icon.cs-show-password.cs-pointer'}('lock'),
-										h::{'input[type=password]'}(
-											[
-												'name'  => 'user[password]',
-												'value' => ''
-											]
-										)
-									],
-									[
-										$L->language,
-										h::select(
-											[
-												'in'    => array_merge(["$L->system_default ({$Config->core['language']})"], $Config->core['active_languages']),
-												'value' => array_merge([''], $Config->core['active_languages'])
-											],
-											[
-												'name'     => 'user[language]',
-												'selected' => $user_data['language'],
-												'size'     => 5
-											]
-										)
-									],
-									[
-										$L->timezone,
-										h::select(
-											[
-												'in'    => array_merge(["$L->system_default ({$Config->core['timezone']})"], array_keys($timezones)),
-												'value' => array_merge([''], array_values($timezones))
-											],
-											[
-												'name'     => 'user[timezone]',
-												'selected' => $user_data['timezone'],
-												'size'     => 5
-											]
-										)
-									],
-									[
-										$L->status,
-										h::radio(
-											[
-												'name'    => 'user[status]',
-												'checked' => $user_data['status'],
-												'value'   => [User::STATUS_NOT_ACTIVATED, User::STATUS_INACTIVE, User::STATUS_ACTIVE],
-												'in'      => [$L->is_not_activated, $L->inactive, $L->active]
-											]
-										)
-									],
-									[
-										h::info('block_until'),
-										h::{'input[type=datetime-local]'}(
-											[
-												'name'  => 'user[block_until]',
-												'value' => date('Y-m-d\TH:i', $user_data['block_until'] ?: TIME)
-											]
-										)
-									],
-									[
-										$L->avatar,
-										h::input(
-											[
-												'name'  => 'user[avatar]',
-												'value' => $user_data['avatar']
-											]
-										)
-									]
+								[
+									'id',
+									$rc[3]
+								],
+								[
+									$L->registration_date,
+									$user_data['reg_date'] ? date($L->_date, $user_data['reg_date']) : $L->undefined
+								],
+								[
+									$L->registration_ip,
+									$reg_ip[0] ? $reg_ip[0].($reg_ip[1] ? h::br().$reg_ip[1] : '') : $L->undefined
+								],
+								[
+									$L->last_sign_in,
+									$user_data['last_sign_in'] ? date($L->_datetime, $user_data['last_sign_in']) : $L->undefined
+								],
+								[
+									$L->last_ip,
+									$last_ip[0] ? $last_ip[0].($last_ip[1] ? h::br().$last_ip[1] : '') : $L->undefined
+								],
+								[
+									$L->last_online,
+									$user_data['last_online'] ? date($L->_datetime, $user_data['last_online']) : $L->undefined
+								],
+								[
+									$L->login,
+									h::input(
+										[
+											'name'  => 'user[login]',
+											'value' => $user_data['login']
+										]
+									)
+								],
+								[
+									$L->username,
+									h::input(
+										[
+											'name'  => 'user[username]',
+											'value' => $user_data['username']
+										]
+									)
+								],
+								[
+									$L->email,
+									h::input(
+										[
+											'name'  => 'user[email]',
+											'value' => $user_data['email']
+										]
+									)
+								],
+								[
+									$L->password_only_for_changing.h::{'icon.cs-show-password.cs-pointer'}('lock'),
+									h::{'input[type=password]'}(
+										[
+											'name'  => 'user[password]',
+											'value' => ''
+										]
+									)
+								],
+								[
+									$L->language,
+									h::select(
+										[
+											'in'    => array_merge(["$L->system_default ({$Config->core['language']})"], $Config->core['active_languages']),
+											'value' => array_merge([''], $Config->core['active_languages'])
+										],
+										[
+											'name'     => 'user[language]',
+											'selected' => $user_data['language'],
+											'size'     => 5
+										]
+									)
+								],
+								[
+									$L->timezone,
+									h::select(
+										[
+											'in'    => array_merge(["$L->system_default ({$Config->core['timezone']})"], array_keys($timezones)),
+											'value' => array_merge([''], array_values($timezones))
+										],
+										[
+											'name'     => 'user[timezone]',
+											'selected' => $user_data['timezone'],
+											'size'     => 5
+										]
+									)
+								],
+								[
+									$L->status,
+									h::radio(
+										[
+											'name'    => 'user[status]',
+											'checked' => $user_data['status'],
+											'value'   => [User::STATUS_NOT_ACTIVATED, User::STATUS_INACTIVE, User::STATUS_ACTIVE],
+											'in'      => [$L->is_not_activated, $L->inactive, $L->active]
+										]
+									)
+								],
+								[
+									h::info('block_until'),
+									h::{'input[type=datetime-local]'}(
+										[
+											'name'  => 'user[block_until]',
+											'value' => date('Y-m-d\TH:i', $user_data['block_until'] ?: TIME)
+										]
+									)
+								],
+								[
+									$L->avatar,
+									h::input(
+										[
+											'name'  => 'user[avatar]',
+											'value' => $user_data['avatar']
+										]
+									)
+								]
 							).
 							h::{'input[type=hidden]'}(
 								[
@@ -1028,68 +1041,13 @@ trait users {
 					if (!isset($rc[3]) || $rc[3] == User::ROOT_ID) {
 						break;
 					}
-					$a->apply_button       = false;
 					$a->cancel_button_back = true;
-					$permissions           = Permission::instance()->get_all();
-					$user_permissions      = $User->get_permissions($rc[3]);
-					$tabs                  = [];
-					$tabs_content          = '';
-					$blocks                = [];
-					foreach ($Config->components['blocks'] as $block) {
-						$blocks[$block['index']] = $block['title'];
-					}
-					unset($block);
-					foreach ($permissions as $group => $list) {
-						$tabs[]  = h::a(
-							$group,
-							[
-								'href' => '#permissions_group_'.strtr($group, '/', '_')
-							]
-						);
-						$content = [];
-						foreach ($list as $label => $id) {
-							$content[] = h::cs_table_cell(
-								$group != 'Block' ? $label : Text::instance()->process($Config->module('System')->db('texts'), $blocks[$label]),
-								h::radio(
-									[
-										'name'    => "permission[$id]",
-										'checked' => isset($user_permissions[$id]) ? $user_permissions[$id] : -1,
-										'value'   => [-1, 0, 1],
-										'in'      => [
-											$L->inherited.' ('.(isset($user_permissions[$id]) && !$user_permissions[$id] ? '-' : '+').')',
-											$L->deny,
-											$L->allow
-										]
-									]
-								)
-							);
-						}
-						if (count($list) % 2) {
-							$content[] = h::cs_table_cell().h::cs_table_cell();
-						}
-						$count    = count($content);
-						$content_ = [];
-						for ($i = 0; $i < $count; $i += 2) {
-							$content_[] = $content[$i].$content[$i + 1];
-						}
-						$tabs_content .= h::div(
-							h::{'p.cs-left'}(
-								h::{'button.uk-button.cs-permissions-invert'}($L->invert).
-								h::{'button.uk-button.cs-permissions-deny-all'}($L->deny_all).
-								h::{'button.uk-button.cs-permissions-allow-all'}($L->allow_all)
-							).
-							h::{'cs-table[right-left] cs-table-row'}($content_),
-							[
-								'id' => 'permissions_group_'.strtr($group, '/', '_')
-							]
-						);
-					}
-					unset($content, $content_, $count, $i, $permissions, $group, $list, $label, $id, $blocks);
 					$Page->title(
 						$L->{$is_bot ? 'permissions_for_bot' : 'permissions_for_user'}(
 							$User->username($rc[3])
 						)
 					);
+					list ($tabs, $tabs_content) = static::render_permissions_form($User->get_permissions($rc[3]) ?: [], true);
 					$a->content(
 						h::{'h2.cs-center'}(
 							$L->{$is_bot ? 'permissions_for_bot' : 'permissions_for_user'}(
@@ -1111,7 +1069,6 @@ trait users {
 					if ($is_bot || !isset($rc[3]) || $rc[3] == User::ROOT_ID) {
 						break;
 					}
-					$a->apply_button       = false;
 					$a->cancel_button_back = true;
 					$Group                 = Group::instance();
 					$user_groups           = array_reverse($User->get_groups($rc[3]));

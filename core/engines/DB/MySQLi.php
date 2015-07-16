@@ -84,7 +84,10 @@ class MySQLi extends _Abstract {
 		$return = @$this->instance->multi_query($query);
 		/** @noinspection LoopWhichDoesNotLoopInspection */
 		while ($this->instance->more_results() && $this->instance->next_result()) {
-			//Nothing, just finish multi_query
+			$result = $this->instance->use_result();
+			if (is_object($result)) {
+				$result->free();
+			}
 		}
 		return $return;
 	}
@@ -110,23 +113,14 @@ class MySQLi extends _Abstract {
 		$result_type = $single_column || $indexed ? MYSQLI_NUM : MYSQLI_ASSOC;
 		if ($array) {
 			$result = [];
-			if ($single_column === false) {
-				while ($current = $query_result->fetch_array($result_type)) {
-					$result[] = $current;
-				}
-			} else {
-				while ($current = $query_result->fetch_array($result_type)) {
-					$result[] = $current[0];
-				}
+			while ($current = $query_result->fetch_array($result_type)) {
+				$result[] = $single_column ? $current[0] : $current;
 			}
 			$this->free($query_result);
 			return $result;
 		}
 		$result = $query_result->fetch_array($result_type);
-		if ($single_column) {
-			return is_array($result) ? $result[0] : false;
-		}
-		return $result;
+		return $single_column && $result ? $result[0] : $result;
 	}
 	/**
 	 * @inheritdoc
@@ -142,13 +136,14 @@ class MySQLi extends _Abstract {
 	}
 	/**
 	 * @inheritdoc
+	 *
+	 * @param false|\mysqli_result $query_result
 	 */
 	function free ($query_result) {
 		if (is_object($query_result)) {
-			return $query_result->free();
-		} else {
-			return false;
+			$query_result->free();
 		}
+		return true;
 	}
 	/**
 	 * @inheritdoc

@@ -8,10 +8,8 @@
  */
 
 (function() {
-  var hasProp = {}.hasOwnProperty;
-
   $(function() {
-    var L, key, translation;
+    var L;
     L = cs.Language;
     $.ajaxSetup({
       type: 'post',
@@ -19,33 +17,11 @@
         session: cs.getcookie('session')
       },
       error: function(xhr) {
-        if (xhr.responseText) {
-          return alert(JSON.parse(xhr.responseText).error_description);
-        } else {
-          return alert(L.connection_error);
-        }
+        return UIkit.notify(xhr.responseText ? JSON.parse(xhr.responseText).error_description : L.connection_error, {
+          status: 'warning'
+        });
       }
     });
-    for (key in L) {
-      if (!hasProp.call(L, key)) continue;
-      translation = L[key];
-      L[key] = (function(translation) {
-        var result;
-        result = function() {
-          return vsprintf(translation, Array.prototype.slice.call(arguments));
-        };
-        result.toString = function() {
-          return translation;
-        };
-        return result;
-      })(translation);
-    }
-    L.get = function(key) {
-      return L[key].toString();
-    };
-    L.format = function(key) {
-      return vsprintf(L[key].toString(), Array.prototype.slice.call(arguments, 1));
-    };
     $('.cs-header-sign-in-slide').click(function() {
       $('.cs-header-guest-form').removeClass('active');
       $('.cs-header-sign-in-form').addClass('active');

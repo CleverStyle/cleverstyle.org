@@ -150,24 +150,6 @@
     }
   };
 
-
-  /**
-   * For textarea in blocks editing
-   *
-   * @param item
-   */
-
-  cs.block_switch_textarea = function(item) {
-    $('#cs-block-content-html, #cs-block-content-raw-html').hide();
-    switch ($(item).val()) {
-      case 'html':
-        $('#cs-block-content-html').show();
-        break;
-      case 'raw_html':
-        $('#cs-block-content-raw-html').show();
-    }
-  };
-
   cs.test_email_sending = function() {
     var email;
     email = prompt(L.email);

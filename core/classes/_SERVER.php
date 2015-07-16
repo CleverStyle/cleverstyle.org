@@ -95,6 +95,8 @@ class _SERVER implements ArrayAccess, Iterator {
 	/**
 	 * The best guessed host
 	 *
+	 * @throws \ExitException
+	 *
 	 * @param array $SERVER
 	 *
 	 * @return string
@@ -122,6 +124,11 @@ class _SERVER implements ArrayAccess, Iterator {
 				}
 			}
 		}
+		if (preg_replace('/(?:^\[)?[a-zA-Z0-9-:\]_]+\.?/', '', $host) !== '') {
+			status_code(400);
+			trigger_error("Invalid host", E_USER_ERROR);
+			throw new \ExitException;
+		}
 		return $host.($port ? ":$port" : '');
 	}
 	/**
@@ -132,8 +139,8 @@ class _SERVER implements ArrayAccess, Iterator {
 	 * @return bool
 	 */
 	protected function secure ($SERVER) {
-		return isset($SERVER['HTTPS']) ? $SERVER['HTTPS'] == 'on' : (
-			isset($SERVER['HTTP_X_FORWARDED_PROTO']) && $SERVER['HTTP_X_FORWARDED_PROTO'] == 'https'
+		return isset($SERVER['HTTPS']) && $SERVER['HTTPS'] ? $SERVER['HTTPS'] !== 'off' : (
+			isset($SERVER['HTTP_X_FORWARDED_PROTO']) && $SERVER['HTTP_X_FORWARDED_PROTO'] === 'https'
 		);
 	}
 	/**

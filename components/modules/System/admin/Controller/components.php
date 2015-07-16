@@ -11,28 +11,21 @@ namespace cs\modules\System\admin\Controller;
 use
 	cs\Config,
 	cs\Core,
+	cs\DB,
 	cs\Event,
-	cs\Group,
 	cs\Index,
 	cs\Language,
 	cs\Page,
-	cs\Permission,
 	cs\Route,
 	cs\Session,
 	cs\Text,
-	cs\User,
 	h;
 
 trait components {
-	static function components_blocks (
-		/** @noinspection PhpUnusedParameterInspection */
-		$route_ids,
-		$route_path
-	) {
+	static function components_blocks ($route_ids, $route_path) {
 		$Config = Config::instance();
 		$L      = Language::instance();
 		$Page   = Page::instance();
-		$User   = User::instance();
 		$a      = Index::instance();
 		$action = isset($route_path[2]) ? $route_path[2] : null;
 		$id     = isset($route_ids[0]) ? $route_ids[0] : 0;
@@ -55,15 +48,9 @@ trait components {
 					$a->content(
 						h::{'h2.cs-center'}(
 							$L->sure_to_delete_block(static::get_block_title($id)).
-							h::{'input[type=hidden]'}(
+							h::{'input[type=hidden][name=mode][value=delete]'}().
+							h::{'input[type=hidden][name=block[id]]'}(
 								[
-									'name'  => 'mode',
-									'value' => 'delete'
-								]
-							).
-							h::{'input[type=hidden]'}(
-								[
-									'name'  => 'id',
 									'value' => $id
 								]
 							)
@@ -73,7 +60,6 @@ trait components {
 					break;
 				case 'add':
 					$form                  = false;
-					$a->apply_button       = false;
 					$a->cancel_button_back = true;
 					$a->form_attributes[]  = 'formnovalidate';
 					$Page->title($L->adding_a_block);
@@ -81,96 +67,27 @@ trait components {
 						h::{'h2.cs-center'}(
 							$L->adding_a_block
 						).
-						static::vertical_table(
-							[
-								h::info('block_type'),
-								h::select(
-									array_merge(['html', 'raw_html'], _mb_substr(get_files_list(BLOCKS, '/^block\..*?\.php$/i', 'f'), 6, -4)),
-									[
-										'name'     => 'block[type]',
-										'size'     => 5,
-										'onchange' => 'cs.block_switch_textarea(this)'
+						h::{'cs-system-admin-components-blocks-form.uk-display-block.uk-margin-bottom script[type=application/json]'}(
+							json_encode(
+								[
+									'types'      => array_merge(['html', 'raw_html'], _mb_substr(get_files_list(BLOCKS, '/^block\..*?\.php$/i', 'f'), 6, -4)),
+									'templates'  => _mb_substr(get_files_list(TEMPLATES.'/blocks', '/^block\..*?\.(php|html)$/i', 'f'), 6),
+									'block_data' => [
+										'start'  => date('Y-m-d\TH:i', TIME),
+										'expire' => [
+											'date'  => date('Y-m-d\TH:i', TIME),
+											'state' => false
+										]
 									]
-								)
-							],
-							[
-								h::info('block_title'),
-								h::input(
-									[
-										'name' => 'block[title]'
-									]
-								)
-							],
-							[
-								h::info('block_active'),
-								h::{'div radio'}(
-									[
-										'name'  => 'block[active]',
-										'value' => [1, 0],
-										'in'    => [$L->yes, $L->no]
-									]
-								)
-							],
-							[
-								h::info('block_template'),
-								h::select(
-									_mb_substr(get_files_list(TEMPLATES.'/blocks', '/^block\..*?\.(php|html)$/i', 'f'), 6),
-									[
-										'name' => 'block[template]',
-										'size' => 5
-									]
-								)
-							],
-							[
-								h::info('block_start'),
-								h::{'input[type=datetime-local]'}(
-									[
-										'name'  => 'block[start]',
-										'value' => date('Y-m-d\TH:i', TIME)
-									]
-								)
-							],
-							[
-								h::info('block_expire'),
-								h::radio(
-									[
-										'name'  => 'block[expire][state]',
-										'value' => [0, 1],
-										'in'    => [$L->never, $L->as_specified]
-									]
-								).
-								h::br(2).
-								h::{'input[type=datetime-local]'}(
-									[
-										'name'  => 'block[expire][date]',
-										'value' => date('Y-m-d\TH:i', TIME)
-									]
-								)
-							]
+								],
+								JSON_UNESCAPED_UNICODE
+							)
 						).
-						h::{'div#cs-block-content-html textarea.EDITOR'}(
-							'',
-							[
-								'name' => 'block[html]'
-							]
-						).
-						h::{'div#cs-block-content-raw-html[style=display:none;] textarea'}(
-							'',
-							[
-								'name' => 'block[raw_html]'
-							]
-						).
-						h::{'input[type=hidden]'}(
-							[
-								'name'  => 'mode',
-								'value' => $action
-							]
-						)
+						h::{'input[type=hidden][name=mode][value=add]'}()
 					);
 					break;
 				case 'edit':
 					$form                  = false;
-					$a->apply_button       = false;
 					$a->cancel_button_back = true;
 					$a->form_attributes[]  = 'formnovalidate';
 					$block                 = &$Config->components['blocks'][$id];
@@ -179,235 +96,39 @@ trait components {
 						h::{'h2.cs-center'}(
 							$L->editing_a_block(static::get_block_title($id))
 						).
-						static::vertical_table(
-							[
-								h::info('block_title'),
-								h::input(
-									[
-										'name'  => 'block[title]',
-										'value' => static::get_block_title($id)
-									]
-								)
-							],
-							[
-								h::info('block_active'),
-								h::{'div radio'}(
-									[
-										'name'    => 'block[active]',
-										'checked' => $block['active'],
-										'value'   => [1, 0],
-										'in'      => [$L->yes, $L->no]
-									]
-								)
-							],
-							[
-								h::info('block_template'),
-								h::select(
-									[
-										'in' => _mb_substr(get_files_list(TEMPLATES.'/blocks', '/^block\..*?\.(php|html)$/i', 'f'), 6)
-									],
-									[
-										'name'     => 'block[template]',
-										'selected' => $block['template'],
-										'size'     => 5
-									]
-								)
-							],
-							[
-								h::info('block_start'),
-								h::{'input[type=datetime-local]'}(
-									[
-										'name'  => 'block[start]',
-										'value' => date('Y-m-d\TH:i', $block['start'] ?: TIME)
-									]
-								)
-							],
-							[
-								h::info('block_expire'),
-								h::radio(
-									[
-										'name'    => 'block[expire][state]',
-										'checked' => $block['expire'] != 0,
-										'value'   => [0, 1],
-										'in'      => [$L->never, $L->as_specified]
-									]
-								).
-								h::br(2).
-								h::{'input[type=datetime-local]'}(
-									[
-										'name'  => 'block[expire][date]',
-										'value' => date('Y-m-d\TH:i', $block['expire'] ?: TIME)
-									]
-								)
-							]
-						).
-						(
-						$block['type'] == 'html'
-							? h::{'textarea.EDITOR'}(
-							static::get_block_content($id),
-							[
-								'name' => 'block[html]'
-							]
-						)
-							: (
-						$block['type'] == 'raw_html' ? h::textarea(
-							static::get_block_content($id),
-							[
-								'name' => 'block[raw_html]'
-							]
-						) : ''
-						)
-						).
-						h::{'input[type=hidden]'}(
-							[
+						h::{'cs-system-admin-components-blocks-form.uk-display-block.uk-margin-bottom script[type=application/json]'}(
+							json_encode(
 								[
-									[
-										'name'  => 'block[id]',
-										'value' => $id
+									'types'      => array_merge(['html', 'raw_html'], _mb_substr(get_files_list(BLOCKS, '/^block\..*?\.php$/i', 'f'), 6, -4)),
+									'templates'  => _mb_substr(get_files_list(TEMPLATES.'/blocks', '/^block\..*?\.(php|html)$/i', 'f'), 6),
+									'block_data' => [
+										'title'    => static::get_block_title($id),
+										'type'     => $block['type'],
+										'active'   => $block['active'],
+										'template' => $block['template'],
+										'start'    => date('Y-m-d\TH:i', $block['start'] ?: TIME),
+										'expire'   => [
+											'date'  => date('Y-m-d\TH:i', $block['expire'] ?: TIME),
+											'state' => $block['expire'] != 0
+										],
+										'content'  => static::get_block_content($id)
 									]
 								],
-								[
-									[
-										'name'  => 'mode',
-										'value' => $action
-									]
-								]
+								JSON_UNESCAPED_UNICODE
+							)
+						).
+						h::{'input[type=hidden][name=mode][value=edit]'}().
+						h::{'input[type=hidden][name=block[id]]'}(
+							[
+								'value' => $id
 							]
 						)
 					);
 					break;
-				case 'permissions':
-					$form                  = false;
-					$a->apply_button       = false;
-					$a->cancel_button_back = true;
-					$permission            = Permission::instance()->get(null, 'Block', $Config->components['blocks'][$id]['index'])[0]['id'];
-					$groups                = Group::instance()->get_all();
-					$groups_content        = [];
-					foreach ($groups as $group) {
-						$group_permission = $User->db()->qfs(
-							[
-								"SELECT `value`
-								FROM `[prefix]groups_permissions`
-								WHERE
-									`id`			= '%s' AND
-									`permission`	= '%s'",
-								$group['id'],
-								$permission
-							]
-						);
-						$groups_content[] = h::cs_table_cell(
-							[
-								$group['title'],
-								[
-									'data-title' => $group['description']
-								]
-							],
-							h::radio(
-								[
-									'name'    => "groups[$group[id]]",
-									'checked' => $group_permission === false ? -1 : $group_permission,
-									'value'   => [-1, 0, 1],
-									'in'      => [$L->inherited, $L->deny, $L->allow]
-								]
-							)
-						);
-					}
-					unset($groups, $group, $group_permission);
-					if (count($groups_content) % 2) {
-						$groups_content[] = h::cs_table_cell().h::cs_table_cell();
-					}
-					$count    = count($groups_content);
-					$content_ = [];
-					for ($i = 0; $i < $count; $i += 2) {
-						$content_[] = $groups_content[$i].$groups_content[$i + 1];
-					}
-					$groups_content = $content_;
-					unset($count, $content_);
-					$users_list    = $User->db()->qfa(
-						[
-							"SELECT
-								`id`,
-								`value`
-							FROM `[prefix]users_permissions`
-							WHERE `permission` = '%s'",
-							$permission
-						]
-					);
-					$users_content = [];
-					foreach ($users_list as &$user) {
-						$value           = $user['value'];
-						$user            = $user['id'];
-						$users_content[] = h::cs_table_cell(
-							$User->username($user),
-							h::radio(
-								[
-									'name'    => 'users['.$user.']',
-									'checked' => $value,
-									'value'   => [-1, 0, 1],
-									'in'      => [$L->inherited, $L->deny, $L->allow]
-								]
-							)
-						);
-					}
-					unset($user, $value);
-					$Page->title($L->permissions_for_block(static::get_block_title($id)));
-					$a->content(
-						h::{'h2.cs-center'}(
-							$L->permissions_for_block(static::get_block_title($id))
-						).
-						h::{'ul.cs-tabs li'}(
-							$L->groups,
-							$L->users
-						).
-						h::{'div div'}(
-							h::{'p.cs-left'}(
-								h::{'button.uk-button.cs-permissions-invert'}($L->invert).
-								h::{'button.uk-button.cs-permissions-allow-all'}($L->allow_all).
-								h::{'button.uk-button.cs-permissions-deny-all'}($L->deny_all)
-							).
-							h::{'cs-table[right-left] cs-table-row'}($groups_content),
-							h::{'p.cs-left'}(
-								h::{'button.uk-button.cs-permissions-invert'}($L->invert).
-								h::{'button.uk-button.cs-permissions-allow-all'}($L->allow_all).
-								h::{'button.uk-button.cs-permissions-deny-all'}($L->deny_all)
-							).
-							h::{'cs-table#cs-block-users-changed-permissions[right-left] cs-table-row'}($users_content).
-							h::{'input#block_users_search[type=search]'}(
-								[
-									'autocomplete' => 'off',
-									'permission'   => $permission,
-									'placeholder'  => $L->type_username_or_email_press_enter,
-									'style'        => 'width: 100%'
-								]
-							).
-							h::{'div#block_users_search_results'}()
-						).
-						h::{'input#cs-block-users-search-found[type=hidden]'}(
-							[
-								'value' => implode(',', $users_list)
-							]
-						).
-						h::br().
-						h::{'input[type=hidden]'}(
-							[
-								[
-									[
-										'name'  => 'block[id]',
-										'value' => $id
-									]
-								],
-								[
-									[
-										'name'  => 'mode',
-										'value' => $action
-									]
-								]
-							]
-						)
-					);
 			}
 		}
 		if ($form) {
+			$a->apply_button = true;
 			$a->custom_buttons .= h::{'button.uk-button.cs-reload-button'}(
 				$L->reset
 			);
@@ -431,9 +152,8 @@ trait components {
 								]
 							],
 							[
-								h::{'div icon'}('key'),
+								h::{'div.cs-blocks-permissions icon'}('key'),
 								[
-									'href'       => "$a->action/permissions/$id",
 									'data-title' => $L->edit_permissions
 								]
 							],
@@ -453,8 +173,10 @@ trait components {
 							]
 						),
 						[
-							'data-id' => $id,
-							'class'   => $block['active'] ? 'uk-button-success' : 'uk-button-default'
+							'data-id'          => $id,
+							'data-index'       => $block['index'],
+							'data-block-title' => h::prepare_attr_value(static::get_block_title($id)),
+							'class'            => $block['active'] ? 'uk-button-success' : 'uk-button-default'
 						]
 					);
 					unset($block_data);
@@ -503,11 +225,7 @@ trait components {
 		$Config = Config::instance();
 		return Text::instance()->process($Config->module('System')->db('texts'), $Config->components['blocks'][$id]['content']);
 	}
-	static function components_databases (
-		/** @noinspection PhpUnusedParameterInspection */
-		$route_ids,
-		$route_path
-	) {
+	static function components_databases ($route_ids, $route_path) {
 		$Config       = Config::instance();
 		$Core         = Core::instance();
 		$L            = Language::instance();
@@ -517,7 +235,6 @@ trait components {
 		$db_id        = isset($route_ids[0]) ? $route_ids[0] : false;
 		$db_mirror_id = isset($route_ids[1]) ? $route_ids[1] : false;
 		if ($action) {
-			$a->apply_button       = false;
 			$a->cancel_button_back = true;
 			switch ($action) {
 				case 'edit':
@@ -742,8 +459,9 @@ trait components {
 					}
 			}
 		} else {
-			$db_list   = [];
-			$databases = $Config->db;
+			$a->apply_button = true;
+			$db_list         = [];
+			$databases       = $Config->db;
 			if (!empty($databases)) {
 				foreach ($databases as $i => &$db_data) {
 					$db_list[] = [
@@ -866,13 +584,13 @@ trait components {
 							)
 						],
 						[
-							h::info('maindb_for_write'),
+							h::info('db_mirror_mode'),
 							h::radio(
 								[
-									'name'    => 'core[maindb_for_write]',
-									'checked' => $Config->core['maindb_for_write'],
-									'value'   => [0, 1],
-									'in'      => [$L->off, $L->on]
+									'name'    => 'core[db_mirror_mode]',
+									'checked' => $Config->core['db_mirror_mode'],
+									'value'   => [DB::MIRROR_MODE_MASTER_MASTER, DB::MIRROR_MODE_MASTER_SLAVE],
+									'in'      => [$L->master_master, $L->master_slave]
 								]
 							)
 						]
@@ -1174,7 +892,6 @@ trait components {
 					$rc[3]                 = 'System';
 					$a->cancel_button_back = true;
 					break;
-					break;
 				case 'default_module':
 					$show_modules = false;
 					$Page->title($L->setting_default_module($rc[3]));
@@ -1217,7 +934,6 @@ trait components {
 							break;
 						}
 						$a->buttons            = true;
-						$a->apply_button       = false;
 						$a->cancel_button_back = true;
 						module_db_settings:
 						$Core = Core::instance();
@@ -1247,15 +963,17 @@ trait components {
 							];
 						}
 						unset($dbs, $database);
-						$a->content(
-							h::{'cs-table[right-left][with-header] cs-table-row| cs-table-cell'}(
-								[
-									h::info('appointment_of_db'),
-									h::info('system_db')
-								],
-								$db_list
-							)
-						);
+						if ($db_list) {
+							$a->content(
+								h::{'cs-table[right-left][with-header] cs-table-row| cs-table-cell'}(
+									[
+										h::info('appointment_of_db'),
+										h::info('system_db')
+									],
+									$db_list
+								)
+							);
+						}
 						unset($db_list);
 						if ($rc[2] == 'install') {
 							goto back_to_module_installation_1;
@@ -1282,7 +1000,6 @@ trait components {
 							break;
 						}
 						$a->buttons            = true;
-						$a->apply_button       = false;
 						$a->cancel_button_back = true;
 						module_storage_settings:
 						$storages = [0 => $L->core_storage];
@@ -1311,15 +1028,17 @@ trait components {
 							];
 						}
 						unset($storages, $storage);
-						$a->content(
-							h::{'cs-table[right-left][with-header] cs-table-row| cs-table-cell'}(
-								[
-									h::info('appointment_of_storage'),
-									h::info('system_storage')
-								],
-								$storage_list
-							)
-						);
+						if ($storage_list) {
+							$a->content(
+								h::{'cs-table[right-left][with-header] cs-table-row| cs-table-cell'}(
+									[
+										h::info('appointment_of_storage'),
+										h::info('system_storage')
+									],
+									$storage_list
+								)
+							);
+						}
 						unset($storage_list);
 						if ($rc[2] == 'install') {
 							goto back_to_module_installation_2;
@@ -1421,242 +1140,60 @@ trait components {
 		$a->file_upload = true;
 		$modules_list   = [];
 		foreach ($Config->components['modules'] as $module_name => &$module_data) {
-			/**
-			 * If module if enabled or disabled
-			 */
-			$addition_state = $action = '';
-			$admin_link     = false;
-			/**
-			 * Notice about API existence
-			 */
-			if (is_dir(MODULES."/$module_name/api")) {
-				if (
-					file_exists($file = MODULES."/$module_name/api/readme.txt") ||
-					file_exists($file = MODULES."/$module_name/api/readme.html")
-				) {
-					$tag    = substr($file, -3) == 'txt' ? 'pre' : 'div';
-					$uniqid = uniqid('module_info_');
-					$modal  = "#{$module_name}_api.uk-modal .uk-modal-dialog.uk-modal-dialog-large";
-					$Page->post_Body .= h::$modal(
-						h::{'.uk-modal-caption'}("$module_name » $L->api").
-						h::$tag($uniqid)
-					);
-					$Page->replace(
-						$uniqid,
-						$tag == 'pre' ? prepare_attr_value(file_get_contents($file)) : file_get_contents($file)
-					);
-				}
-				$addition_state .= h::icon(
-					'link',
-					[
-						'data-title'    => $L->api_exists.h::br().(file_exists($file) ? $L->click_to_view_details : ''),
-						'data-uk-modal' => "{target : '#{$module_name}_api'}",
-						'class'         => file_exists($file) ? 'uk-button cs-button-compact' : false
-					]
-				);
-				unset($file, $tag, $uniqid, $modal);
-			}
-			/**
-			 * Information about module
-			 */
-			if (
-				file_exists($file = MODULES."/$module_name/readme.txt") ||
-				file_exists($file = MODULES."/$module_name/readme.html")
-			) {
-				$tag    = substr($file, -3) == 'txt' ? 'pre' : 'div';
-				$uniqid = uniqid('module_info_');
-				$modal  = "#{$module_name}_readme.uk-modal .uk-modal-dialog.uk-modal-dialog-large";
-				$Page->post_Body .= h::$modal(
-					h::{'.uk-modal-caption'}("$module_name » $L->information_about_module").
-					h::$tag($uniqid)
-				);
-				$Page->replace(
-					$uniqid,
-					$tag == 'pre' ? prepare_attr_value(file_get_contents($file)) : file_get_contents($file)
-				);
-				$addition_state .= h::{'icon.uk-button.cs-button-compact'}(
-					'exclamation',
-					[
-						'data-title'    => $L->information_about_module.h::br().$L->click_to_view_details,
-						'data-uk-modal' => "{target : '#{$module_name}_readme'}"
-					]
-				);
-			}
-			unset($file, $tag, $uniqid, $modal);
-			/**
-			 * License
-			 */
-			if (
-				file_exists($file = MODULES."/$module_name/license.txt") ||
-				file_exists($file = MODULES."/$module_name/license.html")
-			) {
-				$tag    = substr($file, -3) == 'txt' ? 'pre' : 'div';
-				$uniqid = uniqid('module_info_');
-				$modal  = "#{$module_name}_license.uk-modal .uk-modal-dialog.uk-modal-dialog-large";
-				$Page->post_Body .= h::$modal(
-					h::{'.uk-modal-caption'}("$module_name » $L->license").
-					h::$tag($uniqid)
-				);
-				$Page->replace(
-					$uniqid,
-					$tag == 'pre' ? prepare_attr_value(file_get_contents($file)) : file_get_contents($file)
-				);
-				$addition_state .= h::{'icon.uk-button.cs-button-compact'}(
-					'legal',
-					[
-						'data-title'    => $L->license.h::br().$L->click_to_view_details,
-						'data-uk-modal' => "{target : '#{$module_name}_license'}"
-					]
-				);
-			}
-			unset($file, $tag, $uniqid, $modal);
-			if ($module_data['active'] != -1) {
-				/**
-				 * Setting default module
-				 */
-				if (
+			$module = [
+				'active'                => $module_data['active'],
+				'name'                  => $module_name,
+				'is_default'            => $module_name == $Config->core['default_module'],
+				'can_be_set_as_default' =>
 					$module_data['active'] == 1 &&
 					$module_name != $Config->core['default_module'] &&
-					(
-						file_exists(MODULES."/$module_name/index.php") ||
-						file_exists(MODULES."/$module_name/index.html") ||
-						file_exists(MODULES."/$module_name/index.json")
-					)
-				) {
-					$action .= h::{'a.uk-button.cs-button-compact'}(
-						h::icon('home'),
-						[
-							'href'       => "$a->action/default_module/$module_name",
-							'data-title' => $L->make_default_module
-						]
-					);
-				}
-				/**
-				 * DataBases settings
-				 */
-				if (!$Config->core['simple_admin_mode'] && @$module_data['db'] && count($Config->db) > 1) {
-					$action .= h::{'a.uk-button.cs-button-compact'}(
-						h::icon('database'),
-						[
-							'href'       => "$a->action/db/$module_name",
-							'data-title' => $L->databases
-						]
-					);
-				}
-				/**
-				 * Storages settings
-				 */
-				if (!$Config->core['simple_admin_mode'] && @$module_data['storage'] && count($Config->storage) > 1) {
-					$action .= h::{'a.uk-button.cs-button-compact'}(
-						h::icon('hdd-o'),
-						[
-							'href'       => "$a->action/storage/$module_name",
-							'data-title' => $L->storages
-						]
-					);
-				}
-				if ($module_name != 'System') {
-					/**
-					 * Link to the module admin page
-					 */
-					if (file_exists(MODULES."/$module_name/admin/index.php") || file_exists(MODULES."/$module_name/admin/index.json")) {
-						$action .= h::{'a.uk-button.cs-button-compact'}(
-							h::icon('sliders'),
-							[
-								'href'       => "admin/$module_name",
-								'data-title' => $L->module_admin_page
-							]
-						);
-						$admin_link = true;
-					}
-					if ($module_name != $Config->core['default_module']) {
-						$action .= h::{'a.uk-button.cs-button-compact'}(
-								$module_data['active'] == 1 ? h::icon('minus') : h::icon('check')." $L->enable",
-								[
-									'href'       => $a->action.($module_data['active'] == 1 ? '/disable/' : '/enable/').$module_name,
-									'data-title' => $module_data['active'] == 1 ? $L->disable : false
-								]
-							).
-								   h::{'a.uk-button.cs-button-compact'}(
-									   h::icon('trash-o'),
-									   [
-										   'href'       => "$a->action/uninstall/$module_name",
-										   'data-title' => $L->uninstall
-									   ]
-								   );
-					}
-				}
-				/**
-				 * If module uninstalled or not installed yet
-				 */
-			} else {
-				$action .= h::{'a.uk-button.cs-button-compact'}(
-					h::icon('download')." $L->install",
-					[
-						'href' => "$a->action/install/$module_name"
-					]
-				);
-			}
-			$module_info = false;
-			if (file_exists(MODULES."/$module_name/meta.json")) {
-				$module_meta = file_get_json(MODULES."/$module_name/meta.json");
-				$module_info = $L->module_info(
-					$module_meta['package'],
-					$module_meta['version'],
-					$module_meta['description'],
-					$module_meta['author'],
-					isset($module_meta['website']) ? $module_meta['website'] : $L->none,
-					$module_meta['license'],
-					isset($module_meta['db_support']) ? implode(', ', $module_meta['db_support']) : $L->none,
-					isset($module_meta['storage_support']) ? implode(', ', $module_meta['storage_support']) : $L->none,
-					isset($module_meta['provide']) ? implode(', ', (array)$module_meta['provide']) : $L->none,
-					isset($module_meta['require']) ? implode(', ', (array)$module_meta['require']) : $L->none,
-					isset($module_meta['conflict']) ? implode(', ', (array)$module_meta['conflict']) : $L->none,
-					isset($module_meta['optional']) ? implode(', ', (array)$module_meta['optional']) : $L->none,
-					isset($module_meta['multilingual']) && in_array('interface', $module_meta['multilingual']) ? $L->yes : $L->no,
-					isset($module_meta['multilingual']) && in_array('content', $module_meta['multilingual']) ? $L->yes : $L->no,
-					isset($module_meta['languages']) ? implode(', ', $module_meta['languages']) : $L->none
-				);
-			}
-			unset($module_meta);
-			$modules_list[] = [
-				[
-					h::a(
-						$L->$module_name,
-						[
-							'href'       => $admin_link ? "admin/$module_name" : false,
-							'data-title' => $module_info
-						]
-					),
-					h::icon(
-						$module_data['active'] == 1 ? (
-						$module_name == $Config->core['default_module'] ? 'home' : 'check'
-						) : (
-						$module_data['active'] == 0 ? 'minus' : 'times'
-						),
-						[
-							'data-title' => $module_data['active'] == 1 ? (
-							$module_name == $Config->core['default_module'] ? $L->default_module : $L->enabled
-							) : (
-							$module_data['active'] == 0 ? $L->disabled : "$L->uninstalled ($L->not_installed)"
-							)
-						]
-					).
-					$addition_state,
-					[
-						$action,
-						[
-							'left' => ''
-						]
-					]
-				],
-				[
-					'class' => $module_data['active'] == 1 ? 'uk-alert-success' : ($module_data['active'] == -1 ? 'uk-alert-danger' : 'uk-alert-warning')
-				]
+					file_exists_with_extension(MODULES."/$module_name/index", ['php', 'html', 'json']),
+				'db_settings'           => !$Config->core['simple_admin_mode'] && @$module_data['db'] && count($Config->db) > 1,
+				'storage_settings'      => !$Config->core['simple_admin_mode'] && @$module_data['storage'] && count($Config->storage) > 1,
+				'administration'        => file_exists_with_extension(MODULES."/$module_name/admin/index", ['php', 'json'])
 			];
-			unset($module_info);
+			/**
+			 * Check if API available
+			 */
+			if (is_dir(MODULES."/$module_name/api")) {
+				$module['api'] = [];
+				$file          = file_exists_with_extension(MODULES."/$module_name/api/readme", ['txt', 'html']);
+				if ($file) {
+					$module['api'] = [
+						'type'    => substr($file, -3) == 'txt' ? 'txt' : 'html',
+						'content' => file_get_contents($file)
+					];
+				}
+				unset($file);
+			}
+			/**
+			 * Check if readme available
+			 */
+			$file = file_exists_with_extension(MODULES."/$module_name/readme", ['txt', 'html']);
+			if ($file) {
+				$module['readme'] = [
+					'type'    => substr($file, -3) == 'txt' ? 'txt' : 'html',
+					'content' => file_get_contents($file)
+				];
+			}
+			unset($file);
+			/**
+			 * Check if license available
+			 */
+			$file = file_exists_with_extension(MODULES."/$module_name/license", ['txt', 'html']);
+			if ($file) {
+				$module['license'] = [
+					'type'    => substr($file, -3) == 'txt' ? 'txt' : 'html',
+					'content' => file_get_contents($file)
+				];
+			}
+			unset($file);
+			if (file_exists(MODULES."/$module_name/meta.json")) {
+				$module['meta'] = file_get_json(MODULES."/$module_name/meta.json");
+			}
+			$modules_list[] = $module;
 		}
-		unset($module_data);
+		unset($module_name, $module_data, $module);
 		$modules_for_removal = array_keys(
 			array_filter(
 				$Config->components['modules'],
@@ -1666,13 +1203,8 @@ trait components {
 			)
 		);
 		$a->content(
-			static::list_center_table(
-				[
-					$L->module_name,
-					$L->state,
-					$L->action
-				],
-				$modules_list
+			h::{'cs-system-admin-components-modules-list script[type=application/json]'}(
+				json_encode($modules_list, JSON_UNESCAPED_UNICODE)
 			).
 			h::p(
 				h::{'input[type=file][name=upload_module]'}().
@@ -1692,9 +1224,7 @@ trait components {
 					]
 				)
 			).
-			(
-			$modules_for_removal
-				? h::p(
+			($modules_for_removal ? h::p(
 				h::{'select[name=remove_module]'}($modules_for_removal).
 				h::{'button.uk-button[type=submit]'}(
 					h::icon('trash-o').$L->complete_module_removal,
@@ -1702,9 +1232,7 @@ trait components {
 						'formaction' => "$a->action/remove"
 					]
 				)
-			)
-				: ''
-			).
+			) : '').
 			h::{'button.uk-button[type=submit]'}(
 				h::icon('refresh').$L->update_modules_list,
 				[
@@ -1924,7 +1452,6 @@ trait components {
 						);
 					}
 					return;
-					break;
 				case 'remove':
 					$Page->title($L->complete_removal_of_plugin($_POST['remove_plugin']));
 					$a->content(
@@ -1949,124 +1476,45 @@ trait components {
 						)
 					);
 					return;
-					break;
 			}
 		}
 		unset($rc);
 		$a->buttons     = false;
 		$a->file_upload = true;
 		$plugins_list   = [];
-		if (!empty($plugins)) {
-			foreach ($plugins as $plugin) {
-				$addition_state = $action = '';
-				/**
-				 * Information about plugin
-				 */
-				if (
-					file_exists($file = PLUGINS."/$plugin/readme.txt") ||
-					file_exists($file = PLUGINS."/$plugin/readme.html")
-				) {
-					$tag    = substr($file, -3) == 'txt' ? 'pre' : 'div';
-					$uniqid = uniqid('plugin_info_');
-					$modal  = "#{$plugin}_readme.uk-modal .uk-modal-dialog.uk-modal-dialog-large";
-					$Page->post_Body .= h::$modal(
-						h::{'.uk-modal-caption'}("$plugin » $L->information_about_plugin").
-						h::$tag($uniqid)
-					);
-					$Page->replace(
-						$uniqid,
-						$tag == 'pre' ? prepare_attr_value(file_get_contents($file)) : file_get_contents($file)
-					);
-					$addition_state .= h::{'icon.uk-button.cs-button-compact'}(
-						'exclamation',
-						[
-							'data-title'    => $L->information_about_plugin.h::br().$L->click_to_view_details,
-							'data-uk-modal' => "{target : '#{$plugin}_readme'}"
-						]
-					);
-					unset($uniqid);
-				}
-				unset($tag, $file);
-				/**
-				 * License
-				 */
-				if (
-					file_exists($file = PLUGINS."/$plugin/license.txt") ||
-					file_exists($file = PLUGINS."/$plugin/license.html")
-				) {
-					$tag    = substr($file, -3) == 'txt' ? 'pre' : 'div';
-					$uniqid = uniqid('plugin_info_');
-					$modal  = "#{$plugin}_license.uk-modal .uk-modal-dialog.uk-modal-dialog-large";
-					$Page->post_Body .= h::$modal(
-						h::{'.uk-modal-caption'}("$plugin » $L->license").
-						h::$tag($uniqid)
-					);
-					$Page->replace(
-						$uniqid,
-						$tag == 'pre' ? prepare_attr_value(file_get_contents($file)) : file_get_contents($file)
-					);
-					$addition_state .= h::{'icon.uk-button.cs-button-compact'}(
-						'legal',
-						[
-							'data-title'    => $L->license.h::br().$L->click_to_view_details,
-							'data-uk-modal' => "{target : '#{$plugin}_license'}"
-						]
-					);
-				}
-				unset($tag, $file);
-				$state = in_array($plugin, $Config->components['plugins']);
-				$action .= h::{'a.uk-button.cs-button-compact'}(
-					h::icon($state ? 'minus' : 'check'),
-					[
-						'href'       => $a->action.($state ? '/disable/' : '/enable/').$plugin,
-						'data-title' => $state ? $L->disable : $L->enable
-					]
-				);
-				$plugin_info = false;
-				if (file_exists(PLUGINS."/$plugin/meta.json")) {
-					$plugin_meta = file_get_json(PLUGINS."/$plugin/meta.json");
-					$plugin_info = $L->plugin_info(
-						$plugin_meta['package'],
-						$plugin_meta['version'],
-						$plugin_meta['description'],
-						$plugin_meta['author'],
-						isset($plugin_meta['website']) ? $plugin_meta['website'] : $L->none,
-						$plugin_meta['license'],
-						isset($plugin_meta['provide']) ? implode(', ', (array)$plugin_meta['provide']) : $L->none,
-						isset($plugin_meta['require']) ? implode(', ', (array)$plugin_meta['require']) : $L->none,
-						isset($plugin_meta['conflict']) ? implode(', ', (array)$plugin_meta['conflict']) : $L->none,
-						isset($plugin_meta['optional']) ? implode(', ', (array)$plugin_meta['optional']) : $L->none,
-						isset($plugin_meta['multilingual']) && in_array('interface', $plugin_meta['multilingual']) ? $L->yes : $L->no,
-						isset($plugin_meta['multilingual']) && in_array('content', $plugin_meta['multilingual']) ? $L->yes : $L->no,
-						isset($plugin_meta['languages']) ? implode(', ', $plugin_meta['languages']) : $L->none
-					);
-				}
-				unset($plugin_meta);
-				$plugins_list[] = [
-					[
-						h::span(
-							$L->$plugin,
-							[
-								'data-title' => $plugin_info
-							]
-						),
-						h::icon(
-							$state ? 'check' : 'minus',
-							[
-								'data-title' => $state ? $L->enabled : $L->disabled
-							]
-						).
-						$addition_state,
-						$action
-					],
-					[
-						'class' => $state ? 'uk-alert-success' : 'uk-alert-warning'
-					]
+		foreach ($plugins as $plugin_name) {
+			$plugin = [
+				'active' => in_array($plugin_name, $Config->components['plugins']),
+				'name'   => $plugin_name
+			];
+			/**
+			 * Check if readme available
+			 */
+			$file = file_exists_with_extension(PLUGINS."/$plugin_name/readme", ['txt', 'html']);
+			if ($file) {
+				$plugin['readme'] = [
+					'type'    => substr($file, -3) == 'txt' ? 'txt' : 'html',
+					'content' => file_get_contents($file)
 				];
-				unset($plugin_info);
 			}
-			unset($plugin, $state, $addition_state, $action);
+			unset($file);
+			/**
+			 * Check if license available
+			 */
+			$file = file_exists_with_extension(PLUGINS."/$plugin_name/license", ['txt', 'html']);
+			if ($file) {
+				$plugin['license'] = [
+					'type'    => substr($file, -3) == 'txt' ? 'txt' : 'html',
+					'content' => file_get_contents($file)
+				];
+			}
+			unset($file);
+			if (file_exists(PLUGINS."/$plugin_name/meta.json")) {
+				$plugin['meta'] = file_get_json(PLUGINS."/$plugin_name/meta.json");
+			}
+			$plugins_list[] = $plugin;
 		}
+		unset($plugin_name, $plugin);
 		$plugins_for_removal = array_values(
 			array_filter(
 				$plugins,
@@ -2076,13 +1524,8 @@ trait components {
 			)
 		);
 		$a->content(
-			static::list_center_table(
-				[
-					$L->plugin_name,
-					$L->state,
-					$L->action
-				],
-				$plugins_list
+			h::{'cs-system-admin-components-plugins-list script[type=application/json]'}(
+				json_encode($plugins_list, JSON_UNESCAPED_UNICODE)
 			).
 			h::p(
 				h::{'input[type=file][name=upload_plugin]'}(
@@ -2097,9 +1540,7 @@ trait components {
 					]
 				)
 			).
-			(
-			$plugins_for_removal
-				? h::p(
+			($plugins_for_removal ? h::p(
 				h::{'select[name=remove_plugin]'}($plugins_for_removal).
 				h::{'button.uk-button[type=submit]'}(
 					h::icon('trash-o').$L->complete_plugin_removal,
@@ -2107,9 +1548,7 @@ trait components {
 						'formaction' => "$a->action/remove"
 					]
 				)
-			)
-				: ''
-			)
+			) : '')
 		);
 	}
 	static function components_storages () {
@@ -2119,7 +1558,6 @@ trait components {
 		$a      = Index::instance();
 		$rc     = Route::instance()->route;
 		if (isset($rc[2])) {
-			$a->apply_button       = false;
 			$a->cancel_button_back = true;
 			switch ($rc[2]) {
 				case 'add':

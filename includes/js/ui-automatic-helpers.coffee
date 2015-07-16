@@ -6,36 +6,20 @@
 ###
 $ ->
 	window.no_ui_selector		= '.cs-no-ui'
-	ui_automatic_helpers_update = (element) ->
-		element.filter('.cs-tabs:not(.uk-tab)').cs().tabs()
-		element.find('.cs-tabs:not(.uk-tab)').cs().tabs()
+	ui_automatic_helpers_update	= (element) ->
+		$element	= $(element)
 
-		if element.is(no_ui_selector) || element.closest(no_ui_selector).length
+		$element.filter('.cs-tabs:not(.uk-tab)').cs().tabs()
+		$element.find('.cs-tabs:not(.uk-tab)').cs().tabs()
+
+		if $element.is(no_ui_selector) || $element.closest(no_ui_selector).length
 			return
 
-		element.filter('textarea:not(.cs-no-resize, .autosizejs)')
+		$element.filter('textarea:not(.cs-no-resize, .autosizejs)')
 			.autosize()
-		element.find("textarea:not(#{no_ui_selector}, .cs-no-resize, .autosizejs)")
+		$element.find("textarea:not(#{no_ui_selector}, .cs-no-resize, .autosizejs)")
 			.autosize()
-	ui_automatic_helpers_update($('body'))
 	do ->
-		MutationObserver		= window.MutationObserver || window.WebKitMutationObserver
-		eventListenerSupported	= window.addEventListener;
-		if MutationObserver
-			(
-				new MutationObserver (mutations) ->
-					mutations.forEach (mutation) ->
-						if mutation.addedNodes.length
-							ui_automatic_helpers_update($(mutation.addedNodes))
-			).observe(
-				document.body
-				childList	: true
-				subtree		: true
-			)
-		else if eventListenerSupported
-			document.body.addEventListener(
-				'DOMNodeInserted'
-				->
-					ui_automatic_helpers_update($('body'))
-				false
-			)
+		body	= document.querySelector('body')
+		ui_automatic_helpers_update(body)
+		cs.observe_inserts_on(body, ui_automatic_helpers_update)

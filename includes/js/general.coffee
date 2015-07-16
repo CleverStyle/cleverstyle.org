@@ -11,22 +11,13 @@ $ ->
 		data	:
 			session	: cs.getcookie('session')
 		error	: (xhr) ->
-			if xhr.responseText
-				alert(JSON.parse(xhr.responseText).error_description)
-			else
-				alert(L.connection_error)
-	for own key, translation of L
-		L[key]		= (do (translation) ->
-			result	= ->
-				vsprintf(translation, Array::slice.call(arguments))
-			result.toString	= ->
-				translation
-			result
-		)
-	L.get		= (key) ->
-		L[key].toString()
-	L.format	= (key) ->
-		vsprintf(L[key].toString(), Array::slice.call(arguments, 1))
+			UIkit.notify(
+				if xhr.responseText
+					JSON.parse(xhr.responseText).error_description
+				else
+					L.connection_error
+				status	: 'warning'
+			)
 	$('.cs-header-sign-in-slide').click ->
 		$('.cs-header-guest-form').removeClass('active')
 		$('.cs-header-sign-in-form').addClass('active')

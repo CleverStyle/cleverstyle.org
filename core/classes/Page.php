@@ -12,12 +12,8 @@ use
 	cs\Page\Meta;
 
 /**
- * Provides next events:<br>
+ * Provides next events:
  *  System/Page/pre_display
- *  System/Page/rebuild_cache
- *  ['key'	=> &$key]		//Reference to the key, that will be appended to all css and js files, can be changed to reflect JavaScript and CSS changes
- *  System/Page/external_sign_in_list
- *  ['list'	=> &$list]		//Reference to the list of external sign in systems, actually handled by theme itself, not this class
  *
  * @method static Page instance($check = false)
  */
@@ -138,7 +134,7 @@ class Page {
 		if (
 			!Config::instance()->core['site_mode'] &&
 			!User::instance(true)->admin() &&
-			code_header(503) &&
+			status_code(503) &&
 			!_include("$theme_dir/closed.php", false, false) &&
 			!_include("$theme_dir/closed.html", false, false)
 		) {
@@ -247,11 +243,9 @@ class Page {
 	 * @return string
 	 */
 	protected function get_favicon_path () {
-		$theme_favicon	= "$this->theme/img/favicon";
-		if (file_exists(THEMES."/$theme_favicon.png")) {
-			return "themes/$theme_favicon.png";
-		} elseif (file_exists(THEMES."/$theme_favicon.ico")) {
-			return "themes/$theme_favicon.ico";
+		$file = file_exists_with_extension(THEMES."/$this->theme/img/favicon", ['png', 'ico']);
+		if ($file) {
+			return str_replace(THEMES, 'themes', $file);
 		}
 		return 'favicon.ico';
 	}
@@ -441,23 +435,24 @@ class Page {
 			return;
 		}
 		$this->error_showed	= true;
-		if (!error_code()) {
-			error_code(500);
+		$error = error_code();
+		if (!$error) {
+			error_code($error = 500);
 		}
 		/**
 		 * Hack for 403 after sign out in administration
 		 */
-		if (!api_path() && error_code() == 403 && _getcookie('sign_out')) {
+		if ($error == 403 && !api_path() && _getcookie('sign_out')) {
 			_header('Location: /', true, 302);
 			$this->Content	= '';
 			throw new \ExitException;
 		}
 		interface_off();
-		$error	= code_header(error_code());
+		$error_description	= status_code($error);
 		if (is_array($custom_text)) {
 			list($error, $error_description)	= $custom_text;
-		} else {
-			$error_description	= $custom_text ?: $error;
+		} elseif ($custom_text) {
+			$error_description	= $custom_text;
 		}
 		if ($json || api_path()) {
 			if ($json) {
@@ -475,7 +470,7 @@ class Page {
 				!_include(THEMES."/$this->theme/error.php", false, false)
 			) {
 				echo "<!doctype html>\n".
-					h::title(code_header($error)).
+					h::title($error_description).
 					($error_description ?: $error);
 			}
 			$this->Content	= ob_get_clean();

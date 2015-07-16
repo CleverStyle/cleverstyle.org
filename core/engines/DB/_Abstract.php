@@ -1,9 +1,9 @@
 <?php
 /**
- * @package        CleverStyle CMS
- * @author         Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright      Copyright (c) 2011-2015, Nazar Mokrynskyi
- * @license        MIT License, see license.txt
+ * @package   CleverStyle CMS
+ * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
+ * @copyright Copyright (c) 2011-2015, Nazar Mokrynskyi
+ * @license   MIT License, see license.txt
  */
 namespace cs\DB;
 abstract class _Abstract {
@@ -16,9 +16,9 @@ abstract class _Abstract {
 	/**
 	 * DB type, may be used for constructing requests, accounting particular features of current DB (lowercase name)
 	 *
-	 * @var bool
+	 * @var string
 	 */
-	protected $db_type = false;
+	protected $db_type = '';
 	/**
 	 * Current DB
 	 *
@@ -59,7 +59,7 @@ abstract class _Abstract {
 	/**
 	 * Connection time
 	 *
-	 * @var int
+	 * @var float
 	 */
 	protected $connecting_time;
 	/**
@@ -95,43 +95,73 @@ abstract class _Abstract {
 	 * @return false|object|resource
 	 */
 	function q ($query, $params = [], $_ = null) {
-		if (!$query) {
+		$normalized = $this->prepare_and_normalize_arguments($query, func_get_args());
+		if (!$normalized) {
+			return false;
+		}
+		list($query, $params) = $normalized;
+		/**
+		 * Executing multiple queries
+		 */
+		if (is_array($query)) {
+			return $this->execute_multiple($query, $params);
+		}
+		return $this->execute_single($query, $params);
+	}
+	/**
+	 * @param string|string[] $query
+	 * @param array           $arguments
+	 *
+	 * @return array|false
+	 */
+	protected function prepare_and_normalize_arguments ($query, $arguments) {
+		if (!$query || !$arguments) {
 			return false;
 		}
 		$query = str_replace('[prefix]', $this->prefix, $query);
-		switch (func_num_args()) {
+		switch (count($arguments)) {
 			default:
-				$params = array_slice(func_get_args(), 1);
+				$params = array_slice($arguments, 1);
 				break;
-			case 0:
-				return false;
 			case 1:
+				$params = [];
+				break;
 			case 2:
-				$params = (array)$params;
+				$params = (array)$arguments[1];
 				break;
 		}
 		foreach ($params as &$param) {
 			$param = $this->s($param, false);
 		}
-		unset($param);
-		if (is_array($query)) {
-			$time_from = microtime(true);
-			foreach ($query as &$q) {
-				$local_params = $params;
-				if (is_array($q)) {
-					if (count($q) > 1) {
-						$local_params = array_slice($q, 1);
-					}
-					$q = $q[0];
-				}
-				$q = empty($local_params) ? $q : vsprintf($q, $local_params);
-			}
-			unset($local_params, $q);
-			$this->queries['num'] += count($query);
-			$return = $this->q_multi_internal($query);
-			$this->time += round(microtime(true) - $time_from, 6);
-			return $return;
+		return [
+			$query,
+			$params
+		];
+	}
+	/**
+	 * @param string[] $queries
+	 * @param string[] $params
+	 *
+	 * @return false|object|resource
+	 */
+	protected function execute_multiple ($queries, $params) {
+		$time_from = microtime(true);
+		foreach ($queries as &$q) {
+			$q = $params ? vsprintf($q, $params) : $q;
 		}
+		unset($q);
+		$this->queries['num'] += count($queries);
+		$result = $this->q_multi_internal($queries);
+		$this->time += round(microtime(true) - $time_from, 6);
+		return $result;
+	}
+	/**
+	 * @param string   $query
+	 * @param string[] $params
+	 *
+	 * @return false|object|resource
+	 */
+	protected function execute_single ($query, $params) {
 		$time_from           = microtime(true);
 		$this->query['text'] = empty($params) ? $query : vsprintf($query, $params);
 		if (DEBUG) {
@@ -302,7 +332,7 @@ abstract class _Abstract {
 	 * @param bool         $array   If <b>true</b> returns array of associative arrays of all fetched rows
 	 * @param bool         $indexed If <b>false</b> - associative array will be returned
 	 *
-	 * @return false|string
+	 * @return false|int|string
 	 */
 	function qfs ($query, $array = false, $indexed = false) {
 		list($query, $params) = $this->q_prepare($query);
@@ -319,7 +349,7 @@ abstract class _Abstract {
 	 * @param array|string $query   SQL query string, or you can put all parameters, that ::q() function can accept in form of array
 	 * @param bool         $indexed If <b>false</b> - associative array will be returned
 	 *
-	 * @return false|string[]
+	 * @return false|int[]|string[]
 	 */
 	function qfas ($query, $indexed = false) {
 		list($query, $params) = $this->q_prepare($query);
@@ -333,7 +363,7 @@ abstract class _Abstract {
 	 *
 	 * @param array|string|string[] $query
 	 *
-	 * @return array                        array(<b>$query</b>, <b>$params</b>)
+	 * @return array|false [<b>$query</b>, <b>$params</b>]
 	 */
 	protected function q_prepare ($query) {
 		if (!$query) {
@@ -341,7 +371,9 @@ abstract class _Abstract {
 		}
 		$params = [];
 		if (is_array($query)) {
-			if (count($query) > 1) {
+			if (count($query) == 2) {
+				$params = $query[1];
+			} elseif (count($query) > 2) {
 				$params = array_slice($query, 1);
 			}
 			$query = $query[0];
@@ -377,14 +409,17 @@ abstract class _Abstract {
 				return false;
 			}
 			$query[1] .= str_repeat(",$query[1]", count($params) - 1);
-			$query   = $query[0].'VALUES'.$query[1].$query[2];
-			$params_ = [];
-			foreach ($params as $p) {
-				/** @noinspection SlowArrayOperationsInLoopInspection */
-				$params_ = array_merge($params_, (array)$p);
-			}
-			unset($p);
-			return (bool)$this->q($query, $params_);
+			$query = $query[0].'VALUES'.$query[1].$query[2];
+			return (bool)$this->q(
+				$query,
+				call_user_func_array(
+					'array_merge',
+					array_map(
+						'array_values',
+						_array($params)
+					)
+				)
+			);
 		} else {
 			$result = true;
 			foreach ($params as $p) {
@@ -419,15 +454,13 @@ abstract class _Abstract {
 	 * @abstract
 	 *
 	 * @param object|resource $query_result
-	 *
-	 * @return bool
 	 */
 	abstract function free ($query_result);
 	/**
 	 * Get columns list of table
 	 *
-	 * @param string      $table
-	 * @param bool|string $like
+	 * @param string       $table
+	 * @param false|string $like
 	 *
 	 * @return false|string[]
 	 */
@@ -449,7 +482,7 @@ abstract class _Abstract {
 	/**
 	 * Get tables list
 	 *
-	 * @param bool $like
+	 * @param false|string $like
 	 *
 	 * @return false|string[]
 	 */
@@ -553,7 +586,7 @@ abstract class _Abstract {
 	/**
 	 * Connecting time
 	 *
-	 * @return int
+	 * @return float
 	 */
 	function connecting_time () {
 		return $this->connecting_time;

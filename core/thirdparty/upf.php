@@ -291,17 +291,52 @@ function get_files_list (
 function file_extension ($filename) {
 	return mb_substr(mb_strrchr($filename, '.'), 1);
 }
-if (!function_exists('is_unicode')) {
-	/**
-	 * Checks whether string is unicode or not
-	 *
-	 * @param string $s
-	 *
-	 * @return bool
-	 */
-	function is_unicode ($s) {
-		return mb_check_encoding($s, 'utf-8');
+/**
+ * Function takes base filename and possible file extensions, returns filename of first file found in filesystem
+ *
+ * @param string   $base_filename Base filename without `.` at the end
+ * @param string[] $possible_extensions
+ *
+ * @return false|string
+ */
+function file_exists_with_extension ($base_filename, $possible_extensions) {
+	foreach ($possible_extensions as $extension) {
+		$file = "$base_filename.$extension";
+		if (file_exists($file)) {
+			return $file;
+		}
 	}
+	return false;
+}
+/**
+ * Recursively remove directory
+ *
+ * @param string $dirname Path to directory
+ *
+ * @return bool
+ */
+function rmdir_recursive ($dirname) {
+	if (!is_dir($dirname)) {
+		return true;
+	}
+	get_files_list(
+		$dirname,
+		false,
+		'fd',
+		true,
+		true,
+		false,
+		false,
+		true,
+		function ($item) {
+			if (is_dir($item)) {
+				@rmdir($item);
+			} else {
+				@unlink($item);
+			}
+		}
+	);
+	return @rmdir($dirname);
 }
 /**
  * Protecting against null byte injection
@@ -434,11 +469,15 @@ function _rtrim ($str, $charlist = " \t\n\r\0\x0B") {
 function _substr ($string, $start, $length = null) {
 	if (is_array($string)) {
 		foreach ($string as &$s) {
-			$s = substr($s, $start, $length);
+			$s = _substr($s, $start, $length);
 		}
 		return $string;
 	}
-	return substr($string, $start, $length);
+	if ($length) {
+		return substr($string, $start, $length);
+	} else {
+		return substr($string, $start);
+	}
 }
 /**
  * Like system function, but accept arrays of strings
@@ -452,11 +491,15 @@ function _substr ($string, $start, $length = null) {
 function _mb_substr ($string, $start, $length = null) {
 	if (is_array($string)) {
 		foreach ($string as &$s) {
-			$s = mb_substr($s, $start, $length, 'utf-8');
+			$s = _mb_substr($s, $start, $length);
 		}
 		return $string;
 	}
-	return mb_substr($string, $start, $length, 'utf-8');
+	if ($length) {
+		return mb_substr($string, $start, $length);
+	} else {
+		return mb_substr($string, $start);
+	}
 }
 /**
  * Like system function, but accept arrays of strings
@@ -517,14 +560,14 @@ function _mb_strtoupper ($string) {
 	return mb_strtoupper($string, 'utf-8');
 }
 /**
- * Works similar to the system function, but adds JSON_UNESCAPED_UNICODE option
+ * Works similar to the system function, but adds JSON_UNESCAPED_UNICODE and JSON_UNESCAPED_SLASHES options
  *
  * @param mixed		$value
  *
  * @return bool|string
  */
 function _json_encode ($value) {
-	return @json_encode($value, JSON_UNESCAPED_UNICODE);
+	return @json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 }
 /**
  * Works similar to the system function, but always returns array, not object
@@ -882,28 +925,28 @@ function hex2ip ($hex, $mode = 6) {
  * 					<b>7</b> - as 5, but + special symbols, which can't be found on usual keyboard or non-latin letter (more than one symbol)<br>
  */
 function password_check ($password, $min_length = 4) {
-	$password	= preg_replace('/\s+/', ' ', $password);
-	$strength	= 0;
-	if(strlen($password) >= $min_length) {
-		if(preg_match('/[~!@#\$%\^&\*\(\)\-_=+\|\\/;:,\.\?\[\]\{\}]+/', $password, $match)) {
+	$password = preg_replace('/\s+/', ' ', $password);
+	$strength = 0;
+	if (strlen($password) >= $min_length) {
+		if (preg_match_all('/[~!@#\$%\^&\*\(\)\-_=+\|\/;:,\.\?\[\]\{\}]/', $password, $match)) {
 			$strength = 4;
-			if (strlen(implode('', $match)) > 1) {
+			if (count($match[0]) > 1) {
 				++$strength;
 			}
 		} else {
-			if(preg_match('/[A-Z]+/', $password)) {
+			if (preg_match('/[A-Z]+/', $password)) {
 				++$strength;
 			}
-			if(preg_match('/[a-z]+/', $password)) {
+			if (preg_match('/[a-z]+/', $password)) {
 				++$strength;
 			}
-			if(preg_match('/[0-9]+/', $password)) {
+			if (preg_match('/[0-9]+/', $password)) {
 				++$strength;
 			}
 		}
-		if (preg_match('/[^[0-9a-z~!@#\$%\^&\*\(\)\-_=+\|\\/;:,\.\?\[\]\{\}]]+/i', $password, $match)) {
+		if (preg_match_all('/[^0-9a-z~!@#\$%\^&\*\(\)\-_=+\|\/;:,\.\?\[\]\{\}]/i', $password, $match)) {
 			++$strength;
-			if (strlen(implode('', $match)) > 1) {
+			if (count($match[0]) > 1) {
 				++$strength;
 			}
 		}
@@ -966,7 +1009,7 @@ function password_generate ($length = 10, $strength = 5) {
 	$size		= count($symbols)-1;
 	while (true) {
 		for ($i = 0; $i < $length; ++$i) {
-			$password[]	= $symbols[rand(0, $size)];
+			$password[]	= $symbols[mt_rand(0, $size)];
 		}
 		shuffle($password);
 		if (password_check(implode('', $password)) == $strength) {
@@ -1329,4 +1372,19 @@ function _array ($in) {
 		);
 	}
 	return (array)$in;
+}
+/**
+ * Fallback for function from PHP7
+ */
+if (!function_exists('random_bytes')) {
+	/**
+	 * Generates cryptographically secure pseudo-random bytes
+	 *
+	 * @param int $length
+	 *
+	 * @return string
+	 */
+	function random_bytes ($length) {
+		return openssl_random_pseudo_bytes ($length);
+	}
 }

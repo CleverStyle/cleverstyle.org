@@ -14,9 +14,7 @@
 
 //Common
 	"home"						: "Home",
-	"page_footer_info"			: "Page generated in %s, %s query(s) in DB in %s, maximal memory consumption %s",
-	"file"						: "File",
-	"not_writable"				: "not available for writing",
+	"page_footer_info"			: "Page generated in %s, %s query(s) in DB in %s, memory consumption %s",
 	"hidden"					: "Hidden",
 	"add"						: "Add",
 	"delete"					: "Delete",
@@ -232,7 +230,7 @@
 		"max_file_uploads"			: "Maximum number of uploaded files at once",
 		"allow_url_fopen"			: "URL-wrappers support",
 		"display_errors"			: "Display errors",
-		"mcrypt"					: "Mcrypt library",
+		"openssl"					: "OpenSSL library",
 		"php_ini_settings"			: "php.ini settings",
 		"indefinite"				: "Indefinite",
 		"server_type"				: "Server type",
@@ -315,7 +313,7 @@
 		"update_system_impossible_from_version_to"		: "System can't be updated from version %1$s to %2$s. This package can update version %3$s and newer. If you want to get version %2$s - try to update current version at least to %3$s.",
 		"update_system_impossible_older_version"		: "System can't be updated, because proposed version is older, than installed",
 		"updating_of_system"							: "Updating of system",
-		"update_system"									: "Are you sure want to updates system from version %s to version %s?",
+		"update_system"									: "Are you sure want to update system from version %s to version %s?",
 		"system_files_unpacking_error"					: "An error occurred during unpacking of system files",
 		//Plugins
 		"plugins"										: "Plugins",
@@ -393,8 +391,10 @@
 		"separate_db"			: "Separate DB",
 		"db_balance"			: "Balancing the load on the database",
 		"db_balance_info"		: "When you replicate a database into multiple slave-servers, you can enable load balancing between servers",
-		"maindb_for_write"		: "The main databases only for writing",
-		"maindb_for_write_info"	: "If you have a highly loaded site with configured replication for several slave-servers - you can direct all read requests to the slave-server, and send to the master-server only requests for changes of information",
+		"db_mirror_mode"		: "Database mirroring mode",
+		"db_mirror_mode_info"	: "In Master-Master writing is distributed across main database and all mirrors, in Master-Slave mode most of read queries will be sent to mirrors and all write queries to main database only",
+		"master_master"			: "Master-Master",
+		"master_slave"			: "Master-Slave",
 		"test_connection"		: "Connection testing",
 		"db_used_by_modules"	: "DB is used by modules",
 		"of_db"					: "of DB",
@@ -643,12 +643,8 @@
 	"l_Sat"			: "Sat",
 
 //Error strings
-	"page_generation_aborted"	: "Page generation aborted",
-	"of_file"					: "of file",
-	"error"						: "Error",
-	"error_core_db"				: "Error connecting to core DB of site",
-	"error_db"					: "Error connecting to DB",
-	"mcrypt_warning"			: "WARNIING: library mcrypt not found, the site will not work with the maximum level of security, strongly recommended to install this library.",
-	"mirror_not_allowed"		: "Mirror is not allowed",
-	"error_storage"				: "Error connecting to storage"
+	"of_file"			: "of file",
+	"error"				: "Error",
+	"openssl_warning"	: "WARNIING: library OpenSSL not found, the site will not work with the maximum level of security, strongly recommended to install this library.",
+	"error_storage"		: "Error connecting to storage"
 }

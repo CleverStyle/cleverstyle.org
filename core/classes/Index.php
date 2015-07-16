@@ -24,7 +24,8 @@ use
  *
  * @method static Index instance($check = false)
  *
- * @property string $action    Form action
+ * @property string   $action             Form action
+ * @property string[] $controller_path    Path that will be used by controller to render page
  */
 class Index {
 	use    Singleton;
@@ -40,7 +41,7 @@ class Index {
 	];
 	public    $buttons            = true;
 	public    $save_button        = true;
-	public    $apply_button       = true;
+	public    $apply_button       = false;
 	public    $cancel_button_back = false;
 	public    $custom_buttons     = '';
 	protected $action;
@@ -72,8 +73,6 @@ class Index {
 	protected $request_method;
 	protected $working_directory = '';
 	protected $called_once       = false;
-	protected $path_required     = false;
-	protected $sub_path_required = false;
 	/**
 	 * Reference to Route::instance()->route
 	 *
@@ -92,6 +91,12 @@ class Index {
 	 * @var int[]
 	 */
 	protected $ids = [];
+	/**
+	 * Path that will be used by controller to render page
+	 *
+	 * @var string[]
+	 */
+	protected $controller_path = ['index'];
 	/**
 	 * Detecting module folder including of admin/api request type, including prepare file, including of plugins
 	 *
@@ -141,6 +146,7 @@ class Index {
 		$this->request_method = strtolower($_SERVER->request_method);
 		if (!preg_match('/^[a-z]+$/', $this->request_method)) {
 			error_code(400);
+			throw new \ExitException;
 		}
 	}
 	/**
@@ -214,34 +220,29 @@ class Index {
 		if (!$structure) {
 			return;
 		}
-		$this->path_required = true;
-		/**
-		 * First level path routing
-		 */
-		$path = @$this->path[0];
-		/**
-		 * If path not specified - take first from structure
-		 */
-		$code = $this->check_and_normalize_route_internal($path, $structure);
-		if ($code !== 200) {
-			error_code($code);
-			return;
+		for ($nesting_level = 0; $structure; ++$nesting_level) {
+			/**
+			 * Next level of routing path
+			 */
+			$path = @$this->path[$nesting_level];
+			/**
+			 * If path not specified - take first from structure
+			 */
+			$code = $this->check_and_normalize_route_internal($path, $structure);
+			if ($code !== 200) {
+				error_code($code);
+				return;
+			}
+			$this->path[$nesting_level] = $path;
+			/**
+			 * Fill paths array intended for controller's usage
+			 */
+			$this->controller_path[] = $path;
+			/**
+			 * If nested structure is not available - we'll not go into next iteration of this cycle
+			 */
+			$structure = @$structure[$path];
 		}
-		$this->path[0] = $path;
-		/**
-		 * If there is second level routing in structure - handle that
-		 */
-		if (!@$structure[$path]) {
-			return;
-		}
-		$this->sub_path_required = true;
-		$sub_path                = @$this->path[1];
-		$code                    = $this->check_and_normalize_route_internal($sub_path, $structure[$path]);
-		if ($code !== 200) {
-			error_code($code);
-			return;
-		}
-		$this->path[1] = $sub_path;
 	}
 	/**
 	 * @param string $path
@@ -254,10 +255,13 @@ class Index {
 		 * If path not specified - take first from structure
 		 */
 		if (!$path) {
-			if (api_path()) {
+			$path = isset($structure[0]) ? $structure[0] : array_keys($structure)[0];
+			/**
+			 * We need exact paths for API request (or `_` ending if available) and less strict mode for other cases that allows go deeper automatically
+			 */
+			if ($path !== '_' && api_path()) {
 				return 404;
 			}
-			$path = isset($structure[0]) ? $structure[0] : array_keys($structure)[0];
 		} elseif (!isset($structure[$path]) && !in_array($path, $structure)) {
 			return 404;
 		}
@@ -268,19 +272,19 @@ class Index {
 	}
 	/**
 	 * Include files necessary for module page rendering
-	 *
-	 * @param string $path
-	 * @param string $sub_path
 	 */
-	protected function files_router ($path, $sub_path) {
-		if (!$this->files_router_handler($this->working_directory, 'index', !$path)) {
-			return;
-		}
-		if (!$this->path_required || !$this->files_router_handler($this->working_directory, $path, !$sub_path)) {
-			return;
-		}
-		if (!$this->sub_path_required || !$this->files_router_handler("$this->working_directory/$path", $sub_path)) {
-			return;
+	protected function files_router () {
+		foreach ($this->controller_path as $index => $path) {
+			/**
+			 * Starting from index 2 we need to maintain slash-separated string that includes all paths from index 1 and till current
+			 */
+			if ($index > 1) {
+				$path = implode('/', array_slice($this->controller_path, 1, $index));
+			}
+			$next_exists = isset($this->controller_path[$index + 1]);
+			if (!$this->files_router_handler($this->working_directory, $path, !$next_exists)) {
+				return;
+			}
 		}
 	}
 	/**
@@ -316,11 +320,8 @@ class Index {
 	}
 	/**
 	 * Call methods necessary for module page rendering
-	 *
-	 * @param string $path
-	 * @param string $sub_path
 	 */
-	protected function controller_router ($path, $sub_path) {
+	protected function controller_router () {
 		$suffix = '';
 		if ($this->in_admin) {
 			$suffix = '\\admin';
@@ -328,14 +329,17 @@ class Index {
 			$suffix = '\\api';
 		}
 		$controller_class = "cs\\modules\\$this->module$suffix\\Controller";
-		if (!$this->controller_router_handler($controller_class, 'index', !$path)) {
-			return;
-		}
-		if (!$this->path_required || !$this->controller_router_handler($controller_class, $path, !$sub_path)) {
-			return;
-		}
-		if (!$this->sub_path_required || !$this->controller_router_handler($controller_class, $path.'_'.$sub_path)) {
-			return;
+		foreach ($this->controller_path as $index => $path) {
+			/**
+			 * Starting from index 2 we need to maintain underscore-separated string that includes all paths from index 1 and till current
+			 */
+			if ($index > 1) {
+				$path = implode('_', array_slice($this->controller_path, 1, $index));
+			}
+			$next_exists = isset($this->controller_path[$index + 1]);
+			if (!$this->controller_router_handler($controller_class, $path, !$next_exists)) {
+				return;
+			}
 		}
 	}
 	/**
@@ -378,7 +382,7 @@ class Index {
 			}
 		);
 		if ($methods) {
-			$methods = _strtoupper(_substr($methods, strlen($method_name) + 1, -4));
+			$methods = _strtoupper(_substr($methods, strlen($method_name) + 1));
 			$methods = implode(', ', $methods);
 			_header("Allow: $methods");
 			error_code(405);
@@ -405,6 +409,8 @@ class Index {
 	}
 	/**
 	 * Page generation, blocks processing, adding of form with save/apply/cancel/reset and/or custom users buttons
+	 *
+	 * @throws \ExitException
 	 */
 	protected function render_page () {
 		$this->render_title();
@@ -455,7 +461,7 @@ class Index {
 		$this->check_and_normalize_route();
 		if (!error_code()) {
 			$router = file_exists("$this->working_directory/Controller.php") ? 'controller_router' : 'files_router';
-			$this->$router(@$this->path[0], @$this->path[1]);
+			$this->$router();
 		}
 		if (error_code()) {
 			$Page->error();
@@ -474,18 +480,18 @@ class Index {
 			 */
 			if ($this->apply_button) {
 				$this->Content .= $this->form_button('apply', !Cache::instance()->cache_state());
-				/**
-				 * If cancel button does not work as back button - render it here
-				 */
-				if (!$this->cancel_button_back) {
-					$this->Content .= $this->form_button('cancel', !@Config::instance()->core['cache_not_saved']);
-				}
 			}
 			/**
 			 * Save button
 			 */
 			if ($this->save_button) {
 				$this->Content .= $this->form_button('save');
+			}
+			/**
+			 * If cancel button does not work as back button - render it here
+			 */
+			if ($this->apply_button && !$this->cancel_button_back) {
+				$this->Content .= $this->form_button('cancel', !@Config::instance()->core['cache_not_saved']);
 			}
 		}
 		/**
@@ -549,26 +555,23 @@ class Index {
 			'bottom' => ''
 		];
 		foreach ($blocks as $block) {
+			/**
+			 * If there is no need to show block or it was rendered by even handler - skip further processing
+			 */
 			if (
-				!$block['active'] ||
-				$block['start'] > time() ||
-				($block['expire'] && $block['expire'] < time()) ||
-				!(User::instance()->get_permission('Block', $block['index']))
-			) {
-				continue;
-			}
-			if (!Event::instance()->fire(
-				'System/Index/block_render',
-				[
-					'index'        => $block['index'],
-					'blocks_array' => &$blocks_array
-				]
-			)
+				!$this->should_block_be_rendered($block) ||
+				!Event::instance()->fire(
+					'System/Index/block_render',
+					[
+						'index'        => $block['index'],
+						'blocks_array' => &$blocks_array
+					]
+				)
 			) {
 				/**
 				 * Block was rendered by event handler
 				 */
-				return;
+				continue;
 			}
 			$block['title'] = $this->ml_process($block['title']);
 			switch ($block['type']) {
@@ -619,6 +622,28 @@ class Index {
 		$Page->Right .= $blocks_array['right'];
 		$Page->Bottom .= $blocks_array['bottom'];
 	}
+	/**
+	 * Check whether to render block or not based on its properties (active state, when start to show, when it expires and permissions)
+	 *
+	 * @param array $block
+	 *
+	 * @return bool
+	 */
+	protected function should_block_be_rendered ($block) {
+		return
+			$block['active'] &&
+			$block['start'] <= time() &&
+			(
+				!$block['expire'] ||
+				$block['expire'] >= time()
+			) &&
+			User::instance()->get_permission('Block', $block['index']);
+	}
+	/**
+	 * @param string $text
+	 *
+	 * @return string
+	 */
 	protected function ml_process ($text) {
 		return Text::instance()->process(Config::instance()->module('System')->db('texts'), $text, true);
 	}
@@ -684,20 +709,23 @@ class Index {
 		return $this->in_admin;
 	}
 	/**
-	 * Getter for `action` property (no other properties supported currently)
+	 * Getter for `action` and `controller_path` properties (no other properties supported currently)
 	 *
 	 * @param string $property
 	 *
-	 * @return false|string
+	 * @return false|string|string[]
 	 */
 	function __get ($property) {
-		if ($property == 'action') {
-			return $this->get_action();
+		switch ($property) {
+			case 'action':
+				return $this->get_action();
+			case 'controller_path';
+				return $this->controller_path;
 		}
 		return false;
 	}
 	/**
-	 * Getter for `action` property (no other properties supported currently)
+	 * Setter for `action` property (no other properties supported currently)
 	 *
 	 * @param string $property
 	 * @param string $value
@@ -709,6 +737,8 @@ class Index {
 	}
 	/**
 	 * Executes plugins processing, blocks and module page generation
+	 *
+	 * @throws \ExitException
 	 */
 	function __finish () {
 		/**
@@ -725,7 +755,7 @@ class Index {
 		 */
 		if (!$Config->core['site_mode']) {
 			if ($this->closed_site($Config, $this->in_api)) {
-				code_header(503);
+				status_code(503);
 				return;
 			}
 			/**

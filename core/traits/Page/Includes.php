@@ -17,7 +17,19 @@ use
 	h;
 
 /**
- * Open Graph functionality for <i>cs\Page</i> class
+ * Provides next events:
+ *  System/Page/includes_dependencies_and_map
+ *  [
+ *    'dependencies' => &$dependencies,
+ *    'includes_map' => &$includes_map
+ *  ]
+ *
+ *  System/Page/rebuild_cache
+ *  [
+ *    'key' => &$key //Reference to the key, that will be appended to all css and js files, can be changed to reflect JavaScript and CSS changes
+ *  ]
+ *
+ * Includes management for `cs\Page` class
  *
  * @property string $Title
  * @property string $Description
@@ -190,7 +202,7 @@ trait Includes {
 					[
 						'href'           => $add,
 						'rel'            => 'stylesheet',
-						'shim-shadowdom' => ''
+						'shim-shadowdom' => true
 					]
 				);
 			} elseif ($mode == 'code') {
@@ -202,7 +214,7 @@ trait Includes {
 					[
 						'href'           => $add,
 						'rel'            => 'stylesheet',
-						'shim-shadowdom' => ''
+						'shim-shadowdom' => true
 					]
 				);
 			} elseif ($mode == 'code') {
@@ -231,11 +243,12 @@ trait Includes {
 	 * @return \cs\Page
 	 */
 	protected function config_internal ($config_structure, $target, $core = false) {
-		$config = h::template(
-			'<!--'.str_replace('-', '- ', _json_encode($config_structure)).'-->',
+		$config = h::script(
+			json_encode($config_structure, JSON_UNESCAPED_UNICODE),
 			[
 				'target' => $target,
 				'class'  => 'cs-config',
+				'type'   => 'application/json',
 				'level'  => 0
 			]
 		);
@@ -272,22 +285,23 @@ trait Includes {
 		 */
 		$this->config_internal(
 			[
-				'base_url'         => $Config->base_url(),
-				'current_base_url' => $Config->base_url().'/'.($Index->in_admin() ? 'admin/' : '').$current_module,
-				'public_key'       => Core::instance()->public_key,
-				'module'           => $current_module,
-				'in_admin'         => (int)$Index->in_admin(),
-				'is_admin'         => (int)$User->admin(),
-				'is_user'          => (int)$User->user(),
-				'is_guest'         => (int)$User->guest(),
-				'debug'            => (int)DEBUG,
-				'cookie_prefix'    => $Config->core['cookie_prefix'],
-				'cookie_domain'    => $Config->core['cookie_domain'][$Route->mirror_index],
-				'cookie_path'      => $Config->core['cookie_path'][$Route->mirror_index],
-				'protocol'         => $_SERVER->protocol,
-				'route'            => $Route->route,
-				'route_path'       => $Route->path,
-				'route_ids'        => $Route->ids
+				'base_url'              => $Config->base_url(),
+				'current_base_url'      => $Config->base_url().'/'.($Index->in_admin() ? 'admin/' : '').$current_module,
+				'public_key'            => Core::instance()->public_key,
+				'module'                => $current_module,
+				'in_admin'              => (int)$Index->in_admin(),
+				'is_admin'              => (int)$User->admin(),
+				'is_user'               => (int)$User->user(),
+				'is_guest'              => (int)$User->guest(),
+				'password_min_strength' => (int)$Config->core['password_min_strength'],
+				'debug'                 => (int)DEBUG,
+				'cookie_prefix'         => $Config->core['cookie_prefix'],
+				'cookie_domain'         => $Config->core['cookie_domain'][$Route->mirror_index],
+				'cookie_path'           => $Config->core['cookie_path'][$Route->mirror_index],
+				'protocol'              => $_SERVER->protocol,
+				'route'                 => $Route->route,
+				'route_path'            => $Route->path,
+				'route_ids'             => $Route->ids
 			],
 			'cs',
 			true
@@ -299,7 +313,7 @@ trait Includes {
 		 * If CSS and JavaScript compression enabled
 		 */
 		if ($Config->core['cache_compress_js_css'] && !admin_path()) {
-			$this->add_includes_on_page_with_compression();
+			$includes = $this->get_includes_for_page_with_compression();
 		} else {
 			/**
 			 * Language translation is added explicitly only when compression is disabled, otherwise it will be in compressed JS file
@@ -308,12 +322,18 @@ trait Includes {
 			 * @var \cs\Page $this
 			 */
 			$this->config_internal(Language::instance(), 'cs.Language', true);
-			$this->add_includes_on_page_without_compression($Config);
+			$includes = $this->get_includes_for_page_without_compression($Config);
 		}
+		$this->css_internal($includes['css'], 'file', true);
+		$this->js_internal($includes['js'], 'file', true);
+		$this->html_internal($includes['html'], 'file', true);
 		$this->add_includes_on_page_manually_added($Config);
 		return $this;
 	}
-	protected function add_includes_on_page_with_compression () {
+	/**
+	 * @return array[]
+	 */
+	protected function get_includes_for_page_with_compression () {
 		/**
 		 * Current cache checking
 		 */
@@ -326,7 +346,13 @@ trait Includes {
 		unset($data);
 		$current_module = current_module();
 		/**
-		 * Narrow the dependence to current module only
+		 * Current URL based on controller path (it better represents how page was rendered)
+		 */
+		$current_url = Index::instance()->controller_path;
+		$current_url = array_slice($current_url, 1);
+		$current_url = (admin_path() ? 'admin+' : '')."$current_module+".implode('+', $current_url);
+		/**
+		 * Narrow the dependencies to current module only
 		 */
 		$dependencies          = isset($dependencies[$current_module]) ? $dependencies[$current_module] : [];
 		$system_includes       = [
@@ -340,10 +366,10 @@ trait Includes {
 			'html' => []
 		];
 		$dependencies_includes = $includes;
-		$current_url           = str_replace('/', '+', Route::instance()->relative_address);
 		foreach ($structure as $filename_prefix => $hashes) {
 			$prefix_module = explode('+', $filename_prefix);
-			$prefix_module = $prefix_module[0] != 'admin' ? $prefix_module[0] : $prefix_module[1];
+			/** @noinspection NestedTernaryOperatorInspection */
+			$prefix_module = $prefix_module[0] != 'admin' ? $prefix_module[0] : (@$prefix_module[1] ?: '');
 			$is_dependency = false;
 			if (
 				(
@@ -368,37 +394,16 @@ trait Includes {
 			unset($prefix_module, $is_dependency);
 		}
 		unset($dependencies, $structure, $filename_prefix, $hashes);
-		$this->css_internal(
-			array_merge(
-				$system_includes['css'],
-				$dependencies_includes['css'],
-				$includes['css']
-			),
-			'file',
-			true
-		);
-		$this->js_internal(
-			array_merge(
-				$system_includes['js'],
-				$dependencies_includes['js'],
-				$includes['js']
-			),
-			'file',
-			true
-		);
-		$this->html_internal(
-			array_merge(
-				$system_includes['html'],
-				$dependencies_includes['html'],
-				$includes['html']
-			),
-			'file',
-			true
-		);
+		return array_merge_recursive($system_includes, $dependencies_includes, $includes);
 	}
-	protected function add_includes_on_page_without_compression ($Config) {
+	/**
+	 * @param Config $Config
+	 *
+	 * @return array[]
+	 */
+	protected function get_includes_for_page_without_compression ($Config) {
 		if ($Config) {
-			$this->includes_dependencies_and_map($dependencies, $includes_map, admin_path());
+			list($dependencies, $includes_map) = $this->includes_dependencies_and_map(admin_path());
 			/**
 			 * Add system includes
 			 */
@@ -408,17 +413,23 @@ trait Includes {
 				'html' => []
 			];
 			$dependencies_includes = $includes;
-			$current_url           = Route::instance()->relative_address;
+			$current_module        = current_module();
 			/**
-			 * Narrow the dependence to current module only
+			 * Current URL based on controller path (it better represents how page was rendered)
 			 */
-			$dependencies = isset($dependencies[current_module()]) ? $dependencies[current_module()] : [];
+			$current_url = array_slice(Index::instance()->controller_path, 1);
+			$current_url = (admin_path() ? 'admin/' : '')."$current_module/".implode('/', $current_url);
+			/**
+			 * Narrow the dependencies to current module only
+			 */
+			$dependencies = isset($dependencies[$current_module]) ? $dependencies[$current_module] : [];
 			foreach ($includes_map as $url => $local_includes) {
 				if (!$url) {
 					continue;
 				}
 				$prefix_module = explode('+', $url);
-				$prefix_module = $prefix_module[0] != 'admin' ? $prefix_module[0] : $prefix_module[1];
+				/** @noinspection NestedTernaryOperatorInspection */
+				$prefix_module = $prefix_module[0] != 'admin' ? $prefix_module[0] : (@$prefix_module[1] ?: '');
 				$is_dependency = false;
 				if (
 					mb_strpos($current_url, $url) === 0 ||
@@ -429,67 +440,20 @@ trait Includes {
 					)
 				) {
 					if ($is_dependency) {
-						/** @noinspection SlowArrayOperationsInLoopInspection */
-						$dependencies_includes['css'] = array_merge($dependencies_includes['css'], @$local_includes['css'] ?: []);
-						/** @noinspection SlowArrayOperationsInLoopInspection */
-						$dependencies_includes['js'] = array_merge($dependencies_includes['js'], @$local_includes['js'] ?: []);
-						/** @noinspection SlowArrayOperationsInLoopInspection */
-						$dependencies_includes['html'] = array_merge($dependencies_includes['html'], @$local_includes['html'] ?: []);
+						$dependencies_includes = array_merge_recursive($dependencies_includes, $local_includes);
 					} else {
-						/** @noinspection SlowArrayOperationsInLoopInspection */
-						$includes['css'] = array_merge($includes['css'], @$local_includes['css'] ?: []);
-						/** @noinspection SlowArrayOperationsInLoopInspection */
-						$includes['js'] = array_merge($includes['js'], @$local_includes['js'] ?: []);
-						/** @noinspection SlowArrayOperationsInLoopInspection */
-						$includes['html'] = array_merge($includes['html'], @$local_includes['html'] ?: []);
+						$includes = array_merge_recursive($includes, $local_includes);
 					}
 				}
 			}
 			unset($current_url, $dependencies, $url, $local_includes, $prefix_module, $is_dependency);
-			$includes['css']  = array_merge(
-				$includes_map['']['css'] ?: [],
-				$dependencies_includes['css'] ?: [],
-				$includes['css'] ?: []
-			);
-			$includes['js']   = array_merge(
-				$includes_map['']['js'] ?: [],
-				$dependencies_includes['js'] ?: [],
-				$includes['js'] ?: []
-			);
-			$includes['html'] = array_merge(
-				$includes_map['']['html'] ?: [],
-				$dependencies_includes['html'] ?: [],
-				$includes['html'] ?: []
-			);
+			$includes = array_merge_recursive($includes_map[''], $dependencies_includes, $includes);
 			unset($dependencies_includes);
-			$root_strlen = strlen(DIR.'/');
-			foreach ($includes['css'] as &$file) {
-				$file = substr($file, $root_strlen);
-			}
-			unset($file);
-			foreach ($includes['js'] as &$file) {
-				$file = substr($file, $root_strlen);
-			}
-			unset($file);
-			foreach ($includes['html'] as &$file) {
-				$file = substr($file, $root_strlen);
-			}
-			unset($root_strlen, $file);
+			$includes = _substr($includes, strlen(DIR.'/'));
 		} else {
 			$includes = $this->get_includes_list();
 		}
-		/**
-		 * Including of CSS
-		 */
-		$this->css_internal($includes['css'], 'file', true);
-		/**
-		 * Including of JavaScript
-		 */
-		$this->js_internal($includes['js'], 'file', true);
-		/**
-		 * Including of Web Components
-		 */
-		$this->html_internal($includes['html'], 'file', true);
+		return $includes;
 	}
 	/**
 	 * @param Config $Config
@@ -588,7 +552,7 @@ trait Includes {
 	 * @return \cs\Page
 	 */
 	protected function rebuild_cache () {
-		$this->includes_dependencies_and_map($dependencies, $includes_map);
+		list($dependencies, $includes_map) = $this->includes_dependencies_and_map();
 		$structure = [];
 		foreach ($includes_map as $filename_prefix => $includes) {
 			$filename_prefix             = str_replace('/', '+', $filename_prefix);
@@ -609,18 +573,21 @@ trait Includes {
 	/**
 	 * Get dependencies of components between each other (only that contains some styles and scripts) and mapping styles and scripts to URL paths
 	 *
-	 * @param array $dependencies
-	 * @param array $includes_map
-	 * @param bool  $with_disabled
+	 * @param bool $with_disabled
+	 *
+	 * @return array[] [$dependencies, $includes_map]
 	 */
-	protected function includes_dependencies_and_map (&$dependencies, &$includes_map, $with_disabled = false) {
+	protected function includes_dependencies_and_map ($with_disabled = false) {
 		/**
 		 * Get all includes
 		 */
-		$all_includes         = $this->get_includes_list(true, $with_disabled);
-		$includes_map         = [];
-		$dependencies         = [];
-		$dependencies_aliases = [];
+		$all_includes = $this->get_includes_list(true, $with_disabled);
+		$includes_map = [];
+		/**
+		 * Array [package => [list of packages it depends on]]
+		 */
+		$dependencies    = [];
+		$functionalities = [];
 		/**
 		 * According to components's maps some files should be included only on specific pages.
 		 * Here we read this rules, and remove from whole includes list such items, that should be included only on specific pages.
@@ -638,141 +605,52 @@ trait Includes {
 				continue;
 			}
 			if (file_exists(MODULES."/$module_name/meta.json")) {
-				$meta = file_get_json_nocomments(MODULES."/$module_name/meta.json");
-				if (isset($meta['require'])) {
-					foreach ((array)$meta['require'] as $r) {
-						preg_match('/([^=<>]+)/', $r, $r);
-						$dependencies[$module_name][] = $r[0];
-					}
-					unset($r);
-				}
-				if (isset($meta['optional'])) {
-					foreach ((array)$meta['optional'] as $o) {
-						$dependencies[$module_name][] = $o;
-					}
-					unset($o);
-				}
-				if (isset($meta['provide'])) {
-					foreach ((array)$meta['provide'] as $p) {
-						/**
-						 * If provides sub-functionality of other component (Blog/post_patch) - inverse "providing" to "dependency"
-						 */
-						if (strpos($p, '/') !== false) {
-							$p                  = explode('/', $p)[0];
-							$dependencies[$p][] = $module_name;
-						} else {
-							$dependencies_aliases[$p] = $module_name;
-						}
-					}
-					unset($p);
-				}
-				unset($meta);
+				$this->process_meta(
+					file_get_json(MODULES."/$module_name/meta.json"),
+					$dependencies,
+					$functionalities
+				);
 			}
-			if (!file_exists(MODULES."/$module_name/includes/map.json")) {
-				continue;
+			if (file_exists(MODULES."/$module_name/includes/map.json")) {
+				$this->process_map(
+					file_get_json_nocomments(MODULES."/$module_name/includes/map.json"),
+					MODULES."/$module_name/includes",
+					$includes_map,
+					$all_includes
+				);
 			}
-			foreach (file_get_json_nocomments(MODULES."/$module_name/includes/map.json") as $path => $files) {
-				foreach ($files as $file) {
-					$extension                         = file_extension($file);
-					$file                              = MODULES."/$module_name/includes/$extension/$file";
-					$includes_map[$path][$extension][] = $file;
-					$all_includes[$extension]          = array_diff(
-						$all_includes[$extension],
-						[$file]
-					);
-				}
-			}
-			unset($path, $files, $file);
 		}
 		unset($module_name, $module_data);
 		foreach ($Config->components['plugins'] as $plugin_name) {
 			if (file_exists(PLUGINS."/$plugin_name/meta.json")) {
-				$meta = file_get_json_nocomments(PLUGINS."/$plugin_name/meta.json");
-				if (isset($meta['require'])) {
-					foreach ((array)$meta['require'] as $r) {
-						preg_match('/([^=<>]+)/', $r, $r);
-						$dependencies[$plugin_name][] = $r[0];
-					}
-					unset($r);
-				}
-				if (isset($meta['optional'])) {
-					foreach ((array)$meta['optional'] as $o) {
-						$dependencies[$plugin_name][] = $o;
-					}
-					unset($o);
-				}
-				if (isset($meta['provide'])) {
-					foreach ((array)$meta['provide'] as $p) {
-						/**
-						 * If provides sub-functionality of other component (Blog/post_patch) - inverse "providing" to "dependency"
-						 */
-						if (strpos($p, '/') !== false) {
-							$p                  = explode('/', $p)[0];
-							$dependencies[$p][] = $plugin_name;
-						} else {
-							$dependencies_aliases[$p] = $plugin_name;
-						}
-					}
-					unset($p);
-				}
-				unset($meta);
+				$this->process_meta(
+					file_get_json(PLUGINS."/$plugin_name/meta.json"),
+					$dependencies,
+					$functionalities
+				);
 			}
-			if (!file_exists(PLUGINS."/$plugin_name/includes/map.json")) {
-				continue;
+			if (file_exists(PLUGINS."/$plugin_name/includes/map.json")) {
+				$this->process_map(
+					file_get_json_nocomments(PLUGINS."/$plugin_name/includes/map.json"),
+					PLUGINS."/$plugin_name/includes",
+					$includes_map,
+					$all_includes
+				);
 			}
-			foreach (file_get_json_nocomments(PLUGINS."/$plugin_name/includes/map.json") as $path => $files) {
-				foreach ($files as $file) {
-					$extension                         = file_extension($file);
-					$file                              = PLUGINS."/$plugin_name/includes/$extension/$file";
-					$includes_map[$path][$extension][] = $file;
-					$all_includes[$extension]          = array_diff(
-						$all_includes[$extension],
-						[$file]
-					);
-				}
-			}
-			unset($path, $files, $file);
 		}
 		unset($plugin_name);
 		/**
 		 * For consistency
 		 */
 		$includes_map[''] = $all_includes;
-		unset($all_includes);
-		/**
-		 * Components can depend on each other - we need to find all dependencies and replace aliases by real names of components
-		 */
-		foreach ($dependencies as $component_name => &$depends_on) {
-			foreach ($depends_on as $index => &$dependency) {
-				if ($dependency == 'System') {
-					continue;
-				}
-				if (isset($dependencies_aliases[$dependency])) {
-					$dependency = $dependencies_aliases[$dependency];
-				}
-				/**
-				 * If dependency have its own dependencies, that are nor present in current component - add them and mark, that it is necessary
-				 * to iterate through array again
-				 */
-				if (
-					isset($dependencies[$dependency]) &&
-					$dependencies[$dependency] &&
-					array_diff($dependencies[$dependency], $depends_on)
-				) {
-					foreach (array_diff($dependencies[$dependency], $depends_on) as $new_dependency) {
-						$depends_on[] = $new_dependency;
-					}
-					unset($new_dependency);
-				}
-			}
-			unset($dependency);
-			if (empty($depends_on)) {
-				unset($dependencies[$component_name]);
-			} else {
-				$depends_on = array_unique($depends_on);
-			}
-		}
-		unset($dependencies_aliases, $component_name, $depends_on, $index);
+		Event::instance()->fire(
+			'System/Page/includes_dependencies_and_map',
+			[
+				'dependencies' => &$dependencies,
+				'includes_map' => &$includes_map
+			]
+		);
+		$dependencies = $this->normalize_dependencies($dependencies, $functionalities);
 		/**
 		 * Clean dependencies without files
 		 */
@@ -785,6 +663,134 @@ trait Includes {
 			unset($dependency);
 		}
 		unset($depends_on, $index);
+		$dependencies = array_map('array_values', $dependencies);
+		$dependencies = array_filter($dependencies);
+		return [$dependencies, $includes_map];
+	}
+	/**
+	 * Process meta information and corresponding entries to dependencies and functionalities
+	 *
+	 * @param array $meta
+	 * @param array $dependencies
+	 * @param array $functionalities
+	 */
+	protected function process_meta ($meta, &$dependencies, &$functionalities) {
+		$package = $meta['package'];
+		if (isset($meta['require'])) {
+			foreach ((array)$meta['require'] as $r) {
+				/**
+				 * Get only name of package or functionality
+				 */
+				$r                        = preg_split('/[=<>]/', $r, 2)[0];
+				$dependencies[$package][] = $r;
+			}
+		}
+		if (isset($meta['optional'])) {
+			foreach ((array)$meta['optional'] as $o) {
+				/**
+				 * Get only name of package or functionality
+				 */
+				$o                        = preg_split('/[=<>]/', $o, 2)[0];
+				$dependencies[$package][] = $o;
+			}
+			unset($o);
+		}
+		if (isset($meta['provide'])) {
+			foreach ((array)$meta['provide'] as $p) {
+				/**
+				 * If provides sub-functionality for other component (for instance, `Blog/post_patch`) - inverse "providing" to "dependency"
+				 * Otherwise it is just functionality alias to package name
+				 */
+				if (strpos($p, '/') !== false) {
+					/**
+					 * Get name of package or functionality
+					 */
+					$p                  = explode('/', $p)[0];
+					$dependencies[$p][] = $package;
+				} else {
+					$functionalities[$p] = $package;
+				}
+			}
+			unset($p);
+		}
+	}
+	/**
+	 * Process map structure, fill includes map and remove files from list of all includes (remaining files will be included on all pages)
+	 *
+	 * @param array  $map
+	 * @param string $includes_dir
+	 * @param array  $includes_map
+	 * @param array  $all_includes
+	 */
+	protected function process_map ($map, $includes_dir, &$includes_map, &$all_includes) {
+		foreach ($map as $path => $files) {
+			foreach ($files as $file) {
+				$extension                         = file_extension($file);
+				$file                              = "$includes_dir/$extension/$file";
+				$includes_map[$path][$extension][] = $file;
+				$all_includes[$extension]          = array_diff(
+					$all_includes[$extension],
+					[$file]
+				);
+			}
+		}
+	}
+	/**
+	 * Replace functionalities by real packages names, take into account recursive dependencies
+	 *
+	 * @param array $dependencies
+	 * @param array $functionalities
+	 *
+	 * @return array
+	 */
+	protected function normalize_dependencies ($dependencies, $functionalities) {
+		/**
+		 * First of all remove packages without any dependencies
+		 */
+		$dependencies = array_filter($dependencies);
+		/**
+		 * First round, process aliases among keys
+		 */
+		foreach (array_keys($dependencies) as $d) {
+			if (isset($functionalities[$d])) {
+				$package = $functionalities[$d];
+				/**
+				 * Add dependencies to existing package dependencies
+				 */
+				foreach ($dependencies[$d] as $dependency) {
+					$dependencies[$package][] = $dependency;
+				}
+				/**
+				 * Drop alias
+				 */
+				unset($dependencies[$d]);
+			}
+		}
+		unset($d, $dependency);
+		/**
+		 * Second round, process aliases among dependencies
+		 */
+		foreach ($dependencies as &$depends_on) {
+			foreach ($depends_on as &$dependency) {
+				if (isset($functionalities[$dependency])) {
+					$dependency = $functionalities[$dependency];
+				}
+			}
+		}
+		unset($depends_on, $dependency);
+		/**
+		 * Third round, process recursive dependencies
+		 */
+		foreach ($dependencies as &$depends_on) {
+			foreach ($depends_on as &$dependency) {
+				if ($dependency != 'System' && isset($dependencies[$dependency])) {
+					foreach (array_diff($dependencies[$dependency], $depends_on) as $new_dependency) {
+						$depends_on[] = $new_dependency;
+					}
+				}
+			}
+		}
+		return array_map('array_unique', $dependencies);
 	}
 	/**
 	 * Creates cached version of given js and css files.<br>

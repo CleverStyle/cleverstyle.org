@@ -45,7 +45,7 @@ trait packages_manipulation {
 		if ($_FILES[$file_name]['error'] != UPLOAD_ERR_OK) {
 			return false;
 		}
-		$tmp_name = TEMP.'/'.md5(openssl_random_pseudo_bytes(1000)).'.phar';
+		$tmp_name = TEMP.'/'.md5(random_bytes(1000)).'.phar';
 		return move_uploaded_file($_FILES[$file_name]['tmp_name'], $tmp_name) ? $tmp_name : false;
 	}
 	/**
@@ -57,28 +57,33 @@ trait packages_manipulation {
 	 * @return bool
 	 */
 	static protected function install_extract ($target_directory, $source_phar) {
-		$tmp_dir = "phar://$source_phar";
-		$fs      = file_get_json("$tmp_dir/fs.json");
-		$extract = array_product(
+		$tmp_dir   = "phar://$source_phar";
+		$fs        = file_get_json("$tmp_dir/fs.json");
+		$extracted = array_filter(
 			array_map(
 				function ($index, $file) use ($tmp_dir, $target_directory) {
 					if (
 						!file_exists(dirname("$target_directory/$file")) &&
 						!mkdir(dirname("$target_directory/$file"), 0770, true)
 					) {
-						return 0;
+						return false;
 					}
-					return (int)copy("$tmp_dir/fs/$index", "$target_directory/$file");
+					/**
+					 * TODO: copy() + file_exists() is a hack for HHVM, when bug fixed upstream (copying of empty files) this should be simplified
+					 */
+					copy("$tmp_dir/fs/$index", "$target_directory/$file");
+					return file_exists("$target_directory/$file");
 				},
 				$fs,
 				array_keys($fs)
 			)
 		);
 		unlink($source_phar);
-		if ($extract) {
+		if (count($extracted) === count($fs)) {
 			file_put_json("$target_directory/fs.json", array_keys($fs));
+			return true;
 		}
-		return (bool)$extract;
+		return false;
 	}
 	/**
 	 * Generic extraction of files from phar distributive for CleverStyle CMS (system and components update)
@@ -101,18 +106,22 @@ trait packages_manipulation {
 		/**
 		 * Extracting new versions of files
 		 */
-		$tmp_dir = "phar://$source_phar";
-		$fs      = file_get_json("$tmp_dir/fs.json");
-		$extract = array_product(
+		$tmp_dir   = "phar://$source_phar";
+		$fs        = file_get_json("$tmp_dir/fs.json");
+		$extracted = array_filter(
 			array_map(
 				function ($index, $file) use ($tmp_dir, $target_directory) {
 					if (
 						!file_exists(dirname("$target_directory/$file")) &&
 						!mkdir(dirname("$target_directory/$file"), 0770, true)
 					) {
-						return 0;
+						return false;
 					}
-					return (int)copy("$tmp_dir/fs/$index", "$target_directory/$file");
+					/**
+					 * TODO: copy() + file_exists() is a hack for HHVM, when bug fixed upstream (copying of empty files) this should be simplified
+					 */
+					copy("$tmp_dir/fs/$index", "$target_directory/$file");
+					return file_exists("$target_directory/$file");
 				},
 				$fs,
 				array_keys($fs)
@@ -120,7 +129,7 @@ trait packages_manipulation {
 		);
 		unlink($source_phar);
 		unset($tmp_dir);
-		if (!$extract) {
+		if (count($extracted) !== count($fs)) {
 			return false;
 		}
 		unset($extract);
@@ -418,14 +427,15 @@ trait packages_manipulation {
 		$L            = Language::instance();
 		$Page         = Page::instance();
 		$check_result = false;
-		if (!in_array($Core->db_type, $db_support)) {
+		if (in_array($Core->db_type, $db_support)) {
+			$check_result = true;
+		} else {
 			foreach ($Config->db as $database) {
 				if (isset($database['type']) && in_array($database['type'], $db_support)) {
 					$check_result = true;
 					break;
 				}
 			}
-			unset($database);
 		}
 		if (!$check_result) {
 			$Page->warning(

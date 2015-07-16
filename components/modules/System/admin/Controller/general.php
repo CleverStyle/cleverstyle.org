@@ -110,11 +110,11 @@ trait general {
 					"$L->php_components:",
 					h::{'cs-table cs-table-row| cs-table-cell'}(
 						[
-							"$L->mcrypt:",
+							"$L->openssl:",
 							[
-								extension_loaded('mcrypt') ? $L->on : $L->off.h::icon('info-sign', ['data-title' => $L->mcrypt_warning]),
+								extension_loaded('openssl') ? $L->on : $L->off.h::icon('info-sign', ['data-title' => $L->openssl_warning]),
 								[
-									'class' => self::state(extension_loaded('mcrypt'))
+									'class' => self::state(extension_loaded('openssl'))
 								]
 							]
 						],
@@ -289,10 +289,11 @@ trait general {
 		return $version[1];
 	}
 	static function general_appearance () {
-		$Config = Config::instance();
-		$Index  = Index::instance();
-		$L      = Language::instance();
-		$Page   = Page::instance();
+		$Config              = Config::instance();
+		$Index               = Index::instance();
+		$L                   = Language::instance();
+		$Page                = Page::instance();
+		$Index->apply_button = true;
 		if (isset($_POST['action'])) {
 			switch ($_POST['action']) {
 				case 'upload':
@@ -311,7 +312,7 @@ trait general {
 						unlink($tmp_file);
 						break;
 					}
-					$theme   = $meta['package'];
+					$theme = $meta['package'];
 					if (in_array($theme, $Config->core['themes'])) {
 						$current_version = file_get_json(THEMES."/$theme/meta.json")['version'];
 						$new_version     = $meta['version'];
@@ -395,7 +396,6 @@ trait general {
 						)
 					);
 					return;
-					break;
 				case 'remove_confirmed':
 					$theme = $_POST['remove_theme_confirmed'];
 					if ($theme == 'CleverStyle' || $theme == $Config->core['theme']) {
@@ -452,9 +452,11 @@ trait general {
 	}
 	static function general_languages () {
 		$Config = Config::instance();
+		$Index  = Index::instance();
 		$L      = Language::instance();
 		$Config->reload_languages();
-		Index::instance()->content(
+		$Index->apply_button = true;
+		$Index->content(
 			static::vertical_table(
 				static::core_select($Config->core['active_languages'], 'language', 'change_language', 'current_language'),
 				static::core_select($Config->core['languages'], 'active_languages', 'change_active_languages', null, true),
@@ -473,10 +475,12 @@ trait general {
 		);
 	}
 	static function general_optimization () {
-		$Config = Config::instance();
-		$L      = Language::instance();
-		$sa     = $Config->core['simple_admin_mode'];
-		Index::instance()->content(
+		$Config              = Config::instance();
+		$Index               = Index::instance();
+		$L                   = Language::instance();
+		$sa                  = $Config->core['simple_admin_mode'];
+		$Index->apply_button = true;
+		$Index->content(
 			static::vertical_table(
 				static::core_input('cache_compress_js_css', 'radio'),
 				static::core_input('vulcanization', 'radio'),
@@ -511,9 +515,11 @@ trait general {
 		);
 	}
 	static function general_site_info () {
-		$Config    = Config::instance();
-		$timezones = get_timezones_list();
-		$sa        = $Config->core['simple_admin_mode'];
+		$Config              = Config::instance();
+		$Index               = Index::instance();
+		$timezones           = get_timezones_list();
+		$sa                  = $Config->core['simple_admin_mode'];
+		$Index->apply_button = true;
 		Index::instance()->content(
 			static::vertical_table(
 				static::core_input('name', 'text', 'site_name'),
@@ -540,9 +546,11 @@ trait general {
 		);
 	}
 	static function general_system () {
-		$Config = Config::instance();
-		$sa     = $Config->core['simple_admin_mode'];
-		Index::instance()->content(
+		$Config              = Config::instance();
+		$Index               = Index::instance();
+		$sa                  = $Config->core['simple_admin_mode'];
+		$Index->apply_button = true;
+		$Index->content(
 			static::vertical_table(
 				static::core_input('site_mode', 'radio'),
 				static::core_input('closed_title'),

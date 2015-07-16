@@ -13,10 +13,13 @@
  */
 
 (function() {
+  var L, key, translation,
+    hasProp = {}.hasOwnProperty;
+
   [].forEach.call(document.head.querySelectorAll('.cs-config'), function(config) {
     var data, destination, target;
     target = config.getAttribute('target').split('.');
-    data = JSON.parse(config.innerHTML.substring(4, config.innerHTML.length - 3).replace('-  ', '-', 'g'));
+    data = JSON.parse(config.innerHTML);
     destination = window;
     target.forEach(function(target_part, i) {
       var index, value;
@@ -40,5 +43,30 @@
       }
     });
   });
+
+  L = cs.Language;
+
+  for (key in L) {
+    if (!hasProp.call(L, key)) continue;
+    translation = L[key];
+    L[key] = (function(translation) {
+      var result;
+      result = function() {
+        return vsprintf(translation, Array.prototype.slice.call(arguments));
+      };
+      result.toString = function() {
+        return translation;
+      };
+      return result;
+    })(translation);
+  }
+
+  L.get = function(key) {
+    return L[key].toString();
+  };
+
+  L.format = function(key) {
+    return vsprintf(L[key].toString(), Array.prototype.slice.call(arguments, 1));
+  };
 
 }).call(this);

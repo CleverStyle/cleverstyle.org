@@ -35,9 +35,6 @@ class Event {
 		if (!$event || !is_callable($callback)) {
 			return $this;
 		}
-		if (!isset($this->callbacks[$event])) {
-			$this->callbacks[$event] = [];
-		}
 		$this->callbacks[$event][] = $callback;
 		return $this;
 	}
@@ -57,9 +54,12 @@ class Event {
 			unset($this->callbacks[$event]);
 			return $this;
 		}
-		$this->callbacks[$event] = array_filter($this->callbacks[$event], function ($c) use ($callback) {
-			return $c !== $callback;
-		});
+		$this->callbacks[$event] = array_filter(
+			$this->callbacks[$event],
+			function ($c) use ($callback) {
+				return $c !== $callback;
+			}
+		);
 		return $this;
 	}
 	/**
@@ -73,9 +73,6 @@ class Event {
 	function once ($event, $callback) {
 		if (!$event || !is_callable($callback)) {
 			return $this;
-		}
-		if (!isset($this->callbacks[$event])) {
-			$this->callbacks[$event] = [];
 		}
 		$wrapped_callback = function () use (&$wrapped_callback, $event, $callback) {
 			$this->off($event, $wrapped_callback);

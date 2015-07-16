@@ -110,9 +110,45 @@ class Session {
 	protected function bots_detection () {
 		$Cache = $this->users_cache;
 		/**
-		 * Loading bots list
+		 * @var \cs\_SERVER $_SERVER
 		 */
-		$bots = $Cache->get(
+		/**
+		 * For bots: login is user agent, email is IP
+		 */
+		$login    = $_SERVER->user_agent;
+		$email    = $_SERVER->ip;
+		$bot_hash = hash('sha224', $login.$email);
+		/**
+		 * If bot is cached
+		 */
+		$this->user_id = $Cache->$bot_hash;
+		/**
+		 * If bot found in cache - exit from here
+		 */
+		if ($this->user_id) {
+			return;
+		}
+		/**
+		 * Try to find bot among known bots
+		 */
+		foreach ($this->all_bots() as $bot) {
+			if ($this->is_this_bot($bot, $login, $email)) {
+				/**
+				 * If bot found - save it in cache
+				 */
+				$this->user_id    = $bot['id'];
+				$Cache->$bot_hash = $bot['id'];
+				return;
+			}
+		}
+	}
+	/**
+	 * Get list of all bots
+	 *
+	 * @return array
+	 */
+	protected function all_bots () {
+		return $this->users_cache->get(
 			'bots',
 			function () {
 				return $this->db()->qfa(
@@ -132,68 +168,33 @@ class Session {
 					]
 				) ?: [];
 			}
-		);
-		/**
-		 * If there are no known bots - exit from here
-		 */
-		if (!$bots) {
-			return;
-		}
-		/**
-		 * @var \cs\_SERVER $_SERVER
-		 */
-		/**
-		 * For bots: login is user agent, email is IP
-		 */
-		$bot_hash = hash('sha224', $_SERVER->user_agent.$_SERVER->ip);
-		/**
-		 * Load data
-		 */
-		$this->user_id = $Cache->$bot_hash;
-		/**
-		 * If bot found in cache - exit from here
-		 */
-		if ($this->user_id !== false) {
-			return;
-		}
-		/**
-		 * Try to find bot among known bots
-		 */
-		foreach ($bots as $bot) {
-			/**
-			 * Check user agent
-			 */
-			if (
+		) ?: [];
+	}
+	/**
+	 * Check whether user agent and IP (login and email for bots) corresponds to passed bot data
+	 *
+	 * @param array  $bot
+	 * @param string $login
+	 * @param string $email
+	 *
+	 * @return bool
+	 */
+	protected function is_this_bot ($bot, $login, $email) {
+		return
+			(
 				$bot['login'] &&
 				(
-					strpos($_SERVER->user_agent, $bot['login']) !== false ||
-					_preg_match($bot['login'], $_SERVER->user_agent)
+					strpos($login, $bot['login']) !== false ||
+					_preg_match($bot['login'], $login)
 				)
-			) {
-				$this->user_id = $bot['id'];
-				break;
-			}
-			/**
-			 * Check IP
-			 */
-			if (
+			) ||
+			(
 				$bot['email'] &&
 				(
-					$_SERVER->ip == $bot['email'] ||
-					_preg_match($bot['email'], $_SERVER->ip)
+					$email === $bot['email'] ||
+					_preg_match($bot['email'], $email)
 				)
-			) {
-				$this->user_id = $bot['id'];
-				break;
-			}
-		}
-		unset($bots, $bot);
-		/**
-		 * If bot found - save it in cache
-		 */
-		if ($this->user_id) {
-			$Cache->$bot_hash = $this->user_id;
-		}
+			);
 	}
 	/**
 	 * Updates information about who is user accessed by methods ::guest() ::bot() ::user() admin()
@@ -328,90 +329,102 @@ class Session {
 		if ($this->user_id == User::GUEST_ID && $this->bot()) {
 			return User::GUEST_ID;
 		}
-		$Config  = Config::instance();
-		$User    = User::instance();
-		$session = $this->get($session_id);
-		$time    = time();
-		/**
-		 * @var \cs\_SERVER $_SERVER
-		 */
-		if (
-			!$session ||
-			$session['expire'] <= $time ||
-			$session['user_agent'] != $_SERVER->user_agent ||
-			!$User->get('id', $session['user']) ||
-			(
-				$Config->core['remember_user_ip'] &&
-				(
-					$session['remote_addr'] != ip2hex($_SERVER->remote_addr) ||
-					$session['ip'] != ip2hex($_SERVER->ip)
-				)
-			)
-		) {
+		$session_data = $this->get($session_id);
+		if (!$session_data || !$this->is_good_session($session_data)) {
 			$this->add(User::GUEST_ID);
-			$this->update_user_is();
 			return User::GUEST_ID;
 		}
 		/**
-		 * Session id passed into this method might be `null`, but returned session will contain proper session id
-		 * (can be loaded from `$this->session_id`, and if that also empty - from cookies)
-		 */
-		$session_id = $session['id'];
-		$update     = [];
-		/**
 		 * Updating last online time and ip
 		 */
-		if ($User->get('last_online', $session['user']) < $time - $Config->core['online_time'] * $Config->core['update_ratio'] / 100) {
+		$Config = Config::instance();
+		$User   = User::instance();
+		$time   = time();
+		$update = [];
+		if ($User->get('last_online', $session_data['user']) < $time - $Config->core['online_time'] * $Config->core['update_ratio'] / 100) {
+			/**
+			 * @var \cs\_SERVER $_SERVER
+			 */
 			$ip       = ip2hex($_SERVER->ip);
 			$update[] = "
 				UPDATE `[prefix]users`
 				SET
 					`last_ip`		= '$ip',
 					`last_online`	= $time
-				WHERE `id` = $session[user]";
+				WHERE `id` = $session_data[user]";
 			$User->set(
 				[
 					'last_ip'     => $ip,
 					'last_online' => $time
 				],
 				null,
-				$session['user']
+				$session_data['user']
 			);
 			unset($ip);
 		}
-		if ($session['expire'] - $time < $Config->core['session_expire'] * $Config->core['update_ratio'] / 100) {
-			$session['expire']        = $time + $Config->core['session_expire'];
-			$update[]                 = "
+		if ($session_data['expire'] - $time < $Config->core['session_expire'] * $Config->core['update_ratio'] / 100) {
+			$session_data['expire']             = $time + $Config->core['session_expire'];
+			$update[]                           = "
 				UPDATE `[prefix]sessions`
-				SET `expire` = $session[expire]
-				WHERE `id` = '$session_id'
+				SET `expire` = $session_data[expire]
+				WHERE `id` = '$session_data[id]'
 				LIMIT 1";
-			$this->cache->$session_id = $session;
+			$this->cache->{$session_data['id']} = $session_data;
 		}
 		if (!empty($update)) {
 			$this->db_prime()->q($update);
 		}
-		$this->user_id    = $session['user'];
-		$this->session_id = $session_id;
-		$this->update_user_is();
-		return $this->user_id;
+		return $this->load_initialization($session_data['id'], $session_data['user']);
 	}
 	/**
-	 * Create the session for the user with specified id
+	 * Initialize session (set user id, session id and update who user is)
 	 *
-	 * @param false|int $user
-	 * @param bool      $delete_current_session
+	 * @param string $session_id
+	 * @param int    $user_id
+	 *
+	 * @return int User id
+	 */
+	protected function load_initialization ($session_id, $user_id) {
+		$this->session_id = $session_id;
+		$this->user_id    = $user_id;
+		$this->update_user_is();
+		return $user_id;
+	}
+	/**
+	 * Check whether session was not expired, user agent and IP corresponds to what is expected and user is actually active
+	 *
+	 * @param array $session_data
 	 *
 	 * @return bool
 	 */
-	function add ($user = false, $delete_current_session = true) {
-		$user = (int)$user ?: User::GUEST_ID;
-		if ($delete_current_session && is_md5($this->session_id)) {
-			$this->del_internal(null, false);
-		}
+	protected function is_good_session ($session_data) {
 		/**
-		 * Load user data
-		 * Return point, runs if user is blocked, inactive, or disabled
+		 * md5() as protection against timing attacks
+		 *
+		 * @var \cs\_SERVER $_SERVER
+		 */
+		return
+			$session_data['expire'] > time() &&
+			md5($session_data['user_agent']) == md5($_SERVER->user_agent) &&
+			$this->is_user_active($session_data['user']) &&
+			(
+				!Config::instance()->core['remember_user_ip'] ||
+				(
+					md5($session_data['remote_addr']) == md5(ip2hex($_SERVER->remote_addr)) &&
+					md5($session_data['ip']) == md5(ip2hex($_SERVER->ip))
+				)
+			);
+	}
+	/**
+	 * Whether profile is activated, not disabled and not blocked
+	 *
+	 * @param int $user
+	 *
+	 * @return bool
+	 */
+	protected function is_user_active ($user) {
+		/**
+		 * Optimization, more data requested than actually used here, because data will be requested later, and it would be nice to have that data cached
 		 */
 		$data = User::instance()->get(
 			[
@@ -421,80 +434,105 @@ class Session {
 				'timezone',
 				'status',
 				'block_until',
+				'last_online',
 				'avatar'
 			],
 			$user
 		);
-		if (is_array($data)) {
-			$L    = Language::instance();
-			$Page = Page::instance();
-			switch ($data['status']) {
-				case User::STATUS_INACTIVE:
-					/**
-					 * If user is disabled
-					 */
-					$Page->warning($L->your_account_disabled);
-					/**
-					 * Create guest session
-					 */
-					return $this->add(User::GUEST_ID);
-				case User::STATUS_NOT_ACTIVATED:
-					/**
-					 * If user is not active
-					 */
-					$Page->warning($L->your_account_is_not_active);
-					/**
-					 * Create guest session
-					 */
-					return $this->add(User::GUEST_ID);
-			}
-			if ($data['block_until'] > time()) {
+		if (!$data) {
+			return false;
+		}
+		$L    = Language::instance();
+		$Page = Page::instance();
+		switch ($data['status']) {
+			case User::STATUS_INACTIVE:
 				/**
-				 * If user if blocked
+				 * If user is disabled
 				 */
-				$Page->warning($L->your_account_blocked_until.' '.date($L->_datetime, $data['block_until']));
+				$Page->warning($L->your_account_disabled);
+				return false;
+			case User::STATUS_NOT_ACTIVATED:
 				/**
-				 * Create guest session
+				 * If user is not active
 				 */
-				return $this->add(User::GUEST_ID);
-			}
-		} else {
+				$Page->warning($L->your_account_is_not_active);
+				return false;
+		}
+		if ($data['block_until'] > time()) {
 			/**
-			 * If data was not loaded - create guest session
+			 * If user if blocked
+			 */
+			$Page->warning($L->your_account_blocked_until.' '.date($L->_datetime, $data['block_until']));
+			return false;
+		}
+		return true;
+	}
+	/**
+	 * Create the session for the user with specified id
+	 *
+	 * @param false|int $user
+	 * @param bool      $delete_current_session
+	 *
+	 * @return false|string Session id on success, `false` otherwise
+	 */
+	function add ($user = false, $delete_current_session = true) {
+		$user = (int)$user ?: User::GUEST_ID;
+		if ($delete_current_session && is_md5($this->session_id)) {
+			$this->del_internal(null, false);
+		}
+		if (!$this->is_user_active($user)) {
+			/**
+			 * If data was not loaded or account is not active - create guest session
 			 */
 			return $this->add(User::GUEST_ID);
 		}
-		unset($data);
-		$Config = Config::instance();
-		$time   = time();
-		/**
-		 * Generate hash in cycle, to obtain unique value
-		 */
-		/** @noinspection LoopWhichDoesNotLoopInspection */
-		while ($hash = md5(openssl_random_pseudo_bytes(1000))) {
-			if ($this->db_prime()->qf(
-				"SELECT `id`
-				FROM `[prefix]sessions`
-				WHERE `id` = '$hash'
-				LIMIT 1"
-			)
-			) {
-				continue;
-			}
-			/**
-			 * @var \cs\_SERVER $_SERVER
-			 */
-			$remote_addr = ip2hex($_SERVER->remote_addr);
-			$ip          = ip2hex($_SERVER->ip);
-			$expire_in   = $Config->core['session_expire'];
-			/**
-			 * Many guests open only one page, so create session only for 5 min
-			 */
-			if ($user == User::GUEST_ID) {
-				$expire_in = min($expire_in, 300);
-			}
-			$expire = $time + $expire_in;
+		$session_data = $this->create_unique_session($user);
+		if ($user != User::GUEST_ID) {
 			$this->db_prime()->q(
+				"UPDATE `[prefix]users`
+				SET
+					`last_sign_in`	= %d,
+					`last_online`	= %d,
+					`last_ip`		= '$session_data[ip]'
+				WHERE `id` ='$user'",
+				time(),
+				time()
+			);
+		}
+		_setcookie('session', $session_data['id'], $session_data['expire']);
+		$this->load_initialization($session_data['id'], $session_data['user']);
+		/**
+		 * Delete old sessions using probability and system configuration of inserts limits and update ratio
+		 */
+		$Config = Config::instance();
+		if (mt_rand(0, $Config->core['inserts_limit']) < $Config->core['inserts_limit'] / 100 * (100 - $Config->core['update_ratio']) / 5) {
+			$this->delete_old_sessions();
+		}
+		return $session_data['id'];
+	}
+	/**
+	 * @param int $user
+	 *
+	 * @return array Session data
+	 */
+	protected function create_unique_session ($user) {
+		$Config = Config::instance();
+		/**
+		 * @var \cs\_SERVER $_SERVER
+		 */
+		$remote_addr = ip2hex($_SERVER->remote_addr);
+		$ip          = ip2hex($_SERVER->ip);
+		/**
+		 * Many guests open only one page (or do not store any cookies), so create guest session only for 5 minutes max initially
+		 */
+		$expire_in = $user == User::GUEST_ID ? min($Config->core['session_expire'], 300) : $Config->core['session_expire'];
+		$expire    = time() + $expire_in;
+		/**
+		 * Create unique session
+		 */
+		do {
+			$hash     = md5(random_bytes(1000));
+			$inserted = $this->db_prime()->q(
 				"INSERT INTO `[prefix]sessions`
 					(
 						`id`,
@@ -515,47 +553,21 @@ class Session {
 					)",
 				$hash,
 				$user,
-				$time,
+				time(),
 				$expire,
 				$_SERVER->user_agent,
 				$remote_addr,
 				$ip
 			);
-			if ($user != User::GUEST_ID) {
-				$this->db_prime()->q(
-					"UPDATE `[prefix]users`
-					SET
-						`last_sign_in`	= $time,
-						`last_online`	= $time,
-						`last_ip`		= '$ip'
-					WHERE `id` ='$user'"
-				);
-			}
-			$this->session_id   = $hash;
-			$this->cache->$hash = [
-				'id'          => $hash,
-				'user'        => $user,
-				'expire'      => $expire,
-				'user_agent'  => $_SERVER->user_agent,
-				'remote_addr' => $remote_addr,
-				'ip'          => $ip
-			];
-			_setcookie('session', $hash, $expire);
-			$this->load();
-			$this->update_user_is();
-			$ids_count = $this->db()->qfs(
-				"SELECT COUNT(`id`)
-				FROM `[prefix]sessions`"
-			);
-			if (($ids_count % $Config->core['inserts_limit']) == 0) {
-				$this->db_prime()->aq(
-					"DELETE FROM `[prefix]sessions`
-					WHERE `expire` < $time"
-				);
-			}
-			return true;
-		}
-		return false;
+		} while (!$inserted);
+		return [
+			'id'          => $hash,
+			'user'        => $user,
+			'expire'      => $expire,
+			'user_agent'  => $_SERVER->user_agent,
+			'remote_addr' => $remote_addr,
+			'ip'          => $ip
+		];
 	}
 	/**
 	 * Destroying of the session
@@ -596,7 +608,7 @@ class Session {
 			$session_id
 		);
 		if ($create_guest_session) {
-			return $this->add(User::GUEST_ID);
+			return (bool)$this->add(User::GUEST_ID);
 		}
 		Event::instance()->fire(
 			'System/Session/del/after',
@@ -605,6 +617,15 @@ class Session {
 			]
 		);
 		return (bool)$result;
+	}
+	/**
+	 * Delete all old sessions from DB
+	 */
+	protected function delete_old_sessions () {
+		$this->db_prime()->aq(
+			"DELETE FROM `[prefix]sessions`
+			WHERE `expire` < ".time()
+		);
 	}
 	/**
 	 * Deletion of all user sessions
@@ -630,7 +651,6 @@ class Session {
 			foreach ($sessions as $session) {
 				unset($this->cache->$session);
 			}
-			unset($session);
 			$sessions = implode("','", $sessions);
 			return (bool)$this->db_prime()->q(
 				"DELETE FROM `[prefix]sessions`

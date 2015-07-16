@@ -14,14 +14,12 @@ use
 	cs\Core,
 	cs\DB,
 	cs\Event,
-	cs\Group,
 	cs\Index,
 	cs\Language,
 	cs\Page,
 	cs\Permission,
 	cs\Session,
 	cs\Text,
-	cs\User,
 	h;
 
 trait components_save {
@@ -51,10 +49,12 @@ trait components_save {
 						$block_new['title']
 					);
 					$block['active']   = $block_new['active'];
+					$block['type']     = $block_new['type'];
 					$block['template'] = $block_new['template'];
 					$block['start']    = $block_new['start'];
 					$block['start']    = strtotime($block_new['start']);
 					$block['expire']   = 0;
+					$block['content']  = '';
 					if ($block_new['expire']['state']) {
 						$block['expire'] = strtotime($block_new['expire']['date']);
 					}
@@ -72,8 +72,6 @@ trait components_save {
 							$block['index'],
 							$block_new['raw_html']
 						);
-					} elseif ($_POST['mode'] == 'add') {
-						$block['content'] = '';
 					}
 					if ($_POST['mode'] == 'add') {
 						$Config->components['blocks'][] = $block;
@@ -107,27 +105,6 @@ trait components_save {
 							$Config->components['blocks'][$_POST['id']]
 						);
 						$a->save();
-					}
-					break;
-				case 'permissions':
-					if (isset($_POST['block'], $_POST['block']['id'], $Config->components['blocks'][$_POST['block']['id']])) {
-						$permission = $Permission->get(
-							null,
-							'Block',
-							$Config->components['blocks'][$_POST['block']['id']]['index']
-						)[0]['id'];
-						$result     = true;
-						if (isset($_POST['groups'])) {
-							foreach ($_POST['groups'] as $group => $value) {
-								$result = $result && Group::instance()->set_permissions([$permission => $value], $group);
-							}
-						}
-						if (isset($_POST['users'])) {
-							foreach ($_POST['users'] as $user => $value) {
-								$result = $result && User::instance()->set_permissions([$permission => $value], $user);
-							}
-						}
-						$a->save($result);
 					}
 					break;
 			}

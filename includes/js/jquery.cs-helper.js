@@ -51,33 +51,116 @@
           return this;
         }
         mode = mode || 'init';
-        return this.each(function() {
+        return this.map(function() {
           var $this, content, modal;
           $this = $(this);
+          if ($this.hasClass('uk-modal-dialog')) {
+            $this = $this.wrap('<div/>').parent();
+          }
           if (!$this.data('modal')) {
             content = $this.children();
             if (!content.length) {
-              content = $this.wrapInner('<div />').children();
+              content = $this.wrapInner('<div/>').children();
             }
-            content.addClass('uk-modal-dialog uk-modal-dialog-slide');
+            content.addClass('uk-modal-dialog');
             if ($this.is('[data-modal-frameless]')) {
               content.addClass('uk-modal-dialog-frameless');
             }
             if ($this.attr('title')) {
-              $('<h3 />').html($this.attr('title')).prependTo(content);
+              $('<h3/>').html($this.attr('title')).prependTo(content);
             }
             if (content.attr('title')) {
-              $('<h3 />').html(content.attr('title')).prependTo(content);
+              $('<h3/>').html(content.attr('title')).prependTo(content);
             }
             $this.addClass('uk-modal').data('modal', UI.modal($this));
           }
           modal = $this.data('modal');
           switch (mode) {
             case 'show':
-              return modal.show();
+              modal.show();
+              break;
             case 'hide':
-              return modal.hide();
+              modal.hide();
           }
+          return $this.get();
+        });
+      },
+
+      /**
+      		 * Enabling tooltips inside ShadowDOM, should be called on element.shadowRoot
+       */
+      tooltips_inside: function() {
+        this.find('[data-uk-tooltip]').each(function() {
+          return UI.tooltip(this, UI.Utils.options($(this).attr('data-uk-tooltip')));
+        });
+        return this;
+      },
+
+      /**
+      		 * Enabling radio buttons inside ShadowDOM, should be called on element.shadowRoot
+       */
+      radio_buttons_inside: function() {
+        this.find('[data-uk-button-radio]').each(function() {
+          return UI.buttonRadio(this, UI.Utils.options($(this).attr('data-uk-button-radio')));
+        });
+        return this;
+      },
+
+      /**
+      		 * Enabling tabs inside ShadowDOM, should be called on element.shadowRoot
+       */
+      tabs_inside: function() {
+        this.find('[data-uk-tab]').each(function() {
+          return UI.tab(this, UI.Utils.options($(this).attr('data-uk-tab')));
+        });
+        this.find('.cs-tabs:not(.uk-tab)').cs().tabs();
+        return this;
+      },
+
+      /**
+      		 * Connecting form elements in ShadowDOM to form element higher in DOM tree, should be called on element.shadowRoot
+       */
+      connect_to_parent_form: function() {
+        return this.each(function() {
+          var $form, element, results;
+          if (WebComponents.flags.shadow) {
+            return;
+          }
+          element = this;
+          results = [];
+          while (true) {
+            if (element.tagName === 'FORM') {
+              $form = $(element);
+              $form.one('submit', (function(_this) {
+                return function(e) {
+                  e.preventDefault();
+                  e.stopImmediatePropagation();
+                  $(_this).find('[name]').each(function() {
+                    var $this;
+                    $this = $(this);
+                    if (this.type === 'file') {
+                      $this.clone(true, true).insertAfter($this.hide());
+                      return $this.appendTo($form);
+                    } else {
+                      if ((this.type === 'checkbox' || this.type === 'radio') && !$this.is(':checked')) {
+                        return;
+                      }
+                      return $form.append($('<input type="hidden"/>').attr('name', this.name).val($this.val()));
+                    }
+                  });
+                  return $form.submit();
+                };
+              })(this));
+              break;
+            }
+            element = element.host || element.parentNode;
+            if (!element) {
+              break;
+            } else {
+              results.push(void 0);
+            }
+          }
+          return results;
         });
       }
     };
@@ -115,7 +198,7 @@
         if (close == null) {
           close = false;
         }
-        style = width ? ' style="width:' + (/^[0-9]+$/.test(width) ? width + 'px;"' : width) : '';
+        style = width ? ' style="width:' + (/^[0-9]+$/.test(width) ? width + 'px;' : width) + '"' : '';
         close = close ? "<a class=\"uk-modal-close uk-close\"></a>" : '';
         return $("<div>\n	<div class=\"uk-form\"" + style + ">\n		" + close + "\n		" + content + "\n	</div>\n</div>").appendTo('body').cs().modal('show').on('hide.uk.modal', function() {
           return $(this).remove();
