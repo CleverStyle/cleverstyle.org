@@ -131,29 +131,6 @@ class Route {
 		api_path($processed_route['API']);
 		current_module($processed_route['MODULE']);
 		home_page($processed_route['HOME']);
-		// TODO Remove in future versions
-		$this->keep_backward_compatibility($Config);
-	}
-	/**
-	 * Keep backward compatibility with `cs\Config`, its properties `route` and `server` are filled from here
-	 *
-	 * @todo Remove in future versions
-	 *
-	 * @param Config $Config
-	 */
-	protected function keep_backward_compatibility ($Config) {
-		/**
-		 * @var _SERVER $_SERVER
-		 */
-		$Config->server['raw_relative_address'] = &$this->raw_relative_address;
-		$Config->server['host']                 = $_SERVER->host;
-		$Config->server['relative_address']     = &$this->relative_address;
-		$Config->server['protocol']             = $_SERVER->protocol;
-		$Config->server['mirror_index']         = &$this->mirror_index;
-		$Config->route                          = &$this->route;
-		$Index                                  = Index::instance();
-		$Index->route_ids                       = &$this->ids;
-		$Index->route_path                      = &$this->path;
 	}
 	/**
 	 * Check whether referer is local
@@ -191,8 +168,8 @@ class Route {
 	 *
 	 * @param string $raw_relative_address
 	 *
-	 * @return bool|string[]                            Relative address or <i>false</i> if access denied (occurs when admin access is limited by IP)
-	 *                                                    Array contains next elements: route, relative_address, ADMIN, API, MODULE, HOME
+	 * @return false|string[] Relative address or <i>false</i> if access denied (occurs when admin access is limited by IP). Array contains next elements:
+	 *                        route, relative_address, ADMIN, API, MODULE, HOME
 	 */
 	function process_route ($raw_relative_address) {
 		$Config = Config::instance();
@@ -211,13 +188,6 @@ class Route {
 				'rc' => &$rc
 			]
 		);
-		// TODO Remove in future versions
-		Event::instance()->fire(
-			'System/Config/pre_routing_replace',
-			[
-				'rc' => &$rc
-			]
-		);
 		if (!empty($Config->routing['in'])) {
 			foreach ($Config->routing['in'] as $i => $search) {
 				$rc = _preg_replace($search, $Config->routing['out'][$i], $rc) ?: str_replace($search, $Config->routing['out'][$i], $rc);
@@ -226,13 +196,6 @@ class Route {
 		}
 		Event::instance()->fire(
 			'System/Route/routing_replace',
-			[
-				'rc' => &$rc
-			]
-		);
-		// TODO Remove in future versions
-		Event::instance()->fire(
-			'System/Config/routing_replace',
 			[
 				'rc' => &$rc
 			]

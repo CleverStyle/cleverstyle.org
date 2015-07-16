@@ -51,13 +51,6 @@ class Session {
 	protected $is_bot   = false;
 	protected $is_guest = false;
 	/**
-	 * @deprecated
-	 * @todo Remove in future versions
-	 *
-	 * @var bool
-	 */
-	protected $is_system = false;
-	/**
 	 * @var Prefix
 	 */
 	protected $cache;
@@ -68,7 +61,7 @@ class Session {
 	protected function construct () {
 		$this->cache       = new Prefix('sessions');
 		$this->users_cache = new Prefix('users');
-		$this->initialize_session();
+		$this->initialize();
 	}
 	/**
 	 * Returns database index
@@ -83,111 +76,26 @@ class Session {
 	 *
 	 * Bots detection is also done here
 	 */
-	protected function initialize_session () {
+	protected function initialize () {
 		Event::instance()->fire('System/Session/init/before');
 		/**
 		 * If session exists
 		 */
-		$User = User::instance();
 		if (_getcookie('session')) {
 			$this->user_id = $this->load();
+		} elseif (!api_path()) {
 			/**
 			 * Try to detect bot, not necessary for API request
 			 */
-		} elseif (!api_path()) {
-			$Cache = $this->users_cache;
-			/**
-			 * Loading bots list
-			 */
-			$bots = $Cache->get(
-				'bots',
-				function () {
-					return $this->db()->qfa(
-						[
-							"SELECT
-								`u`.`id`,
-								`u`.`login`,
-								`u`.`email`
-							FROM `[prefix]users` AS `u`
-								INNER JOIN `[prefix]users_groups` AS `g`
-							ON `u`.`id` = `g`.`id`
-							WHERE
-								`g`.`group`		= '%s' AND
-								`u`.`status`	= '%s'",
-							User::BOT_GROUP_ID,
-							User::STATUS_ACTIVE
-						]
-					) ?: [];
-				}
-			);
-			/**
-			 * @var \cs\_SERVER $_SERVER
-			 */
-			/**
-			 * For bots: login is user agent, email is IP
-			 */
-			$bot_hash = hash('sha224', $_SERVER->user_agent.$_SERVER->ip);
-			/**
-			 * If list is not empty - try to find bot
-			 */
-			if (is_array($bots) && !empty($bots)) {
-				/**
-				 * Load data
-				 */
-				$this->user_id = $Cache->$bot_hash;
-				if ($this->user_id === false) {
-					/**
-					 * If no data - try to find bot in list of known bots
-					 */
-					foreach ($bots as $bot) {
-						if (
-							$bot['login'] &&
-							(
-								strpos($_SERVER->user_agent, $bot['login']) !== false ||
-								_preg_match($bot['login'], $_SERVER->user_agent)
-							)
-						) {
-							$this->user_id = $bot['id'];
-							break;
-						}
-						if (
-							$bot['email'] &&
-							(
-								$_SERVER->ip == $bot['email'] ||
-								_preg_match($bot['email'], $_SERVER->ip)
-							)
-						) {
-							$this->user_id = $bot['id'];
-							break;
-						}
-					}
-					unset($bots, $bot, $login, $email);
-					/**
-					 * If found id - this is bot
-					 */
-					if ($this->user_id) {
-						$Cache->$bot_hash = $this->user_id;
-						/**
-						 * Searching for last bot session, if exists - load it, otherwise create new one
-						 */
-						$last_session = $User->get_data('last_session', $this->user_id);
-						if ($last_session) {
-							$this->load($last_session);
-						}
-						if (!$last_session || $this->user_id == User::GUEST_ID) {
-							$this->add($this->user_id);
-							$User->set_data('last_session', $this->get_id(), $this->user_id);
-						}
-						unset($last_session);
-					}
-				}
-			}
-			unset($bots, $bot_hash);
+			$this->bots_detection();
 		}
+		/**
+		 * If session not found and visitor is not bot - create new session
+		 */
 		if (!$this->user_id) {
 			$this->user_id = User::GUEST_ID;
 			/**
-			 * Do not create session for API request
+			 * Do not create session for API requests
 			 */
 			if (!api_path()) {
 				$this->add();
@@ -197,32 +105,120 @@ class Session {
 		Event::instance()->fire('System/Session/init/after');
 	}
 	/**
-	 * Updates information about who is user accessed by methods ::guest() ::bot() ::user() admin() ::system()
+	 * Try to determine whether visitor is a known bot, bots have no sessions
+	 */
+	protected function bots_detection () {
+		$Cache = $this->users_cache;
+		/**
+		 * Loading bots list
+		 */
+		$bots = $Cache->get(
+			'bots',
+			function () {
+				return $this->db()->qfa(
+					[
+						"SELECT
+							`u`.`id`,
+							`u`.`login`,
+							`u`.`email`
+						FROM `[prefix]users` AS `u`
+							INNER JOIN `[prefix]users_groups` AS `g`
+						ON `u`.`id` = `g`.`id`
+						WHERE
+							`g`.`group`		= '%s' AND
+							`u`.`status`	= '%s'",
+						User::BOT_GROUP_ID,
+						User::STATUS_ACTIVE
+					]
+				) ?: [];
+			}
+		);
+		/**
+		 * If there are no known bots - exit from here
+		 */
+		if (!$bots) {
+			return;
+		}
+		/**
+		 * @var \cs\_SERVER $_SERVER
+		 */
+		/**
+		 * For bots: login is user agent, email is IP
+		 */
+		$bot_hash = hash('sha224', $_SERVER->user_agent.$_SERVER->ip);
+		/**
+		 * Load data
+		 */
+		$this->user_id = $Cache->$bot_hash;
+		/**
+		 * If bot found in cache - exit from here
+		 */
+		if ($this->user_id !== false) {
+			return;
+		}
+		/**
+		 * Try to find bot among known bots
+		 */
+		foreach ($bots as $bot) {
+			/**
+			 * Check user agent
+			 */
+			if (
+				$bot['login'] &&
+				(
+					strpos($_SERVER->user_agent, $bot['login']) !== false ||
+					_preg_match($bot['login'], $_SERVER->user_agent)
+				)
+			) {
+				$this->user_id = $bot['id'];
+				break;
+			}
+			/**
+			 * Check IP
+			 */
+			if (
+				$bot['email'] &&
+				(
+					$_SERVER->ip == $bot['email'] ||
+					_preg_match($bot['email'], $_SERVER->ip)
+				)
+			) {
+				$this->user_id = $bot['id'];
+				break;
+			}
+		}
+		unset($bots, $bot);
+		/**
+		 * If bot found - save it in cache
+		 */
+		if ($this->user_id) {
+			$Cache->$bot_hash = $this->user_id;
+		}
+	}
+	/**
+	 * Updates information about who is user accessed by methods ::guest() ::bot() ::user() admin()
 	 */
 	protected function update_user_is () {
 		$this->is_guest = false;
 		$this->is_bot   = false;
 		$this->is_user  = false;
 		$this->is_admin = false;
-		//TODO Remove in future versions
-		$this->is_system = false;
 		if ($this->user_id == User::GUEST_ID) {
 			$this->is_guest = true;
 			return;
-		} else {
-			/**
-			 * Checking of user type
-			 */
-			$groups = User::instance()->get_groups($this->user_id) ?: [];
-			if (in_array(User::ADMIN_GROUP_ID, $groups)) {
-				$this->is_admin = Config::instance()->can_be_admin();
-				$this->is_user  = true;
-			} elseif (in_array(User::USER_GROUP_ID, $groups)) {
-				$this->is_user = true;
-			} elseif (in_array(User::BOT_GROUP_ID, $groups)) {
-				$this->is_guest = true;
-				$this->is_bot   = true;
-			}
+		}
+		/**
+		 * Checking of user type
+		 */
+		$groups = User::instance()->get_groups($this->user_id) ?: [];
+		if (in_array(User::ADMIN_GROUP_ID, $groups)) {
+			$this->is_admin = Config::instance()->can_be_admin();
+			$this->is_user  = true;
+		} elseif (in_array(User::USER_GROUP_ID, $groups)) {
+			$this->is_user = true;
+		} elseif (in_array(User::BOT_GROUP_ID, $groups)) {
+			$this->is_guest = true;
+			$this->is_bot   = true;
 		}
 	}
 	/**
@@ -258,31 +254,20 @@ class Session {
 		return $this->is_bot;
 	}
 	/**
-	 * Is system
-	 *
-	 * @deprecated
-	 * @todo Remove in future versions
-	 *
-	 * @return bool
-	 */
-	function system () {
-		return $this->is_system;
-	}
-	/**
 	 * Returns id of current session
 	 *
-	 * @return bool|string
+	 * @return false|string
 	 */
 	function get_id () {
 		if ($this->user_id == User::GUEST_ID && $this->bot()) {
-			return '';
+			return false;
 		}
 		return $this->session_id;
 	}
 	/**
 	 * Returns user id of current session
 	 *
-	 * @return int
+	 * @return false|int
 	 */
 	function get_user () {
 		return $this->user_id;
@@ -292,13 +277,9 @@ class Session {
 	 *
 	 * @param null|string $session_id If `null` - loaded from `$this->session_id`, and if that also empty - from cookies
 	 *
-	 * @return bool|array
+	 * @return false|array
 	 */
 	function get ($session_id) {
-		if (func_num_args() == 0) {
-			trigger_error('calling User::get_session() without arguments is deprecated, use Session::get_id() instead', E_USER_DEPRECATED);
-			return $this->get_id();
-		}
 		if (!$session_id) {
 			if (!$this->session_id) {
 				$this->session_id = _getcookie('session');
@@ -308,9 +289,6 @@ class Session {
 		if (!is_md5($session_id)) {
 			return false;
 		}
-		/**
-		 * @var \cs\_SERVER $_SERVER
-		 */
 		$session = $this->cache->get(
 			$session_id,
 			function () use ($session_id) {
@@ -354,6 +332,9 @@ class Session {
 		$User    = User::instance();
 		$session = $this->get($session_id);
 		$time    = time();
+		/**
+		 * @var \cs\_SERVER $_SERVER
+		 */
 		if (
 			!$session ||
 			$session['expire'] <= $time ||
@@ -378,45 +359,25 @@ class Session {
 		$session_id = $session['id'];
 		$update     = [];
 		/**
-		 * Updating last online time
+		 * Updating last online time and ip
 		 */
-		if (
-			$session['user'] != 0 &&
-			$User->get('last_online', $session['user']) < $time - $Config->core['online_time'] * $Config->core['update_ratio'] / 100
-		) {
-			/**
-			 * Updating last sign in time and ip
-			 */
-			if ($User->get('last_online', $session['user']) < $time - $Config->core['online_time']) {
-				$ip       = ip2hex($_SERVER->ip);
-				$update[] = "
-					UPDATE `[prefix]users`
-					SET
-						`last_sign_in`	= $time,
-						`last_ip`		= '$ip',
-						`last_online`	= $time
-					WHERE `id` =$session[user]";
-				$User->set(
-					[
-						'last_sign_in' => $time,
-						'last_ip'      => $ip,
-						'last_online'  => $time
-					],
-					null,
-					$session['user']
-				);
-				unset($ip);
-			} else {
-				$update[] = "
-					UPDATE `[prefix]users`
-					SET `last_online` = $time
-					WHERE `id` = $session[user]";
-				$User->set(
-					'last_online',
-					$time,
-					$session['user']
-				);
-			}
+		if ($User->get('last_online', $session['user']) < $time - $Config->core['online_time'] * $Config->core['update_ratio'] / 100) {
+			$ip       = ip2hex($_SERVER->ip);
+			$update[] = "
+				UPDATE `[prefix]users`
+				SET
+					`last_ip`		= '$ip',
+					`last_online`	= $time
+				WHERE `id` = $session[user]";
+			$User->set(
+				[
+					'last_ip'     => $ip,
+					'last_online' => $time
+				],
+				null,
+				$session['user']
+			);
+			unset($ip);
 		}
 		if ($session['expire'] - $time < $Config->core['session_expire'] * $Config->core['update_ratio'] / 100) {
 			$session['expire']        = $time + $Config->core['session_expire'];
@@ -438,8 +399,8 @@ class Session {
 	/**
 	 * Create the session for the user with specified id
 	 *
-	 * @param bool|int $user
-	 * @param bool     $delete_current_session
+	 * @param false|int $user
+	 * @param bool      $delete_current_session
 	 *
 	 * @return bool
 	 */
@@ -525,6 +486,14 @@ class Session {
 			 */
 			$remote_addr = ip2hex($_SERVER->remote_addr);
 			$ip          = ip2hex($_SERVER->ip);
+			$expire_in   = $Config->core['session_expire'];
+			/**
+			 * Many guests open only one page, so create session only for 5 min
+			 */
+			if ($user == User::GUEST_ID) {
+				$expire_in = min($expire_in, 300);
+			}
+			$expire = $time + $expire_in;
 			$this->db_prime()->q(
 				"INSERT INTO `[prefix]sessions`
 					(
@@ -547,10 +516,7 @@ class Session {
 				$hash,
 				$user,
 				$time,
-				/**
-				 * Many guests open only one page, so create session only for 5 min
-				 */
-				$time + ($user != User::GUEST_ID || $Config->core['session_expire'] < 300 ? $Config->core['session_expire'] : 300),
+				$expire,
 				$_SERVER->user_agent,
 				$remote_addr,
 				$ip
@@ -561,7 +527,7 @@ class Session {
 					SET
 						`last_sign_in`	= $time,
 						`last_online`	= $time,
-						`last_ip`		= '$ip.'
+						`last_ip`		= '$ip'
 					WHERE `id` ='$user'"
 				);
 			}
@@ -569,12 +535,12 @@ class Session {
 			$this->cache->$hash = [
 				'id'          => $hash,
 				'user'        => $user,
-				'expire'      => $time + $Config->core['session_expire'],
+				'expire'      => $expire,
 				'user_agent'  => $_SERVER->user_agent,
 				'remote_addr' => $remote_addr,
 				'ip'          => $ip
 			];
-			_setcookie('session', $hash, $time + $Config->core['session_expire']);
+			_setcookie('session', $hash, $expire);
 			$this->load();
 			$this->update_user_is();
 			$ids_count = $this->db()->qfs(
@@ -599,13 +565,13 @@ class Session {
 	 * @return bool
 	 */
 	function del ($session_id = null) {
-		return $this->del_internal($session_id);
+		return (bool)$this->del_internal($session_id);
 	}
 	/**
 	 * Deletion of the session
 	 *
-	 * @param string $session_id
-	 * @param bool   $create_guest_session
+	 * @param string|null $session_id
+	 * @param bool        $create_guest_session
 	 *
 	 * @return bool
 	 */
@@ -616,13 +582,6 @@ class Session {
 		}
 		Event::instance()->fire(
 			'System/Session/del/before',
-			[
-				'id' => $session_id
-			]
-		);
-		//TODO Remove in future versions
-		Event::instance()->fire(
-			'System/User/del_session/before',
 			[
 				'id' => $session_id
 			]
@@ -645,37 +604,23 @@ class Session {
 				'id' => $session_id
 			]
 		);
-		//TODO Remove in future versions
-		Event::instance()->fire(
-			'System/User/del_session/after',
-			[
-				'id' => $session_id
-			]
-		);
-		return $result;
+		return (bool)$result;
 	}
 	/**
 	 * Deletion of all user sessions
 	 *
-	 * @param bool|int $user If not specified - current user assumed
+	 * @param false|int $user If not specified - current user assumed
 	 *
 	 * @return bool
 	 */
 	function del_all ($user = false) {
+		$user = $user ?: $this->user_id;
 		Event::instance()->fire(
 			'System/Session/del_all',
 			[
 				'id' => $user
 			]
 		);
-		//TODO Remove in future versions
-		Event::instance()->fire(
-			'System/User/del_all_sessions',
-			[
-				'id' => $user
-			]
-		);
-		$user     = $user ?: $this->user_id;
 		$sessions = $this->db_prime()->qfas(
 			"SELECT `id`
 			FROM `[prefix]sessions`
@@ -687,7 +632,7 @@ class Session {
 			}
 			unset($session);
 			$sessions = implode("','", $sessions);
-			return $this->db_prime()->q(
+			return (bool)$this->db_prime()->q(
 				"DELETE FROM `[prefix]sessions`
 				WHERE `id` IN('$sessions')"
 			);
@@ -700,7 +645,7 @@ class Session {
 	 * @param string      $item
 	 * @param null|string $session_id
 	 *
-	 * @return bool|mixed
+	 * @return false|mixed
 	 *
 	 */
 	function get_data ($item, $session_id = null) {

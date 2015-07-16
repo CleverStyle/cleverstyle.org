@@ -1,4 +1,5 @@
 AddDefaultCharset utf-8
+Options -Indexes -Multiviews +FollowSymLinks
 IndexIgnore *.php *.pl *.cgi *.htaccess *.htpasswd
 
 RewriteEngine On
@@ -17,7 +18,4 @@ RewriteBase /
 #	RewriteEngine Off
 #</Files>
 
-php_value zlib.output_compression off
-
 RewriteRule .* index.php
-

@@ -28,7 +28,7 @@ trait Group {
 		if (!$user || $user == User::GUEST_ID) {
 			return false;
 		}
-		$groups	= $this->get_groups($user);
+		$groups	= $this->get_groups($user) ?: [];
 		foreach ((array)_int($group) as $g) {
 			$groups[]	= $g;
 		}
@@ -40,7 +40,7 @@ trait Group {
 	 *
 	 * @param bool|int		$user	If not specified - current user assumed
 	 *
-	 * @return bool|int[]
+	 * @return false|int[]
 	 */
 	function get_groups ($user = false) {
 		$user	= (int)$user ?: $this->id;

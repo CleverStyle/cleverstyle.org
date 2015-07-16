@@ -92,9 +92,12 @@ abstract class _Abstract {
 	 * @param string          $_      if <b>$params</s> is string - this parameter will be second argument for formatting of <b>$query</b>.
 	 *                                If you need more arguments - add them after this one, function will accept them.
 	 *
-	 * @return bool|object|resource
+	 * @return false|object|resource
 	 */
 	function q ($query, $params = [], $_ = null) {
+		if (!$query) {
+			return false;
+		}
 		$query = str_replace('[prefix]', $this->prefix, $query);
 		switch (func_num_args()) {
 			default:
@@ -111,7 +114,7 @@ abstract class _Abstract {
 			$param = $this->s($param, false);
 		}
 		unset($param);
-		if (is_array($query) && !empty($query)) {
+		if (is_array($query)) {
 			$time_from = microtime(true);
 			foreach ($query as &$q) {
 				$local_params = $params;
@@ -129,16 +132,13 @@ abstract class _Abstract {
 			$this->time += round(microtime(true) - $time_from, 6);
 			return $return;
 		}
-		if (!$query) {
-			return true;
-		}
-		$this->query['time'] = microtime(true);
+		$time_from           = microtime(true);
 		$this->query['text'] = empty($params) ? $query : vsprintf($query, $params);
 		if (DEBUG) {
 			$this->queries['text'][] = $this->query['text'];
 		}
 		$result              = $this->q_internal($this->query['text']);
-		$this->query['time'] = round(microtime(true) - $this->query['time'], 6);
+		$this->query['time'] = round(microtime(true) - $time_from, 6);
 		$this->time += $this->query['time'];
 		if (DEBUG) {
 			$this->queries['time'][] = $this->query['time'];
@@ -160,7 +160,7 @@ abstract class _Abstract {
 	 * @param string          $param          if <b>$params</s> is string - this parameter will be second argument for formatting of <b>$query</b>.
 	 *                                        If you need more arguments - add them after this one, function will accept them.
 	 *
-	 * @return bool|object|resource
+	 * @return false|object|resource
 	 */
 	function aq ($query, $params = [], $param = null) {
 		$this->async = true;
@@ -175,7 +175,7 @@ abstract class _Abstract {
 	 *
 	 * @param string|string[] $query
 	 *
-	 * @return bool|object|resource
+	 * @return false|object|resource
 	 */
 	abstract protected function q_internal ($query);
 	/**
@@ -185,7 +185,7 @@ abstract class _Abstract {
 	 *
 	 * @param string[] $query
 	 *
-	 * @return bool|object|resource
+	 * @return false|object|resource
 	 */
 	abstract protected function q_multi_internal ($query);
 	/**
@@ -197,7 +197,7 @@ abstract class _Abstract {
 	 *
 	 * @param object|resource $query_result
 	 *
-	 * @return bool|int
+	 * @return false|int
 	 */
 	abstract function n ($query_result);
 	/**
@@ -207,12 +207,12 @@ abstract class _Abstract {
 	 *
 	 * @abstract
 	 *
-	 * @param object|resource $query_result
-	 * @param bool            $single_column If <b>true</b> function will return not array with one element, but directly its value
-	 * @param bool            $array         If <b>true</b> returns array of associative arrays of all fetched rows
-	 * @param bool            $indexed       If <b>false</b> - associative array will be returned
+	 * @param false|object|resource $query_result
+	 * @param bool                  $single_column If <b>true</b> function will return not array with one element, but directly its value
+	 * @param bool                  $array         If <b>true</b> returns array of associative arrays of all fetched rows
+	 * @param bool                  $indexed       If <b>false</b> - associative array will be returned
 	 *
-	 * @return array|bool|string
+	 * @return array|false|string
 	 */
 	abstract function f ($query_result, $single_column = false, $array = false, $indexed = false);
 	/**
@@ -220,11 +220,11 @@ abstract class _Abstract {
 	 *
 	 * Similar to ::f() method, with parameter <b>$array</b> = true
 	 *
-	 * @param object|resource $query_result
-	 * @param bool            $single_column If <b>true</b> function will return not array with one element, but directly its value
-	 * @param bool            $indexed       If <b>false</b> - associative array will be returned
+	 * @param false|object|resource $query_result
+	 * @param bool                  $single_column If <b>true</b> function will return not array with one element, but directly its value
+	 * @param bool                  $indexed       If <b>false</b> - associative array will be returned
 	 *
-	 * @return array|bool|string
+	 * @return array|false|string
 	 */
 	function fa ($query_result, $single_column = false, $indexed = false) {
 		return $this->f($query_result, $single_column, true, $indexed);
@@ -234,11 +234,11 @@ abstract class _Abstract {
 	 *
 	 * Similar to ::f() method, with parameter <b>$single_column</b> = true
 	 *
-	 * @param object|resource $query_result
-	 * @param bool            $array   If <b>true</b> returns array of associative arrays of all fetched rows
-	 * @param bool            $indexed If <b>false</b> - associative array will be returned
+	 * @param false|object|resource $query_result
+	 * @param bool                  $array   If <b>true</b> returns array of associative arrays of all fetched rows
+	 * @param bool                  $indexed If <b>false</b> - associative array will be returned
 	 *
-	 * @return array|bool
+	 * @return false|string
 	 */
 	function fs ($query_result, $array = false, $indexed = false) {
 		return $this->f($query_result, true, $array, $indexed);
@@ -248,10 +248,10 @@ abstract class _Abstract {
 	 *
 	 * Combination of ::fa() and ::fs() methods
 	 *
-	 * @param object|resource $query_result
-	 * @param bool            $indexed If <b>false</b> - associative array will be returned
+	 * @param false|object|resource $query_result
+	 * @param bool                  $indexed If <b>false</b> - associative array will be returned
 	 *
-	 * @return array|bool
+	 * @return false|string[]
 	 */
 	function fas ($query_result, $indexed = false) {
 		return $this->fa($query_result, true, $indexed);
@@ -266,7 +266,7 @@ abstract class _Abstract {
 	 * @param bool         $array         If <b>true</b> returns array of associative arrays of all fetched rows
 	 * @param bool         $indexed       If <b>false</b> - associative array will be returned
 	 *
-	 * @return array|bool|string
+	 * @return array|false|string
 	 */
 	function qf ($query, $single_column = false, $array = false, $indexed = false) {
 		list($query, $params) = $this->q_prepare($query);
@@ -284,7 +284,7 @@ abstract class _Abstract {
 	 * @param bool         $single_column If <b>true</b> function will return not array with one element, but directly its value
 	 * @param bool         $indexed       If <b>false</b> - associative array will be returned
 	 *
-	 * @return array|bool|string
+	 * @return array|false
 	 */
 	function qfa ($query, $single_column = false, $indexed = false) {
 		list($query, $params) = $this->q_prepare($query);
@@ -302,7 +302,7 @@ abstract class _Abstract {
 	 * @param bool         $array   If <b>true</b> returns array of associative arrays of all fetched rows
 	 * @param bool         $indexed If <b>false</b> - associative array will be returned
 	 *
-	 * @return array|bool
+	 * @return false|string
 	 */
 	function qfs ($query, $array = false, $indexed = false) {
 		list($query, $params) = $this->q_prepare($query);
@@ -319,7 +319,7 @@ abstract class _Abstract {
 	 * @param array|string $query   SQL query string, or you can put all parameters, that ::q() function can accept in form of array
 	 * @param bool         $indexed If <b>false</b> - associative array will be returned
 	 *
-	 * @return array|bool
+	 * @return false|string[]
 	 */
 	function qfas ($query, $indexed = false) {
 		list($query, $params) = $this->q_prepare($query);
@@ -336,11 +336,12 @@ abstract class _Abstract {
 	 * @return array                        array(<b>$query</b>, <b>$params</b>)
 	 */
 	protected function q_prepare ($query) {
+		if (!$query) {
+			return false;
+		}
 		$params = [];
-		if (is_array($query) && !empty($query)) {
-			if (count($query) == 2) {
-				$params = $query[1];
-			} elseif (count($query) > 2) {
+		if (is_array($query)) {
+			if (count($query) > 1) {
 				$params = array_slice($query, 1);
 			}
 			$query = $query[0];
@@ -379,6 +380,7 @@ abstract class _Abstract {
 			$query   = $query[0].'VALUES'.$query[1].$query[2];
 			$params_ = [];
 			foreach ($params as $p) {
+				/** @noinspection SlowArrayOperationsInLoopInspection */
 				$params_ = array_merge($params_, (array)$p);
 			}
 			unset($p);
@@ -427,7 +429,7 @@ abstract class _Abstract {
 	 * @param string      $table
 	 * @param bool|string $like
 	 *
-	 * @return string[]|bool
+	 * @return false|string[]
 	 */
 	function columns ($table, $like = false) {
 		if (!$table) {
@@ -449,7 +451,7 @@ abstract class _Abstract {
 	 *
 	 * @param bool $like
 	 *
-	 * @return string[]|bool
+	 * @return false|string[]
 	 */
 	function tables ($like = false) {
 		if ($like) {

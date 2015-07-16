@@ -15,6 +15,9 @@ use
 
 /**
  * Trait that contains all methods from <i>>cs\User</i> for working with user data
+ *
+ * @property \cs\Cache\Prefix $cache
+ * @property int              $id
  */
 trait Data {
 	/**
@@ -53,27 +56,11 @@ trait Data {
 	 * @param string|string[]					$item
 	 * @param bool|int 							$user	If not specified - current user assumed
 	 *
-	 * @return bool|string|mixed[]|Properties			If <i>$item</i> is integer - cs\User\Properties object will be returned
+	 * @return false|string|mixed[]|Properties			If <i>$item</i> is integer - cs\User\Properties object will be returned
 	 */
 	function get ($item, $user = false) {
 		if (is_scalar($item) && preg_match('/^[0-9]+$/', $item)) {
 			return new Properties($item);
-		}
-		/**
-		 * @var \cs\_SERVER $_SERVER
-		 */
-		/**
-		 * TODO: deprecated, remove in future version
-		 */
-		switch ($item) {
-			case 'user_agent':
-				trigger_error('Deprecated \cs\User::$user_agent usage, use $_SERVER->user_agent instead', E_USER_DEPRECATED);
-				return $_SERVER->user_agent;
-			case 'ip':
-			case 'forwarded_for':
-			case 'client_ip':
-				trigger_error('Deprecated \cs\User::$ip, ::$forwarded_for or ::$client_ip usage, use $_SERVER->remote_addr or $_SERVER->ip instead', E_USER_DEPRECATED);
-				return $_SERVER->ip;
 		}
 		$result	= $this->get_internal($item, $user);
 		if (!$this->memory_cache) {
@@ -88,7 +75,7 @@ trait Data {
 	 * @param bool|int 				$user		If not specified - current user assumed
 	 * @param bool					$cache_only
 	 *
-	 * @return bool|string|mixed[]
+	 * @return false|string|mixed[]
 	 */
 	protected function get_internal ($item, $user = false, $cache_only = false) {
 		$user = (int)$user ?: $this->id;
@@ -157,7 +144,7 @@ trait Data {
 	 * @param mixed[]	$data
 	 * @param bool		$cache_only
 	 *
-	 * @return array|bool
+	 * @return array|false
 	 */
 	protected function get_internal_one_item ($item, $user, &$data, $cache_only) {
 		if (!in_array($item, $this->users_columns)) {
@@ -281,7 +268,7 @@ trait Data {
 	 * @param string|string[]		$item
 	 * @param bool|int				$user	If not specified - current user assumed
 	 *
-	 * @return bool|string|mixed[]
+	 * @return false|string|mixed[]
 	 */
 	function get_data ($item, $user = false) {
 		$user	= (int)$user ?: $this->id;
@@ -437,7 +424,7 @@ trait Data {
 	 *
 	 * @param  string $login_hash	Login or email hash
 	 *
-	 * @return bool|int				User id if found and not guest, otherwise - boolean <i>false</i>
+	 * @return false|int			User id if found and not guest, otherwise - boolean <i>false</i>
 	 */
 	function get_id ($login_hash) {
 		if (!preg_match('/^[0-9a-z]{56}$/', $login_hash)) {
@@ -524,14 +511,16 @@ trait Data {
 						unset($data_set[$i]);
 					}
 				}
+				unset($i, $val);
 				if (!empty($data)) {
 					$data		= implode(', ', $data);
 					$update[]	= "UPDATE `[prefix]users`
 						SET $data
 						WHERE `id` = '$id'";
-					unset($i, $val, $data);
 				}
+				unset($data);
 			}
+			unset($id, $data_set);
 			if (!empty($update)) {
 				$this->db_prime()->q($update);
 			}
@@ -546,22 +535,8 @@ trait Data {
 				$this->cache->$id	= $data;
 			}
 		}
-		$this->update_cache = [];
 		unset($id, $data);
+		$this->update_cache = [];
 		$this->data_set = [];
-	}
-	/**
-	 * Do not track checking
-	 *
-	 * @deprecated
-	 * @todo deprecated, remove in future versions
-	 *
-	 * @return bool	<b>true</b> if tracking is not desired, <b>false</b> otherwise
-	 */
-	function dnt () {
-		/**
-		 * @var \cs\_SERVER $_SERVER
-		 */
-		return $_SERVER->dnt;
 	}
 }

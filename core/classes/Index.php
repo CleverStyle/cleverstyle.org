@@ -6,7 +6,8 @@
  * @license   MIT License, see license.txt
  */
 namespace cs;
-use            h;
+use
+	h;
 /**
  * Provides next events:
  *  System/Index/block_render
@@ -32,30 +33,16 @@ class Index {
 	 */
 	public $Content;
 
-	public $form               = false;
-	public $file_upload        = false;
-	public $form_attributes    = [
+	public    $form               = false;
+	public    $file_upload        = false;
+	public    $form_attributes    = [
 		'class' => 'uk-form'
 	];
-	public $buttons            = true;
-	public $save_button        = true;
-	public $apply_button       = true;
-	public $cancel_button_back = false;
-	public $custom_buttons     = '';
-	/**
-	 * @deprecated
-	 * @todo Remove in future versions
-	 *
-	 * @var string[]
-	 */
-	public $route_path = [];
-	/**
-	 * @deprecated
-	 * @todo Remove in future versions
-	 *
-	 * @var int[]
-	 */
-	public    $route_ids = [];
+	public    $buttons            = true;
+	public    $save_button        = true;
+	public    $apply_button       = true;
+	public    $cancel_button_back = false;
+	public    $custom_buttons     = '';
 	protected $action;
 	/**
 	 * Appends to the end of title
@@ -107,6 +94,8 @@ class Index {
 	protected $ids = [];
 	/**
 	 * Detecting module folder including of admin/api request type, including prepare file, including of plugins
+	 *
+	 * @throws \ExitException
 	 */
 	function construct () {
 		$Config      = Config::instance();
@@ -114,65 +103,30 @@ class Index {
 		$this->route = &$Route->route;
 		$this->path  = &$Route->path;
 		$this->ids   = &$Route->ids;
-		$User        = User::instance();
-		$api         = api_path();
-		/**
-		 * If site is closed, user is not admin, and it is not request for sign in
-		 */
-		if (
-			!$Config->core['site_mode'] &&
-			!(
-				$User->admin() ||
-				(
-					$api && $this->route === ['user', 'sign_in']
-				)
-			)
-		) {
+		if ($this->closed_site($Config, api_path())) {
 			return;
 		}
-		$this->module = current_module();
-		$admin_path   = MODULES."/$this->module/admin";
-		$api_path     = MODULES."/$this->module/api";
-		if (
-			admin_path() &&
-			file_exists($admin_path) &&
-			(
-				file_exists("$admin_path/index.php") ||
-				file_exists("$admin_path/index.json")
-			)
-		) {
-			if (!$this->set_permission_group("admin/$this->module")) {
-				error_code(403);
-				throw new \ExitException;
-			}
-			$this->working_directory = $admin_path;
-			$this->form              = true;
-			$this->in_admin          = true;
-		} elseif (
-			$api &&
-			file_exists($api_path)
-		) {
-			if (!$this->set_permission_group("api/$this->module")) {
-				error_code(403);
-				throw new \ExitException;
-			}
-			$this->working_directory = $api_path;
-			$this->in_api            = true;
-		} elseif (
-			!$api &&
-			!admin_path() &&
-			file_exists(MODULES."/$this->module")
-		) {
-			if (!$this->set_permission_group($this->module)) {
-				error_code(403);
-				throw new \ExitException;
-			}
-			$this->working_directory = MODULES."/$this->module";
-		} else {
+		$this->module            = current_module();
+		$this->working_directory = MODULES."/$this->module";
+		$permission_group        = $this->module;
+		if (admin_path()) {
+			$this->working_directory .= '/admin';
+			$permission_group = "admin/$permission_group";
+		} elseif (api_path()) {
+			$this->working_directory .= '/api';
+			$permission_group = "api/$permission_group";
+		}
+		if (!is_dir($this->working_directory)) {
 			error_code(404);
 			throw new \ExitException;
 		}
-		unset($admin_path, $api_path);
+		if (!$this->set_permission_group($permission_group)) {
+			error_code(403);
+			throw new \ExitException;
+		}
+		$this->in_admin = admin_path();
+		$this->form     = $this->in_admin;
+		$this->in_api   = api_path();
 		Event::instance()->fire('System/Index/construct');
 		/**
 		 * Plugins processing
@@ -188,6 +142,26 @@ class Index {
 		if (!preg_match('/^[a-z]+$/', $this->request_method)) {
 			error_code(400);
 		}
+	}
+	/**
+	 * Check if site is closed (taking user into account)
+	 *
+	 * @param Config $Config
+	 * @param bool   $in_api
+	 *
+	 * @return bool Whether user is not admin and this is not request for sign in (we allow to sign in on disabled site)
+	 */
+	protected function closed_site ($Config, $in_api) {
+		if (
+			$Config->core['site_mode'] ||
+			User::instance()->admin()
+		) {
+			return false;
+		}
+		return
+			!$in_api ||
+			$this->module != 'System' ||
+			$this->route !== ['user', 'sign_in'];
 	}
 	/**
 	 * Store permission group for further checks, check whether user allowed to access `index` permission label of this group
@@ -232,7 +206,7 @@ class Index {
 	/**
 	 * Normalize route path and fill `cs\Index::$route_path` and `cs\Index::$route_ids` properties
 	 */
-	protected function normalize_route () {
+	protected function check_and_normalize_route () {
 		if (!file_exists("$this->working_directory/index.json")) {
 			return;
 		}
@@ -248,45 +222,49 @@ class Index {
 		/**
 		 * If path not specified - take first from structure
 		 */
-		if (!$path) {
-			if (api_path()) {
-				error_code(404);
-				return;
-			}
-			$path = isset($structure[0]) ? $structure[0] : array_keys($structure)[0];
-		} elseif (!isset($structure[$path]) && !in_array($path, $structure)) {
-			error_code(404);
+		$code = $this->check_and_normalize_route_internal($path, $structure);
+		if ($code !== 200) {
+			error_code($code);
 			return;
-		}
-		if (!$this->check_permission($path)) {
-			error_code(403);
 		}
 		$this->path[0] = $path;
 		/**
 		 * If there is second level routing in structure - handle that
 		 */
-		if (!isset($structure[$path]) || empty($structure[$path])) {
+		if (!@$structure[$path]) {
 			return;
 		}
 		$this->sub_path_required = true;
 		$sub_path                = @$this->path[1];
-		/**
-		 * If sub path not specified - take first from structure
-		 */
-		if (!$sub_path) {
-			if (api_path()) {
-				error_code(404);
-				return;
-			}
-			$sub_path = array_shift($structure[$path]);
-		} elseif (!in_array($sub_path, $structure[$path])) {
-			error_code(404);
+		$code                    = $this->check_and_normalize_route_internal($sub_path, $structure[$path]);
+		if ($code !== 200) {
+			error_code($code);
 			return;
 		}
-		if (!$this->check_permission("$path/$sub_path")) {
-			error_code(403);
-		}
 		$this->path[1] = $sub_path;
+	}
+	/**
+	 * @param string $path
+	 * @param array  $structure
+	 *
+	 * @return int HTTP status code
+	 */
+	protected function check_and_normalize_route_internal (&$path, $structure) {
+		/**
+		 * If path not specified - take first from structure
+		 */
+		if (!$path) {
+			if (api_path()) {
+				return 404;
+			}
+			$path = isset($structure[0]) ? $structure[0] : array_keys($structure)[0];
+		} elseif (!isset($structure[$path]) && !in_array($path, $structure)) {
+			return 404;
+		}
+		if (!$this->check_permission($path)) {
+			return 403;
+		}
+		return 200;
 	}
 	/**
 	 * Include files necessary for module page rendering
@@ -343,7 +321,13 @@ class Index {
 	 * @param string $sub_path
 	 */
 	protected function controller_router ($path, $sub_path) {
-		$controller_class = "cs\\modules\\$this->module\\".($this->in_admin ? 'admin\\' : ($this->in_api ? 'api\\' : '')).'Controller';
+		$suffix = '';
+		if ($this->in_admin) {
+			$suffix = '\\admin';
+		} elseif ($this->in_api) {
+			$suffix = '\\api';
+		}
+		$controller_class = "cs\\modules\\$this->module$suffix\\Controller";
 		if (!$this->controller_router_handler($controller_class, 'index', !$path)) {
 			return;
 		}
@@ -403,58 +387,127 @@ class Index {
 		}
 	}
 	/**
+	 * Get form action based on current module, path and other parameters
+	 *
+	 * @return string
+	 */
+	protected function get_action () {
+		if ($this->action === null) {
+			$this->action = ($this->in_admin ? 'admin/' : '')."$this->module";
+			if (isset($this->path[0])) {
+				$this->action .= '/'.$this->path[0];
+				if (isset($this->path[1])) {
+					$this->action .= '/'.$this->path[1];
+				}
+			}
+		}
+		return $this->action ?: '';
+	}
+	/**
 	 * Page generation, blocks processing, adding of form with save/apply/cancel/reset and/or custom users buttons
 	 */
-	protected function render_complete_page () {
+	protected function render_page () {
+		$this->render_title();
+		$this->render_content();
 		$Page = Page::instance();
-		if ($this->in_api) {
-			$Page->content($this->Content);
-			return;
-		}
-		$this->render_blocks();
-		if ($this->form) {
-			$this->form_wrapper();
+		if (!$this->in_api) {
+			if ($this->form) {
+				$this->form_wrapper();
+			}
+			$this->render_blocks();
 		}
 		$Page->content($this->Content);
+	}
+	/**
+	 * Render page title
+	 */
+	protected function render_title () {
+		$Page = Page::instance();
+		/**
+		 * Add generic Home or Module name title
+		 */
+		if (!$this->in_api) {
+			$L = Language::instance();
+			if ($this->in_admin) {
+				$Page->title($L->administration);
+			}
+			$Page->title(
+				$L->{home_page() ? 'home' : $this->module}
+			);
+		}
+	}
+	/**
+	 * Render page content (without blocks, just module content)
+	 *
+	 * @throws \ExitException
+	 */
+	protected function render_content () {
+		$Page = Page::instance();
+		/**
+		 * If module consists of index.html only
+		 */
+		if (file_exists("$this->working_directory/index.html")) {
+			ob_start();
+			_include("$this->working_directory/index.html", false, false);
+			$Page->content(ob_get_clean());
+			return;
+		}
+		$this->check_and_normalize_route();
+		if (!error_code()) {
+			$router = file_exists("$this->working_directory/Controller.php") ? 'controller_router' : 'files_router';
+			$this->$router(@$this->path[0], @$this->path[1]);
+		}
+		if (error_code()) {
+			$Page->error();
+		}
 	}
 	/**
 	 * Wraps `cs\Index::$Content` with form and adds form buttons to the end of content
 	 */
 	protected function form_wrapper () {
-		$Config        = Config::instance();
-		$L             = Language::instance();
+		/**
+		 * Render buttons
+		 */
+		if ($this->buttons) {
+			/**
+			 * Apply button
+			 */
+			if ($this->apply_button) {
+				$this->Content .= $this->form_button('apply', !Cache::instance()->cache_state());
+				/**
+				 * If cancel button does not work as back button - render it here
+				 */
+				if (!$this->cancel_button_back) {
+					$this->Content .= $this->form_button('cancel', !@Config::instance()->core['cache_not_saved']);
+				}
+			}
+			/**
+			 * Save button
+			 */
+			if ($this->save_button) {
+				$this->Content .= $this->form_button('save');
+			}
+		}
+		/**
+		 * If cancel button works as back button - render it here
+		 */
+		if ($this->cancel_button_back) {
+			$this->Content .= h::{'button.uk-button'}(
+				Language::instance()->cancel,
+				[
+					'name'    => 'cancel',
+					'type'    => 'button',
+					'onclick' => 'history.go(-1);'
+				]
+			);
+		}
 		$this->Content = h::form(
 			$this->Content.
-			//Apply button
-			($this->apply_button && $this->buttons ?
-				$this->form_button('apply', !Cache::instance()->cache_state())
-				: '').
-			//Save button
-			($this->save_button && $this->buttons ?
-				$this->form_button('save')
-				: '').
-			//Cancel button
-			($this->apply_button && $this->buttons && !$this->cancel_button_back ?
-				$this->form_button('cancel', !@$Config->core['cache_not_saved'])
-				: '').
-			($this->cancel_button_back ?
-				h::{'button.uk-button'}(
-					$L->cancel,
-					[
-						'name'    => 'cancel',
-						'type'    => 'button',
-						'onclick' => 'history.go(-1);'
-					]
-				)
-				: '').
 			$this->custom_buttons,
-			array_merge(
-				[
-					'enctype' => $this->file_upload ? 'multipart/form-data' : false,
-					'action'  => $this->get_action()
-				],
-				$this->form_attributes
-			)
+			$this->form_attributes + [
+				'enctype' => $this->file_upload ? 'multipart/form-data' : false,
+				'action'  => $this->get_action()
+			]
 		);
 	}
 	/**
@@ -478,24 +531,7 @@ class Index {
 		);
 	}
 	/**
-	 * Get form action based on current module, path and other parameters
-	 *
-	 * @return string
-	 */
-	protected function get_action () {
-		if ($this->action === null) {
-			$this->action = ($this->in_admin ? 'admin/' : '')."$this->module";
-			if (isset($this->path[0])) {
-				$this->action .= '/'.$this->path[0];
-				if (isset($this->path[1])) {
-					$this->action .= '/'.$this->path[1];
-				}
-			}
-		}
-		return $this->action ?: '';
-	}
-	/**
-	 * Blocks processing
+	 * Blocks rendering
 	 */
 	protected function render_blocks () {
 		$blocks = Config::instance()->components['blocks'];
@@ -521,7 +557,7 @@ class Index {
 			) {
 				continue;
 			}
-			if (Event::instance()->fire(
+			if (!Event::instance()->fire(
 				'System/Index/block_render',
 				[
 					'index'        => $block['index'],
@@ -529,48 +565,53 @@ class Index {
 				]
 			)
 			) {
-				$block['title'] = $this->ml_process($block['title']);
-				switch ($block['type']) {
-					default:
-						$content = ob_wrapper(
-							function () use ($block) {
-								include BLOCKS."/block.$block[type].php";
-							}
-						);
-						break;
-					case 'html':
-					case 'raw_html':
-						$content = $this->ml_process($block['content']);
-						break;
-				}
-				$template = TEMPLATES.'/blocks/block.'.(
-					file_exists(TEMPLATES."/blocks/block.$block[template]") ? $block['template'] : 'default.html'
-					);
-				$content  = str_replace(
-					[
-						'<!--id-->',
-						'<!--title-->',
-						'<!--content-->'
-					],
-					[
-						$block['index'],
-						$block['title'],
-						$content
-					],
-					ob_wrapper(
-						function () use ($template) {
-							include $template;
+				/**
+				 * Block was rendered by event handler
+				 */
+				return;
+			}
+			$block['title'] = $this->ml_process($block['title']);
+			switch ($block['type']) {
+				default:
+					$block['content'] = ob_wrapper(
+						function () use ($block) {
+							include BLOCKS."/block.$block[type].php";
 						}
-					)
-				);
-				if ($block['position'] == 'floating') {
-					$Page->replace(
-						"<!--block#$block[index]-->",
-						$content
 					);
-				} else {
-					$blocks_array[$block['position']] .= $content;
-				}
+					break;
+				case 'html':
+				case 'raw_html':
+					$block['content'] = $this->ml_process($block['content']);
+					break;
+			}
+			/**
+			 * Template file will have access to `$block` variable, so it can use that
+			 */
+			$content = str_replace(
+				[
+					'<!--id-->',
+					'<!--title-->',
+					'<!--content-->'
+				],
+				[
+					$block['index'],
+					$block['title'],
+					$block['content']
+				],
+				ob_wrapper(
+					function () use ($block) {
+						$template = file_exists(TEMPLATES."/blocks/block.$block[template]") ? $block['template'] : 'default.html';
+						include TEMPLATES."/blocks/block.$template";
+					}
+				)
+			);
+			if ($block['position'] == 'floating') {
+				$Page->replace(
+					"<!--block#$block[index]-->",
+					$content
+				);
+			} else {
+				$blocks_array[$block['position']] .= $content;
 			}
 		}
 		$Page->Top .= $blocks_array['top'];
@@ -647,7 +688,7 @@ class Index {
 	 *
 	 * @param string $property
 	 *
-	 * @return bool|string
+	 * @return false|string
 	 */
 	function __get ($property) {
 		if ($property == 'action') {
@@ -683,64 +724,20 @@ class Index {
 		 * If site is closed
 		 */
 		if (!$Config->core['site_mode']) {
-			/**
-			 * If user is not admin and it is not request for sign in
-			 */
-			/** @noinspection NotOptimalIfConditionsInspection */
-			if (
-				!User::instance()->admin() &&
-				!(
-					api_path() && $this->route === ['user', 'sign_in']
-				)
-			) {
+			if ($this->closed_site($Config, $this->in_api)) {
 				code_header(503);
 				return;
 			}
 			/**
 			 * Warning about closed site
 			 */
-			if (!$this->in_api) {
-				$Page->warning(get_core_ml_text('closed_title'));
-			}
+			$Page->warning(get_core_ml_text('closed_title'));
 		}
 		if (error_code()) {
 			$Page->error();
-		}
-		/**
-		 * Add generic Home or Module Name title
-		 */
-		if (!$this->in_api) {
-			$L = Language::instance();
-			if ($this->in_admin()) {
-				$Page->title($L->administration);
-			}
-			$Page->title(
-				$L->{home_page() ? 'home' : $this->module}
-			);
 		}
 		Event::instance()->fire('System/Index/preload');
-		/**
-		 * If module consists of index.html only
-		 */
-		if (!$this->in_admin && !$this->in_api && $this->module && file_exists(MODULES."/$this->module/index.html")) {
-			ob_start();
-			_include(MODULES."/$this->module/index.html", false, false);
-			$Page->content(ob_get_clean());
-		} elseif (!error_code()) {
-			$this->normalize_route();
-			/** @noinspection NotOptimalIfConditionsInspection */
-			if (!error_code()) {
-				if (file_exists("$this->working_directory/Controller.php")) {
-					$this->controller_router(@$this->path[0], @$this->path[1]);
-				} else {
-					$this->files_router(@$this->path[0], @$this->path[1]);
-				}
-			}
-		}
-		$this->render_complete_page();
-		if (error_code()) {
-			$Page->error();
-		}
+		$this->render_page();
 		Event::instance()->fire('System/Index/postload');
 	}
 }

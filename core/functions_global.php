@@ -104,7 +104,7 @@ function error_code ($code = null) {
 function admin_path ($admin_path = null) {
 	static $stored_admin_path = false;
 	if ($admin_path !== null) {
-		$stored_admin_path = $admin_path;
+		$stored_admin_path = (bool)$admin_path;
 	}
 	return $stored_admin_path;
 }
@@ -119,7 +119,7 @@ function admin_path ($admin_path = null) {
 function api_path ($api_path = null) {
 	static $stored_api_path = false;
 	if ($api_path !== null) {
-		$stored_api_path = $api_path;
+		$stored_api_path = (bool)$api_path;
 	}
 	return $stored_api_path;
 }
@@ -129,7 +129,7 @@ function api_path ($api_path = null) {
  *
  * @param null|string $current_module
  *
- * @return bool
+ * @return string
  */
 function current_module ($current_module = null) {
 	static $stored_current_module = '';
@@ -149,7 +149,7 @@ function current_module ($current_module = null) {
 function home_page ($home_page = null) {
 	static $stored_home_page = false;
 	if ($home_page !== null) {
-		$stored_home_page = $home_page;
+		$stored_home_page = (bool)$home_page;
 	}
 	return $stored_home_page;
 }
@@ -219,13 +219,13 @@ function code_header ($code) {
 /**
  * Send a raw HTTP header
  *
- * @param string $string             There are two special-case header calls. The first is a header that starts with the string "HTTP/" (case is not significant),
- *                                   which will be used to figure out the HTTP status code to send. For example, if you have configured Apache to use a PHP script
- *                                   to handle requests for missing files (using the ErrorDocument directive),
- *                                   you may want to make sure that your script generates the proper status code.
- * @param bool   $replace            The optional replace parameter indicates whether the header should replace a previous similar header,
- *                                   or add a second header of the same type. By default it will replace
- * @param null   $http_response_code Forces the HTTP response code to the specified value
+ * @param string   $string             There are two special-case header calls. The first is a header that starts with the string "HTTP/" (case is not
+ *                                     significant), which will be used to figure out the HTTP status code to send. For example, if you have configured Apache
+ *                                     to use a PHP script to handle requests for missing files (using the ErrorDocument directive), you may want to make sure
+ *                                     that your script generates the proper status code.
+ * @param bool     $replace            The optional replace parameter indicates whether the header should replace a previous similar header,
+ *                                     or add a second header of the same type. By default it will replace
+ * @param int|null $http_response_code Forces the HTTP response code to the specified value
  */
 function _header ($string, $replace = true, $http_response_code = null) {
 	header($string, $replace, $http_response_code);

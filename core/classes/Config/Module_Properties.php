@@ -45,7 +45,7 @@ class Module_Properties {
 	 * @return int
 	 */
 	function db ($db_name) {
-		return (string)$this->module_data['db'][$db_name];
+		return $this->module_data['db'][$db_name];
 	}
 	/**
 	 * Get storage id by name
@@ -62,7 +62,7 @@ class Module_Properties {
 	 *
 	 * @param string		$item
 	 *
-	 * @return bool|mixed
+	 * @return false|mixed
 	 */
 	function __get ($item) {
 		return $this->get($item);
@@ -72,18 +72,16 @@ class Module_Properties {
 	 *
 	 * @param string	$item
 	 * @param mixed		$value
-	 *
-	 * @return bool
 	 */
 	function __set ($item, $value) {
-		return $this->set_internal($item, $value);
+		$this->set_internal($item, $value);
 	}
 	/**
 	 * Get data item (or array of items) of module configuration
 	 *
 	 * @param string|string[]	$item
 	 *
-	 * @return bool|mixed|mixed[]
+	 * @return false|mixed|mixed[]
 	 */
 	function get ($item) {
 		if (is_array($item)) {
@@ -95,8 +93,7 @@ class Module_Properties {
 		} elseif (isset($this->module_data['data'], $this->module_data['data'][$item])) {
 			return $this->module_data['data'][$item];
 		} else {
-			$false = false;
-			return $false;
+			return false;
 		}
 	}
 	/**
