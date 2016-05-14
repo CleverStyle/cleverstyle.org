@@ -3,15 +3,14 @@
  * @package   Blogs
  * @category  modules
  * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright Copyright (c) 2011-2015, Nazar Mokrynskyi
+ * @copyright Copyright (c) 2011-2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
  */
 namespace cs\modules\Blogs;
 use
-	h,
 	cs\Config,
 	cs\Event,
-	cs\Index,
+	cs\ExitException,
 	cs\Language,
 	cs\Page\Meta,
 	cs\Page,
@@ -21,7 +20,6 @@ if (!Event::instance()->fire('Blogs/tag')) {
 	return;
 }
 $Config = Config::instance();
-$Index  = Index::instance();
 $L      = Language::instance();
 $Meta   = Meta::instance();
 $Page   = Page::instance();
@@ -31,17 +29,15 @@ $Route  = Route::instance();
 /**
  * If no tag specified
  */
-if (!isset($Route->path[1])) {
-	error_code(404);
-	return;
+if (!isset($Route->route[1])) {
+	throw new ExitException(404);
 }
 /**
  * Find tag
  */
-$tag = $Tags->get_by_text($Route->path[1]);
+$tag = $Tags->get_by_text($Route->route[1]);
 if (!$tag) {
-	error_code(404);
-	return;
+	throw new ExitException(404);
 }
 $tag = $Tags->get($tag);
 /**
@@ -64,7 +60,7 @@ $Meta->blog();
  * Determine current page
  */
 $page = max(
-	isset($Route->ids[0]) ? array_slice($Route->ids, -1)[0] : 1,
+	isset($Route->route[2]) ? $Route->route[2] : 1,
 	1
 );
 /**
@@ -78,25 +74,17 @@ if ($page > 1) {
  */
 $posts_per_page = $Config->module('Blogs')->posts_per_page;
 $posts          = $Posts->get_for_tag($tag['id'], $L->clang, $page, $posts_per_page);
-/**
- * Render posts page
- */
-if (!$posts) {
-	$Index->content(
-		h::{'p.cs-center'}($L->no_posts_yet)
-	);
-	return;
-}
-$posts_count = $Posts->get_for_tag_count($tag['id'], $L->clang);
+$posts_count    = $Posts->get_for_tag_count($tag['id'], $L->clang);
 /**
  * Base url (without page number)
  */
-$base_url = $Config->base_url().'/'.path($L->Blogs).'/'.path($L->tag).'/'.$Route->path[1];
-$Index->content(
-	Helpers::posts_list(
-		$posts,
-		$posts_count,
-		$page,
-		$base_url
-	)
+$base_url = $Config->base_url().'/'.path($L->Blogs).'/'.path($L->tag).'/'.$Route->route[1];
+/**
+ * Render posts page
+ */
+Helpers::show_posts_list(
+	$posts,
+	$posts_count,
+	$page,
+	$base_url
 );

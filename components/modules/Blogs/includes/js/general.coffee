@@ -1,9 +1,9 @@
 ###*
- * @package		Blogs
- * @category	modules
- * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2015, Nazar Mokrynskyi
- * @license		MIT License, see license.txt
+ * @package   Blogs
+ * @category  modules
+ * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
+ * @copyright Copyright (c) 2011-2016, Nazar Mokrynskyi
+ * @license   MIT License, see license.txt
 ###
 $ ->
 	if cs.module != 'Blogs'
@@ -15,7 +15,7 @@ $ ->
 	content	= $('.cs-blogs-new-post-content')
 	$('.cs-blogs-post-preview').mousedown ->
 		data =
-			id			: $(this).data('id')
+			id			: $(@).data('id')
 			title		: title.val() || title.text()
 			sections	: $('.cs-blogs-new-post-sections').val() || 0
 			content		: content.val() || content.html()
@@ -38,12 +38,12 @@ $ ->
 		.parents('form')
 		.submit ->
 			window.onbeforeunload	= null
-			form					= $(this)
+			form					= $(@)
 			if !title.is('input')
 				form.append(
-					$('<input name="title" class="uk-hidden" />').val(title.text())
+					$('<input name="title" hidden/>').val(title.text())
 				)
 			if !content.is('textarea')
 				form.append(
-					$('<textarea name="content" class="uk-hidden" />').val(content.html())
+					$('<textarea name="content" hidden/>').val(content.html())
 				)

@@ -3,15 +3,13 @@
  * @package   Blogs
  * @category  modules
  * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright Copyright (c) 2011-2015, Nazar Mokrynskyi
+ * @copyright Copyright (c) 2011-2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
  */
 namespace cs\modules\Blogs;
 use
-	h,
 	cs\Config,
 	cs\Event,
-	cs\Index,
 	cs\Language,
 	cs\Page\Meta,
 	cs\Page,
@@ -21,7 +19,6 @@ if (!Event::instance()->fire('Blogs/latest_posts')) {
 	return;
 }
 $Config = Config::instance();
-$Index  = Index::instance();
 $L      = Language::instance();
 $Meta   = Meta::instance();
 $Page   = Page::instance();
@@ -58,23 +55,15 @@ if ($page > 1) {
 $posts_per_page = $Config->module('Blogs')->posts_per_page;
 $posts          = $Posts->get_latest_posts($page, $posts_per_page);
 /**
- * Render posts page
- */
-if (!$posts) {
-	$Index->content(
-		h::{'p.cs-center'}($L->no_posts_yet)
-	);
-	return;
-}
-/**
  * Base url (without page number)
  */
 $base_url = $Config->base_url().'/'.path($L->Blogs).'/'.path($L->latest_posts);
-$Index->content(
-	Helpers::posts_list(
-		$posts,
-		$Posts->get_total_count(),
-		$page,
-		$base_url
-	)
+/**
+ * Render posts page
+ */
+Helpers::show_posts_list(
+	$posts,
+	$Posts->get_total_count(),
+	$page,
+	$base_url
 );

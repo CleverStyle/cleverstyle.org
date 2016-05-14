@@ -3,7 +3,7 @@
  * @package   Blogs
  * @category  modules
  * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright Copyright (c) 2011-2015, Nazar Mokrynskyi
+ * @copyright Copyright (c) 2011-2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
  */
 namespace cs\modules\Blogs;
@@ -11,12 +11,11 @@ use
 	cs\Cache,
 	cs\Config,
 	cs\DB,
-	cs\Event,
-	cs\User;
+	cs\Event;
 Event::instance()->on(
-	'admin/System/components/modules/uninstall/process',
+	'admin/System/components/modules/uninstall/before',
 	function ($data) {
-		if ($data['name'] != 'Blogs' || !User::instance()->admin()) {
+		if ($data['name'] != 'Blogs') {
 			return;
 		}
 		time_limit_pause();

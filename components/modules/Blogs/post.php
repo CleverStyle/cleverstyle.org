@@ -3,7 +3,7 @@
  * @package   Blogs
  * @category  modules
  * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright Copyright (c) 2011-2015, Nazar Mokrynskyi
+ * @copyright Copyright (c) 2011-2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
  */
 namespace cs\modules\Blogs;
@@ -11,7 +11,7 @@ use
 	h,
 	cs\Config,
 	cs\Event,
-	cs\Index,
+	cs\ExitException,
 	cs\Page\Meta,
 	cs\Page,
 	cs\Route,
@@ -38,8 +38,7 @@ $Posts   = Posts::instance();
 $rc      = Route::instance()->route;
 $post_id = (int)mb_substr($rc[1], mb_strrpos($rc[1], ':') + 1);
 if (!$post_id) {
-	error_code(404);
-	return;
+	throw new ExitException(404);
 }
 $post = $Posts->get_as_json_ld($post_id);
 if (
@@ -48,8 +47,7 @@ if (
 		$post['draft'] && $post['user'] != $User->id
 	)
 ) {
-	error_code(404);
-	return;
+	throw new ExitException(404);
 }
 if ($post['path'] != mb_substr($rc[1], 0, mb_strrpos($rc[1], ':'))) {
 	status_code(303);
@@ -63,7 +61,6 @@ $Meta = Meta::instance();
 $Meta
 	->article()
 	->article('published_time', date('Y-m-d', $post['date'] ?: TIME))
-	->article('author', $post['author']['url'])
 	->article('section', $post['articleSection'] ? $post['articleSection'][0] : false)
 	->article('tag', $post['tags']);
 array_map([$Meta, 'image'], $post['image']);
@@ -72,7 +69,7 @@ $is_admin         =
 	$User->admin() &&
 	$User->get_permission('admin/Blogs', 'index') &&
 	$User->get_permission('admin/Blogs', 'edit_post');
-Index::instance()->content(
+$Page->content(
 	h::{'article[is=cs-blogs-post]'}(
 		h::{'script[type=application/ld+json]'}(
 			json_encode($post, JSON_UNESCAPED_UNICODE)

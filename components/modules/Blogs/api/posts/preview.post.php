@@ -3,21 +3,21 @@
  * @package   Blogs
  * @category  modules
  * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright Copyright (c) 2011-2015, Nazar Mokrynskyi
+ * @copyright Copyright (c) 2011-2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
  */
 namespace cs\modules\Blogs;
 use
 	h,
 	cs\Config,
+	cs\ExitException,
 	cs\Language,
 	cs\Page,
 	cs\User;
 $Config = Config::instance();
 $User   = User::instance();
 if (!$User->user()) {
-	error_code(403);
-	return;
+	throw new ExitException(403);
 }
 $L    = Language::instance();
 $Page = Page::instance();
@@ -51,7 +51,7 @@ $post        = isset($_POST['id']) ? $Posts->get($_POST['id']) : [
 $module      = path($L->Blogs);
 $module_data = $Config->module('Blogs');
 $Page->json(
-	h::{'section.cs-blogs-post[level=0] article[level=0]'}(
+	h::{'section.cs-blogs-post article'}(
 		h::header(
 			h::h1(xap($_POST['title'])).
 			((array)$_POST['sections'] != [0] ? h::p(
@@ -102,13 +102,7 @@ $Page->json(
 						'datetime' => date('c', $post['date'])
 					]
 				).
-				h::a(
-					h::icon('user').$User->username($post['user']),
-					[
-						'href' => path($L->profile).'/'.$User->get('login', $post['user']),
-						'rel'  => 'author'
-					]
-				).
+				h::icon('user').$User->username($post['user']).
 				(
 				$module_data->enable_comments ? h::icon('comments').$post['comments_count'] : ''
 				)

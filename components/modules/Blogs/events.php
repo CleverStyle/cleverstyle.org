@@ -1,10 +1,10 @@
 <?php
 /**
- * @package        Blogs
- * @category       modules
- * @author         Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright      Copyright (c) 2011-2015, Nazar Mokrynskyi
- * @license        MIT License, see license.txt
+ * @package   Blogs
+ * @category  modules
+ * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
+ * @copyright Copyright (c) 2011-2016, Nazar Mokrynskyi
+ * @license   MIT License, see license.txt
  */
 namespace cs;
 Event::instance()
@@ -50,8 +50,7 @@ Event::instance()
 						$rc[2] = $rc[1];
 						$rc[1] = 'post';
 					} else {
-						error_code(404);
-						return;
+						throw new ExitException(404);
 					}
 			}
 			$data['rc'] = implode('/', $rc);
@@ -60,22 +59,17 @@ Event::instance()
 	->on(
 		'System/Index/construct',
 		function () {
-			switch (Config::instance()->components['modules']['Blogs']['active']) {
-				case -1:
-					if (!admin_path()) {
-						return;
-					}
+			$module_data = Config::instance()->module('Blogs');
+			switch (true) {
+				case $module_data->uninstalled():
 					require __DIR__.'/events/uninstalled.php';
 					break;
-				case 1:
+				case $module_data->enabled():
 					require __DIR__.'/events/enabled.php';
-					if (admin_path() && current_module() == 'Blogs') {
+					if (current_module() == 'Blogs') {
 						require __DIR__.'/events/enabled/admin.php';
 					}
-				default:
-					if (!admin_path()) {
-						return;
-					}
+				case $module_data->installed():
 					require __DIR__.'/events/installed.php';
 			}
 		}
