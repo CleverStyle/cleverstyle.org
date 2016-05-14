@@ -10,13 +10,14 @@
  * otherwise system workability may be broken
  */
 use
+	cs\App,
 	cs\Cache,
 	cs\Config,
-	cs\Index,
 	cs\Language,
+	cs\Language\Prefix,
 	cs\Page,
-	cs\Text,
-	cs\User;
+	cs\Response,
+	cs\Text;
 /**
  * Auto Loading of classes
  */
@@ -28,27 +29,27 @@ spl_autoload_register(function ($class) {
 	if (isset($cache[$class])) {
 		return require_once $cache[$class];
 	}
-	$prepared_class_name	= ltrim($class, '\\');
-	if (substr($prepared_class_name, 0, 3) == 'cs\\') {
-		$prepared_class_name	= substr($prepared_class_name, 3);
+	$prepared_class_name = ltrim($class, '\\');
+	if (strpos($prepared_class_name, 'cs\\') === 0) {
+		$prepared_class_name = substr($prepared_class_name, 3);
 	}
-	$prepared_class_name	= explode('\\', $prepared_class_name);
-	$namespace				= count($prepared_class_name) > 1 ? implode('/', array_slice($prepared_class_name, 0, -1)) : '';
-	$class_name				= array_pop($prepared_class_name);
+	$prepared_class_name = explode('\\', $prepared_class_name);
+	$namespace           = count($prepared_class_name) > 1 ? implode('/', array_slice($prepared_class_name, 0, -1)) : '';
+	$class_name          = array_pop($prepared_class_name);
 	/**
 	 * Try to load classes from different places. If not found in one place - try in another.
 	 */
 	if (
-		_require_once($file = DIR."/core/classes/$namespace/$class_name.php", false) ||		//Core classes
-		_require_once($file = DIR."/core/thirdparty/$namespace/$class_name.php", false) ||	//Third party classes
-		_require_once($file = DIR."/core/traits/$namespace/$class_name.php", false) ||		//Core traits
-		_require_once($file = ENGINES."/$namespace/$class_name.php", false) ||				//Core engines
-		_require_once($file = MODULES."/../$namespace/$class_name.php", false)				//Classes in modules and plugins
+		_require_once($file = DIR."/core/classes/$namespace/$class_name.php", false) ||    //Core classes
+		_require_once($file = DIR."/core/thirdparty/$namespace/$class_name.php", false) || //Third party classes
+		_require_once($file = DIR."/core/traits/$namespace/$class_name.php", false) ||     //Core traits
+		_require_once($file = ENGINES."/$namespace/$class_name.php", false) ||             //Core engines
+		_require_once($file = MODULES."/../$namespace/$class_name.php", false) ||          //Classes in modules
+		_require_once($file = PLUGINS."/../$namespace/$class_name.php", false)             //Classes in plugins
 	) {
 		$cache[$class] = realpath($file);
-		if (!is_dir(CACHE.'/classes')) {
-			@mkdir(CACHE.'/classes', 0770, true);
-		}
+		/** @noinspection MkdirRaceConditionInspection */
+		@mkdir(CACHE.'/classes', 0770, true);
 		file_put_json(CACHE.'/classes/autoload', $cache);
 		return true;
 	}
@@ -65,6 +66,7 @@ function clean_classes_cache () {
 		unlink(CACHE.'/classes/modified');
 	}
 }
+
 /**
  * Get or set modified classes (used in Singleton trait)
  *
@@ -74,6 +76,11 @@ function clean_classes_cache () {
  */
 function modified_classes ($updated_modified_classes = null) {
 	static $modified_classes;
+	if (!defined('CACHE')) {
+		return [];
+	}
+	/** @noinspection MkdirRaceConditionInspection */
+	@mkdir(CACHE.'/classes', 0770, true);
 	if (!isset($modified_classes)) {
 		$modified_classes = file_exists(CACHE.'/classes/modified') ? file_get_json(CACHE.'/classes/modified') : [];
 	}
@@ -83,47 +90,44 @@ function modified_classes ($updated_modified_classes = null) {
 	}
 	return $modified_classes;
 }
+
 /**
  * Correct termination
  *
- * @param bool|null $enable	Allows to disable shutdown function execution since there is no good way to un-register it
+ * @deprecated
+ * @todo Remove in 4.x
  */
-function shutdown_function ($enable = null) {
-	static $enable_internal = true;
-	if ($enable !== null) {
-		$enable_internal = $enable;
-		return;
-	}
-	if (!$enable_internal) {
-		return;
-	}
-	if (!class_exists('\\cs\\Core', false)) {
-		return;
-	}
-	Index::instance(true)->__finish();
-	Page::instance()->__finish();
-	User::instance(true)->__finish();
+function shutdown_function () {
+	App::instance()->execute();
 }
 /**
  * Enable of errors processing
+ * @todo Remove in 4.x
  */
 function errors_on () {
 	error_reporting(defined('DEBUG') && DEBUG ? E_ALL : E_ERROR | E_WARNING | E_PARSE);
 }
 /**
  * Disabling of errors processing
+ * @todo Remove in 4.x
  */
 function errors_off () {
 	error_reporting(0);
 }
 /**
  * Enabling of page interface
+ *
+ * @deprecated Use `cs\Page::$interface` property instead
+ * @todo       Remove in 4.x
  */
 function interface_on () {
 	Page::instance()->interface	= true;
 }
 /**
  * Disabling of page interface
+ *
+ * @deprecated Use `cs\Page::$interface` property instead
+ * @todo       Remove in 4.x
  */
 function interface_off () {
 	Page::instance()->interface	= false;
@@ -253,20 +257,20 @@ function format_filesize ($size, $round = false) {
 	if (!is_numeric($size)) {
 		return $size;
 	}
-	$L		= Language::instance();
-	$unit	= '';
-	if($size >= 1099511627776) {
+	$L    = new Prefix('system_filesize_');
+	$unit = '';
+	if ($size >= 1099511627776) {
 		$size /= 1099511627776;
-		$unit = " $L->TB";
-	} elseif($size >= 1073741824) {
+		$unit = " $L->TiB";
+	} elseif ($size >= 1073741824) {
 		$size /= 1073741824;
-		$unit = " $L->GB";
+		$unit = " $L->GiB";
 	} elseif ($size >= 1048576) {
 		$size /= 1048576;
-		$unit = " $L->MB";
+		$unit = " $L->MiB";
 	} elseif ($size >= 1024) {
 		$size /= 1024;
-		$unit = " $L->KB";
+		$unit = " $L->KiB";
 	} else {
 		$size = "$size $L->Bytes";
 	}
@@ -336,26 +340,25 @@ function get_core_ml_text ($item) {
  */
 function set_core_ml_text ($item, $value) {
 	$Config = Config::instance(true);
-	if (!$Config) {
+	if (!$Config || !isset($Config->core[$item])) {
 		return false;
 	}
-	return Text::instance()->set($Config->module('System')->db('texts'), 'System/Config/core', $Config->core[$item], $value);
+	return Text::instance()->set($Config->module('System')->db('texts'), 'System/Config/core', $item, $value);
 }
 
 /**
  * Sends header with string representation of http status code, for example "404 Not Found" for corresponding server protocol
+ *
+ * @deprecated Use `cs\Response::$code` instead
+ * @todo       Remove in 4.x
  *
  * @param int $code Status code
  *
  * @return null|string String representation of status code code
  */
 function status_code ($code) {
-	$string_code = status_code_string($code);
-	if (!$string_code) {
-		return null;
-	}
-	_header("$_SERVER[SERVER_PROTOCOL] $string_code", true, (int)$code);
-	return $string_code;
+	Response::instance()->code = $code;
+	return status_code_string($code);
 }
 
 /**
@@ -365,7 +368,7 @@ function status_code ($code) {
  *
  * @return null|string
  */
-function status_code_string ($code){
+function status_code_string ($code) {
 	switch ($code) {
 		case 201:
 			$string_code = '201 Created';
@@ -757,6 +760,9 @@ function functionality ($functionality) {
 
 /**
  * Returns system version
+ *
+ * @deprecated
+ * @todo Remove in 4.x
  *
  * @return string
  */

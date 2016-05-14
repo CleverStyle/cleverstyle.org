@@ -8,6 +8,7 @@
 namespace cs\User;
 use
 	cs\Config,
+	cs\Event,
 	cs\Language,
 	cs\Session,
 	cs\User,
@@ -22,7 +23,6 @@ use
  * @method \cs\DB\_Abstract db()
  * @method \cs\DB\_Abstract db_prime()
  * @method false|int[]        get_groups(false|int $user)
- * @method                  __finish()
  */
 trait Data {
 	/**
@@ -30,11 +30,6 @@ trait Data {
 	 * @var array
 	 */
 	protected $users_columns = [];
-	/**
-	 * Do we need to update users cache, if so - array will not be empty
-	 * @var array
-	 */
-	protected $update_cache = [];
 	/**
 	 * Local cache of users data
 	 * @var array
@@ -67,132 +62,60 @@ trait Data {
 	 * @return false|int|mixed[]|string|Properties If <i>$item</i> is integer - cs\User\Properties object will be returned
 	 */
 	function get ($item, $user = false) {
-		if (is_scalar($item) && preg_match('/^[0-9]+$/', $item)) {
+		if (is_scalar($item) && ctype_digit((string)$item)) {
 			return new Properties($item);
 		}
-		$result = $this->get_internal($item, $user);
-		if (!$this->memory_cache) {
-			$this->__finish();
-		}
-		return $result;
+		return $this->get_internal($item, $user);
 	}
 	/**
 	 * Get data item of specified user
 	 *
 	 * @param string|string[] $item
 	 * @param false|int       $user If not specified - current user assumed
-	 * @param bool            $cache_only
 	 *
 	 * @return false|int|string|mixed[]
 	 */
-	protected function get_internal ($item, $user = false, $cache_only = false) {
+	protected function get_internal ($item, $user = false) {
 		$user = (int)$user ?: $this->id;
 		if (!$user) {
 			return false;
 		}
-		/**
-		 * Reference for simpler usage
-		 */
-		$data = &$this->data[$user];
+		if (isset($this->data[$user])) {
+			$data = $this->data[$user];
+		} else {
+			$data = $this->cache->get(
+				$user,
+				function () use ($user) {
+					return $this->db()->qf(
+						"SELECT *
+						FROM `[prefix]users`
+						WHERE `id` = $user
+						LIMIT 1"
+					) ?: false;
+				}
+			);
+			if (!$data) {
+				return false;
+			} elseif ($this->memory_cache || $user = User::GUEST_ID) {
+				$this->data[$user] = $data;
+			}
+		}
 		/**
 		 * If get an array of values
 		 */
 		if (is_array($item)) {
-			$result = $new_items = [];
+			$result = [];
 			/**
 			 * Trying to get value from the local cache, or make up an array of missing values
 			 */
 			foreach ($item as $i) {
 				if (in_array($i, $this->users_columns)) {
-					if (($res = $this->get_internal($i, $user, true)) !== false) {
-						$result[$i] = $res;
-					} else {
-						$new_items[] = $i;
-					}
+					$result[$i] = $data[$i];
 				}
 			}
-			if (empty($new_items)) {
-				return $result;
-			}
-			/**
-			 * If there are missing values - get them from the database
-			 */
-			$new_items = '`'.implode('`, `', $new_items).'`';
-			$res       = $this->db()->qf(
-				"SELECT $new_items
-				FROM `[prefix]users`
-				WHERE `id` = '$user'
-				LIMIT 1"
-			);
-			unset($new_items);
-			if (is_array($res)) {
-				$this->update_cache[$user] = true;
-				$data                      = array_merge($res, $data ?: []);
-				$result                    = array_merge($result, $res);
-				/**
-				 * Sorting the resulting array in the same manner as the input array
-				 */
-				$res = [];
-				foreach ($item as $i) {
-					$res[$i] = &$result[$i];
-				}
-				return $res;
-			} else {
-				return false;
-			}
+			return $result;
 		}
-		/**
-		 * If get one value
-		 */
-		return $this->get_internal_one_item($item, $user, $data, $cache_only);
-	}
-	/**
-	 * @param string  $item
-	 * @param int     $user
-	 * @param mixed[] $data
-	 * @param bool    $cache_only
-	 *
-	 * @return false|int|string
-	 */
-	protected function get_internal_one_item ($item, $user, &$data, $cache_only) {
-		if (!in_array($item, $this->users_columns)) {
-			return false;
-		}
-		/**
-		 * If data in local cache - return them
-		 */
-		if (isset($data[$item])) {
-			return $data[$item];
-		}
-		/**
-		 * Try to get data from the cache
-		 */
-		$data_from_cache = $this->cache->$user;
-		if (is_array($data_from_cache)) {
-			/**
-			 * Update the local cache
-			 */
-			$data = array_merge($data_from_cache, $data ?: []);
-			/**
-			 * New attempt of getting the data from cache
-			 */
-			if (isset($data[$item])) {
-				return $data[$item];
-			}
-		}
-		if (!$cache_only) {
-			$data_from_db = $this->db()->qfs(
-				"SELECT `$item`
-				FROM `[prefix]users`
-				WHERE `id` = '$user'
-				LIMIT 1"
-			);
-			if ($data_from_db !== false) {
-				$this->update_cache[$user] = true;
-				return $data[$item] = $data_from_db;
-			}
-		}
-		return false;
+		return in_array($item, $this->users_columns) ? $data[$item] : false;
 	}
 	/**
 	 * Set data item of specified user
@@ -205,9 +128,7 @@ trait Data {
 	 */
 	function set ($item, $value = null, $user = false) {
 		$result = $this->set_internal($item, $value, $user);
-		if (!$this->memory_cache) {
-			$this->__finish();
-		}
+		$this->persist_data();
 		return $result;
 	}
 	/**
@@ -236,20 +157,38 @@ trait Data {
 		}
 		if ($item === 'language') {
 			$value = $value ? Language::instance()->get('clanguage', $value) : '';
+		} elseif ($item === 'timezone') {
+			$value = in_array($value, get_timezones_list(), true) ? $value : '';
 		} elseif ($item == 'avatar') {
 			if (
 				strpos($value, 'http://') !== 0 &&
 				strpos($value, 'https://') !== 0
 			) {
 				$value = '';
+			} else {
+				$old_value = $this->get($item, $user);
+				if ($value !== $old_value) {
+					$Event = Event::instance();
+					$Event->fire(
+						'System/upload_files/del_tag',
+						[
+							'url' => $old_value,
+							'tag' => "users/$user/avatar"
+						]
+					);
+					$Event->fire(
+						'System/upload_files/add_tag',
+						[
+							'url' => $value,
+							'tag' => "users/$user/avatar"
+						]
+					);
+				}
 			}
 		}
-		$this->update_cache[$user]    = true;
-		$this->data[$user][$item]     = $value;
 		$this->data_set[$user][$item] = $value;
 		if (in_array($item, ['login', 'email'], true)) {
 			$old_value                            = $this->get($item.'_hash', $user);
-			$this->data[$user][$item.'_hash']     = hash('sha224', $value);
 			$this->data_set[$user][$item.'_hash'] = hash('sha224', $value);
 			unset($this->cache->$old_value);
 		} elseif ($item === 'password_hash' || ($item === 'status' && $value == 0)) {
@@ -393,7 +332,7 @@ trait Data {
 			}
 			unset($i, $v);
 			$result = $this->db_prime()->insert(
-				"INSERT INTO `[prefix]users_data`
+				"REPLACE INTO `[prefix]users_data`
 					(
 						`id`,
 						`item`,
@@ -402,13 +341,12 @@ trait Data {
 						$user,
 						'%s',
 						'%s'
-					)
-				ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)",
+					)",
 				$params
 			);
 		} else {
 			$result = $this->db_prime()->q(
-				"INSERT INTO `[prefix]users_data`
+				"REPLACE INTO `[prefix]users_data`
 					(
 						`id`,
 						`item`,
@@ -417,8 +355,7 @@ trait Data {
 						'$user',
 						'%s',
 						'%s'
-					)
-				ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)",
+					)",
 				$item,
 				_json_encode($value)
 			);
@@ -512,7 +449,10 @@ trait Data {
 	 * @return string
 	 */
 	function username ($user = false) {
-		$user     = (int)$user ?: $this->id;
+		$user = (int)$user ?: $this->id;
+		if ($user === User::GUEST_ID) {
+			return Language::instance()->system_profile_guest;
+		}
 		$username = $this->get('username', $user);
 		if (!$username) {
 			$username = $this->get('login', $user);
@@ -530,6 +470,7 @@ trait Data {
 	 */
 	function disable_memory_cache () {
 		$this->memory_cache = false;
+		$this->data         = [];
 	}
 	/**
 	 * Returns array of users columns, available for getting of data
@@ -542,48 +483,25 @@ trait Data {
 	/**
 	 * Saving changes of cache and users data
 	 */
-	protected function save_cache_and_user_data () {
-		/**
-		 * Updating users data
-		 */
-		if (is_array($this->data_set) && !empty($this->data_set)) {
+	protected function persist_data () {
+		foreach ($this->data_set as $user => $data_set) {
 			$update = [];
-			foreach ($this->data_set as $id => &$data_set) {
-				$data = [];
-				foreach ($data_set as $i => $value) {
-					if ($i != 'id' && in_array($i, $this->users_columns)) {
-						$value  = xap($value, false);
-						$data[] = "`$i` = ".$this->db_prime()->s($value);
-					} elseif ($i != 'id') {
-						unset($data_set[$i]);
-					}
+			foreach ($data_set as $item => $value) {
+				if ($item != 'id' && in_array($item, $this->users_columns)) {
+					$value    = xap($value, false);
+					$update[] = "`$item` = ".$this->db_prime()->s($value);
 				}
-				unset($i, $value);
-				if (!empty($data)) {
-					$data     = implode(', ', $data);
-					$update[] = "UPDATE `[prefix]users`
-						SET $data
-						WHERE `id` = '$id'";
-				}
-				unset($data);
 			}
-			unset($id, $data_set);
-			if (!empty($update)) {
-				$this->db_prime()->q($update);
-			}
-			unset($update);
-		}
-		/**
-		 * Updating users cache
-		 */
-		foreach ($this->data as $id => $data) {
-			if (isset($this->update_cache[$id]) && $this->update_cache[$id]) {
-				$data['id']       = $id;
-				$this->cache->$id = $data;
+			if ($update) {
+				$update = implode(', ', $update);
+				$this->db_prime()->q(
+					"UPDATE `[prefix]users`
+					SET $update
+					WHERE `id` = '$user'"
+				);
+				unset($this->data[$user], $this->cache->$user);
 			}
 		}
-		unset($id, $data);
-		$this->update_cache = [];
-		$this->data_set     = [];
+		$this->data_set = [];
 	}
 }

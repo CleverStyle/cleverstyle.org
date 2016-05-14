@@ -6,7 +6,6 @@
  * @license   MIT License, see license.txt
  */
 namespace cs;
-
 use
 	JsonSerializable;
 
@@ -19,8 +18,8 @@ use
  *   'cregion'          => cregion
  *   'clanguage_en'     => clanguage_en
  *  ]
- *
- * @method static Language instance($check = false)
+ * 
+ * @method static $this instance($check = false)
  */
 class Language implements JsonSerializable {
 	use Singleton;
@@ -58,48 +57,71 @@ class Language implements JsonSerializable {
 	 * Set basic language
 	 */
 	protected function construct () {
-		$Core = Core::instance();
-		$this->change($Core->language);
-	}
-	/**
-	 * Initialization
-	 *
-	 * Is called from Config class by system. Usually there is no need to call it manually.
-	 */
-	function init () {
 		$Config = Config::instance(true);
+		$Core   = Core::instance();
+		$this->change($Core->language);
 		/**
 		 * We need Config for initialization
 		 */
 		if (!$Config) {
-			return;
+			Event::instance()->once(
+				'System/Config/init/after',
+				function () {
+					$this->init();
+				}
+			);
+		} else {
+			$this->init();
 		}
-		/**
-		 * @var _SERVER $_SERVER
-		 */
-		/**
-		 * Highest priority - `-Locale` header
-		 */
-		$language = $this->check_locale_header($Config->core['active_languages']);
-		/**
-		 * Second priority - URL
-		 */
-		$language = $language ?: $this->url_language($_SERVER->request_uri);
-		/**
-		 * Third - `Accept-Language` header
-		 */
-		$language = $language ?: $this->check_accept_header($Config->core['active_languages']);
+		Event::instance()->on(
+			'System/Config/changed',
+			function () {
+				$Config = Config::instance();
+				if ($Config->core['multilingual'] && User::instance(true)) {
+					$this->change(User::instance()->language);
+				} else {
+					$this->change($Config->core['language']);
+				}
+			}
+		);
+	}
+	/**
+	 * Initialization: set default language based on system configuration and request-specific parameters
+	 */
+	protected function init () {
+		$Config = Config::instance();
+		if ($Config->core['multilingual']) {
+			/**
+			 * Highest priority - `-Locale` header
+			 */
+			/** @noinspection PhpParamsInspection */
+			$language = $this->check_locale_header($Config->core['active_languages']);
+			/**
+			 * Second priority - URL
+			 */
+			$language = $language ?: $this->url_language(Request::instance()->path);
+			/**
+			 * Third - `Accept-Language` header
+			 */
+			/** @noinspection PhpParamsInspection */
+			$language = $language ?: $this->check_accept_header($Config->core['active_languages']);
+		} else {
+			$language = $Config->core['language'];
+		}
 		$this->change($language ?: '');
 	}
 	/**
 	 * Does URL have language prefix
 	 *
-	 * @param false|string $url Relative url, `$_SERVER->request_uri` by default
+	 * @param false|string $url Relative url, `Request::instance()->path` by default
 	 *
 	 * @return false|string If there is language prefix - language will be returned, `false` otherwise
 	 */
 	function url_language ($url = false) {
-		$url = $url ?: $_SERVER->request_uri;
+		/**
+		 * @var string $url
+		 */
+		$url = $url ?: Request::instance()->path;
 		if (isset($this->localized_url[$url])) {
 			return $this->localized_url[$url];
 		}
@@ -119,15 +141,12 @@ class Language implements JsonSerializable {
 	 * @return false|string
 	 */
 	protected function check_accept_header ($active_languages) {
-		/**
-		 * @var _SERVER $_SERVER
-		 */
 		$aliases          = $this->get_aliases();
 		$accept_languages = array_filter(
 			explode(
 				',',
 				strtolower(
-					strtr($_SERVER->language, '-', '_')
+					strtr(Request::instance()->header('accept-language'), '-', '_')
 				)
 			)
 		);
@@ -142,20 +161,17 @@ class Language implements JsonSerializable {
 	/**
 	 * Check `*-Locale` header (for instance, `X-Facebook-Locale`) that exists in configuration
 	 *
-	 * @param array $active_languages
+	 * @param string[] $active_languages
 	 *
 	 * @return false|string
 	 */
 	protected function check_locale_header ($active_languages) {
-		/**
-		 * @var _SERVER $_SERVER
-		 */
 		$aliases = $this->get_aliases();
 		/**
 		 * For `X-Facebook-Locale` and other similar
 		 */
-		foreach ($_SERVER as $i => $v) {
-			if (preg_match('/.*_LOCALE$/i', $i)) {
+		foreach (Request::instance()->headers as $i => $v) {
+			if (stripos($i, '-locale') !== false) {
 				$language = strtolower($v);
 				if (@in_array($aliases[$language], $active_languages)) {
 					return $aliases[$language];
@@ -177,7 +193,7 @@ class Language implements JsonSerializable {
 				$aliases      = [];
 				$aliases_list = _strtolower(get_files_list(LANGUAGES.'/aliases'));
 				foreach ($aliases_list as $alias) {
-					$aliases[$alias] = file_get_contents(LANGUAGES."/aliases/$alias");
+					$aliases[$alias] = trim(file_get_contents(LANGUAGES."/aliases/$alias"));
 				}
 				return $aliases;
 			}
@@ -260,7 +276,10 @@ class Language implements JsonSerializable {
 		if ($language == $this->clanguage) {
 			return true;
 		}
-		$Config   = Config::instance(true);
+		$Config = Config::instance(true);
+		/**
+		 * @var string $language
+		 */
 		$language = $language ?: $Config->core['language'];
 		if (
 			!$language ||
@@ -285,7 +304,7 @@ class Language implements JsonSerializable {
 		 */
 		$this->clanguage = $language;
 		_include(LANGUAGES."/$language.php", false, false);
-		_header("Content-Language: $this->content_language");
+		Response::instance()->header('content-language', $this->content_language);
 		return true;
 	}
 	/**
@@ -298,11 +317,11 @@ class Language implements JsonSerializable {
 	 */
 	protected function can_be_changed_to ($Config, $language) {
 		return
-			//Config not loaded yet
+			// Config not loaded yet
 			!$Config->core ||
-			//Set to language that is configured on system level
+			// Set to language that is configured on system level
 			$language == $Config->core['language'] ||
-			//Set to active language
+			// Set to active language
 			(
 				$Config->core['multilingual'] &&
 				in_array($language, $Config->core['active_languages'])
@@ -423,17 +442,17 @@ class Language implements JsonSerializable {
 		} else {
 			switch ($type) {
 				case 's':
-					return "$in $this->seconds";
+					return "$in $this->system_time_seconds";
 				case 'm':
-					return "$in $this->minutes";
+					return "$in $this->system_time_minutes";
 				case 'h':
-					return "$in $this->hours";
+					return "$in $this->system_time_hours";
 				case 'd':
-					return "$in $this->days";
+					return "$in $this->system_time_days";
 				case 'M':
-					return "$in $this->months";
+					return "$in $this->system_time_months";
 				case 'y':
-					return "$in $this->years";
+					return "$in $this->system_time_years";
 			}
 		}
 		return $in;

@@ -13,7 +13,7 @@
   L = cs.Language;
   Polymer({
     'is': 'cs-system-admin-users-groups-form',
-    behaviors: [cs.Polymer.behaviors.Language],
+    behaviors: [cs.Polymer.behaviors.Language('system_admin_users_')],
     properties: {
       user: '',
       user_groups: Array,
@@ -29,7 +29,6 @@
         groups = arg$[0], user_groups_ids = arg$[1];
         user_groups = [];
         other_groups = [];
-        console.log(user_groups_ids);
         for (group in groups) {
           group = groups[group];
           if (group.id == BOT_GROUP_ID) {
@@ -64,9 +63,6 @@
       });
     },
     save: function(){
-      console.log($(this.$['user-groups']).children('div:not(:first)').map(function(){
-        return this.group;
-      }).get());
       $.ajax({
         url: "api/System/admin/users/" + this.user + "/groups",
         data: {

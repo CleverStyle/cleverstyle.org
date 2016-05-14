@@ -9,10 +9,10 @@
  */
 (function(){
   var L;
-  L = cs.Language;
+  L = cs.Language('system_admin_mail_');
   Polymer({
     'is': 'cs-system-admin-mail',
-    behaviors: [cs.Polymer.behaviors.Language, cs.Polymer.behaviors.admin.System.settings],
+    behaviors: [cs.Polymer.behaviors.Language('system_admin_mail_'), cs.Polymer.behaviors.admin.System.settings],
     properties: {
       smtp: {
         computed: '_smtp(settings.smtp)',
@@ -32,7 +32,7 @@
     },
     _test_email: function(){
       var email;
-      email = prompt(L.email);
+      email = prompt('Email');
       if (email) {
         $.ajax({
           url: 'api/System/admin/mail',

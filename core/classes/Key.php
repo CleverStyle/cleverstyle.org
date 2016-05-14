@@ -8,7 +8,7 @@
 namespace cs;
 
 /**
- * @method static Key instance($check = false)
+ * @method static $this instance($check = false)
  */
 class Key {
 	use
@@ -16,7 +16,7 @@ class Key {
 	/**
 	 * Generates guaranteed unique key
 	 *
-	 * @param int|object $database Keys database
+	 * @param int|\cs\DB\_Abstract $database Keys database
 	 *
 	 * @return string
 	 */
@@ -44,10 +44,10 @@ class Key {
 	/**
 	 * Adding key into specified database
 	 *
-	 * @param int|object  $database Keys database
-	 * @param bool|string $key      If <b>false</b> - key will be generated automatically, otherwise must contain 56 character [0-9a-z] key
-	 * @param null|mixed  $data     Data to be stored with key
-	 * @param int         $expire   Timestamp of key expiration, if not specified - default system value will be used
+	 * @param int|\cs\DB\_Abstract $database Keys database
+	 * @param bool|string          $key      If <b>false</b> - key will be generated automatically, otherwise must contain 56 character [0-9a-z] key
+	 * @param null|mixed           $data     Data to be stored with key
+	 * @param int                  $expire   Timestamp of key expiration, if not specified - default system value will be used
 	 *
 	 * @return false|string
 	 */
@@ -99,9 +99,10 @@ class Key {
 	/**
 	 * Check key existence and/or getting of data stored with key. After this key will be deleted automatically.
 	 *
-	 * @param int    $database Keys database
-	 * @param string $key      56 character [0-9a-z] key
-	 * @param bool   $get_data If <b>true</d> - stored data will be returned on success, otherwise boolean result of key existence will be returned
+	 * @param int|\cs\DB\_Abstract $database Keys database
+	 * @param string               $key      56 character [0-9a-z] key
+	 * @param bool                 $get_data If <b>true</d> - stored data will be returned on success, otherwise boolean result of key existence will be
+	 *                                       returned
 	 *
 	 * @return false|mixed
 	 */
@@ -140,8 +141,8 @@ class Key {
 	/**
 	 * Key deletion from database
 	 *
-	 * @param int|object $database Keys database
-	 * @param string     $key      56 character [0-9a-z] key
+	 * @param int|\cs\DB\_Abstract $database Keys database
+	 * @param string               $key      56 character [0-9a-z] key
 	 *
 	 * @return bool
 	 */

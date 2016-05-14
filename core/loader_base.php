@@ -11,8 +11,6 @@ require DIR.'/core/functions.php';                //Inclusion of general system 
 
 error_reporting(E_ALL);
 
-header('Content-Type: text/html; charset=utf-8');
-header('Vary: Accept-Language,User-Agent,Cookie');
 mb_internal_encoding('utf-8');
 /**
  * Defining of basic constants with paths to system directories
@@ -73,3 +71,15 @@ define('PUBLIC_CACHE', STORAGE.'/pcache');
  * Themes dir
  */
 define('THEMES', DIR.'/themes');
+
+/**
+ * Request data stream and request file stream wrappers that are used by system when handling requests data and uploaded files
+ */
+stream_wrapper_register('request-data', cs\Request\Data_sub_stream::class);
+stream_wrapper_register('request-file', cs\Request\File_stream::class);
+/**
+ * Stream wrapper for PSR7 interface
+ */
+stream_wrapper_register('request-psr7-data', cs\Request\Psr7_data_stream::class);
+// Hack: HHVM doesn't have ENT_DISALLOWED constant unfortunately, remove when https://github.com/facebook/hhvm/issues/4938 resolved
+defined('ENT_DISALLOWED') || define('ENT_DISALLOWED', 128);

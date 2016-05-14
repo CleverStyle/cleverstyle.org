@@ -10,6 +10,7 @@ use
 	cs\Config,
 	cs\Core,
 	cs\Event,
+	cs\Request,
 	cs\Session,
 	cs\User;
 
@@ -24,8 +25,8 @@ use
  * @method \cs\DB\_Abstract db_prime()
  * @method false|int        get_id(string $login_hash)
  * @method bool             set_groups(int[] $groups, false|int $user = false)
- * @method false|string     get(array|string $item, mixed|null $value, false|int $user = false)
- * @method bool             set(array|string $item, mixed|null $value, false|int $user = false)
+ * @method false|string     get(array|string $item, false|int $user = false)
+ * @method bool             set(array|string $item, mixed|null $value = null, false|int $user = false)
  * @method bool             del_permissions_all(false|int $user = false)
  */
 trait Management {
@@ -122,13 +123,9 @@ trait Management {
 		) {
 			return 'exists';
 		}
-		$Config   = Config::instance();
-		$password = password_generate($Config->core['password_min_length'], $Config->core['password_min_strength']);
-		/**
-		 * @var \cs\_SERVER $_SERVER
-		 */
-		$reg_key      = md5(random_bytes(1000));
+		$Config       = Config::instance();
 		$confirmation = $confirmation && $Config->core['require_registration_confirmation'];
+		$reg_key      = md5(random_bytes(1000));
 		if ($this->db_prime()->q(
 			"INSERT INTO `[prefix]users` (
 				`login`,
@@ -154,13 +151,17 @@ trait Management {
 			$email,
 			$email_hash,
 			time(),
-			ip2hex($_SERVER->ip),
+			ip2hex(Request::instance()->ip),
 			$reg_key,
 			!$confirmation ? 1 : -1
 		)
 		) {
 			$this->reg_id = $this->db_prime()->id();
-			$this->set_password($password, $this->reg_id);
+			$password     = '';
+			if ($confirmation) {
+				$password = password_generate($Config->core['password_min_length'], $Config->core['password_min_strength']);
+				$this->set_password($password, $this->reg_id);
+			}
 			if (!$confirmation) {
 				$this->set_groups([User::USER_GROUP_ID], $this->reg_id);
 			}
@@ -232,8 +233,11 @@ trait Management {
 		}
 		$this->reg_id = $data['id'];
 		$Config       = Config::instance();
-		$password     = password_generate($Config->core['password_min_length'], $Config->core['password_min_strength']);
-		$this->set_password($password, $this->reg_id);
+		$password     = '';
+		if (!$this->get('password_hash', $data['id'])) {
+			$password = password_generate($Config->core['password_min_length'], $Config->core['password_min_strength']);
+			$this->set_password($password, $this->reg_id);
+		}
 		$this->set('status', User::STATUS_ACTIVE, $this->reg_id);
 		$this->set_groups([User::USER_GROUP_ID], $this->reg_id);
 		Session::instance()->add($this->reg_id);
@@ -407,57 +411,41 @@ trait Management {
 	 * @param int|int[] $user User id or array of users ids
 	 */
 	function del_user ($user) {
-		$this->del_user_internal($user);
-	}
-	/**
-	 * Delete specified user or array of users
-	 *
-	 * @param int|int[] $user
-	 * @param bool      $update
-	 */
-	protected function del_user_internal ($user, $update = true) {
-		$Cache = $this->cache;
-		Event::instance()->fire(
-			'System/User/del/before',
-			[
-				'id' => $user
-			]
-		);
 		if (is_array($user)) {
 			foreach ($user as $id) {
-				$this->del_user_internal($id, false);
+				$this->del_user($id);
 			}
-			$user = implode(',', $user);
-			$this->db_prime()->q(
-				"DELETE FROM `[prefix]users`
-				WHERE `id` IN ($user)"
-			);
-			unset($Cache->{'/'});
 			return;
 		}
 		$user = (int)$user;
 		if (!$user) {
 			return;
 		}
+		Event::instance()->fire(
+			'System/User/del/before',
+			[
+				'id' => $user
+			]
+		);
 		$this->set_groups([], $user);
 		$this->del_permissions_all($user);
-		if ($update) {
-			unset(
-				$Cache->{hash('sha224', $this->get('login', $user))},
-				$Cache->$user
-			);
-			$this->db_prime()->q(
-				"DELETE FROM `[prefix]users`
-				WHERE `id` = $user
-				LIMIT 1"
-			);
-			Event::instance()->fire(
-				'System/User/del/after',
-				[
-					'id' => $user
-				]
-			);
-		}
+		$Cache      = $this->cache;
+		$login_hash = hash('sha224', $this->get('login', $user));
+		$this->db_prime()->q(
+			"DELETE FROM `[prefix]users`
+			WHERE `id` = $user
+			LIMIT 1"
+		);
+		unset(
+			$Cache->$login_hash,
+			$Cache->$user
+		);
+		Event::instance()->fire(
+			'System/User/del/after',
+			[
+				'id' => $user
+			]
+		);
 	}
 	/**
 	 * Add bot
@@ -517,7 +505,7 @@ trait Management {
 				'login'    => $user_agent,
 				'email'    => $ip
 			],
-			'',
+			null,
 			$id
 		);
 		unset($this->cache->bots);

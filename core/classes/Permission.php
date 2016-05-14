@@ -9,10 +9,11 @@ namespace cs;
 use
 	cs\Cache\Prefix,
 	cs\DB\Accessor;
+
 /**
  * Class for permissions manipulating
  *
- * @method static Permission instance($check = false)
+ * @method static $this instance($check = false)
  */
 class Permission {
 	use
@@ -66,7 +67,7 @@ class Permission {
 					$group,
 					$label
 				]
-			);
+			) ?: [];
 		} /** @noinspection NotOptimalIfConditionsInspection */ elseif ($group !== null) {
 			return $this->db()->qfa(
 				[
@@ -78,7 +79,7 @@ class Permission {
 					WHERE `group` = '%s'",
 					$group
 				]
-			);
+			) ?: [];
 		} /** @noinspection NotOptimalIfConditionsInspection */ elseif ($label !== null) {
 			return $this->db()->qfa(
 				[
@@ -90,7 +91,7 @@ class Permission {
 					WHERE `label` = '%s'",
 					$label
 				]
-			);
+			) ?: [];
 		} else {
 			$id = (int)$id;
 			if (!$id) {
@@ -104,7 +105,7 @@ class Permission {
 				FROM `[prefix]permissions`
 				WHERE `id` = '$id'
 				LIMIT 1"
-			);
+			) ?: false;
 		}
 	}
 	/**
@@ -216,7 +217,7 @@ class Permission {
 							`group`
 						FROM `[prefix]permissions`'
 					);
-					if (!$data) {
+					if (!is_array($data)) {
 						return [];
 					}
 					$all_permissions = [];

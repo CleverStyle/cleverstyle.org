@@ -7,10 +7,8 @@
 Polymer.cs.behaviors.cs-icon = [
 	Polymer.cs.behaviors.this
 	Polymer.cs.behaviors.tooltip
-	hostAttributes		:
-		hidden	: true
 	observers			: [
-		'_icon_changed(icon)'
+		'_icon_changed(icon, flipX, flipY, mono, rotate, spin, spinStep)'
 	]
 	properties			:
 		icon			:
@@ -40,49 +38,36 @@ Polymer.cs.behaviors.cs-icon = [
 			reflectToAttribute	: true
 			type				: Boolean
 			value				: false
-		multiple_icons	:
-			computed	: '_multiple_icons(icon, flipX, flipY, mono, rotate, spin, spinStep)'
-			type		: Array
-		single_icon		:
-			computed	: '_single_icon(icon, flipX, flipY, mono, rotate, spin, spinStep)'
-			type		: String
-	_icon_changed : (icon) !->
+	ready : !->
+		@scopeSubtree(@$.content, true)
+		@hidden = @icon == undefined
+	_icon_changed : (icon, flipX, flipY, mono, rotate, spin, spinStep) !->
 		if !icon
-			@setAttribute('hidden', '')
-		else
-			@removeAttribute('hidden')
-	_multiple_icons : (icon, flipX, flipY, mono, rotate, spin, spinStep) ->
-		if icon.split(' ').length > 1
-			@icon_class(icon, flipX, flipY, mono, rotate, spin, spinStep)
-		else
-			[]
-	_single_icon : (icon, flipX, flipY, mono, rotate, spin, spinStep) ->
-		if icon.split(' ').length > 1
-			''
-		else
-			@icon_class(icon, flipX, flipY, mono, rotate, spin, spinStep)
-	icon_class : (icon, flipX, flipY, mono, rotate, spin, spinStep) ->
+			@hidden = true
+			return
+		else if @hidden
+			@hidden = false
+		content			= ''
 		icons			= icon.split(' ')
 		multiple_icons	= icons.length > 1
-		icons_classes	= for icon, index in icons
-			icon_class	= ['fa fa-' + icon]
+		for icon, index in icons
+			icon_class	= "fa fa-#icon"
 			if flipX
-				icon_class.push('fa-flip-horizontal')
+				icon_class	+= ' fa-flip-horizontal'
 			if flipY
-				icon_class.push('fa-flip-vertical')
+				icon_class	+= ' fa-flip-vertical'
 			if mono
-				icon_class.push('fa-fw')
+				icon_class	+= ' fa-fw'
 			if rotate
-				icon_class.push('fa-rotate-' + rotate)
+				icon_class	+= " fa-rotate-#rotate"
 			if spin
-				icon_class.push('fa-spin')
+				icon_class	+= ' fa-spin'
 			if spinStep
-				icon_class.push('fa-pulse')
+				icon_class	+= ' fa-pulse'
 			if multiple_icons
-				icon_class.push(if index then 'fa-stack-1x fa-inverse' else 'fa-stack-2x')
-			icon_class.join(' ')
+				icon_class	+= if index then ' fa-stack-1x fa-inverse' else ' fa-stack-2x'
+			content += """<i class="#icon_class"></i>"""
 		if multiple_icons
-			icons_classes
-		else
-			icons_classes[0]
+			content	= """<span class="fa-stack">#content</span>"""
+		@$.content.innerHTML = content
 ]

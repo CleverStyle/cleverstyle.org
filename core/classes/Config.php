@@ -13,7 +13,9 @@ namespace cs;
  *
  *  System/Config/init/after
  *
- * @method static Config instance($check = false)
+ *  System/Config/changed
+ *
+ * @method static $this instance($check = false)
  */
 class Config {
 	use
@@ -65,6 +67,7 @@ class Config {
 	 * @throws ExitException
 	 */
 	protected function construct () {
+		Event::instance()->fire('System/Config/init/before');
 		/**
 		 * Reading settings from cache and defining missing data
 		 */
@@ -80,34 +83,13 @@ class Config {
 			}
 			unset($part, $value);
 		}
-		Event::instance()->fire('System/Config/init/before');
-		/**
-		 * System initialization with current configuration
-		 */
-		$this->init();
+		date_default_timezone_set($this->core['timezone']);
+		$this->fill_mirrors();
 		Event::instance()->fire('System/Config/init/after');
 		if (!file_exists(MODULES.'/'.$this->core['default_module'])) {
 			$this->core['default_module'] = self::SYSTEM_MODULE;
 			$this->save();
 		}
-	}
-	/**
-	 * Engine initialization (or reinitialization if necessary)
-	 *
-	 * @throws ExitException
-	 */
-	protected function init () {
-		Language::instance()->init();
-		$Page = Page::instance();
-		$Page->init(
-			get_core_ml_text('name'),
-			$this->core['theme']
-		);
-		/**
-		 * Setting system timezone
-		 */
-		date_default_timezone_set($this->core['timezone']);
-		$this->fill_mirrors();
 	}
 	/**
 	 * Is used to fill `$this->mirrors` using current configuration
@@ -191,13 +173,9 @@ class Config {
 			return false;
 		}
 		unset($Cache->{'languages'});
-		$L = Language::instance();
-		if ($this->core['multilingual'] && User::instance(true)) {
-			$L->change(User::instance()->language);
-		} else {
-			$L->change($this->core['language']);
-		}
-		$this->init();
+		date_default_timezone_set($this->core['timezone']);
+		$this->fill_mirrors();
+		Event::instance()->fire('System/Config/changed');
 		return true;
 	}
 	/**
@@ -262,15 +240,12 @@ class Config {
 	 * @return string
 	 */
 	function base_url () {
-		if (Route::instance()->mirror_index === -1) {
+		if (Request::instance()->mirror_index === -1) {
 			return '';
 		}
-		/**
-		 * @var _SERVER $_SERVER
-		 */
-		$base_url = "$_SERVER->protocol://$_SERVER->host";
-		$L        = Language::instance();
+		$base_url = $this->core_url();
 		if ($this->core['multilingual']) {
+			$L = Language::instance();
 			$base_url .= "/$L->clang";
 		}
 		return $base_url;
@@ -281,10 +256,8 @@ class Config {
 	 * @return string
 	 */
 	function core_url () {
-		/**
-		 * @var _SERVER $_SERVER
-		 */
-		return "$_SERVER->protocol://$_SERVER->host";
+		$Request = Request::instance();
+		return "$Request->scheme://$Request->host";
 	}
 	/**
 	 * Get object for getting db and storage configuration of module

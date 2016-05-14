@@ -8,7 +8,7 @@
 namespace cs;
 
 /**
- * @method static DB instance($check = false)
+ * @method static $this instance($check = false)
  */
 class DB {
 	use

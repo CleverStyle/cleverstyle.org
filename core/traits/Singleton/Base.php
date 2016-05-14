@@ -7,13 +7,16 @@
  */
 namespace cs\Singleton;
 use
-	cs\False_class;
+	cs\False_class,
+	cs\Request;
+
 /**
  * Singleton trait
  *
- * Provides Singleton pattern implementation
+ * Provides Singleton-like implementation with some advanced capabilities
  */
 trait Base {
+	private $__request_id;
 	final protected function __construct () {
 	}
 	protected function construct () {
@@ -32,20 +35,21 @@ trait Base {
 	/**
 	 * Get instance of class
 	 *
-	 * @param object $instance
+	 * @param static $instance
 	 * @param bool   $check If true - checks, if instance was already created, if not - instance of cs\False_class will be returned
 	 *
 	 * @return False_class|static
 	 */
 	protected static function instance_prototype (&$instance, $check = false) {
-		if ($check) {
-			return $instance ?: False_class::instance();
-		}
+		static::instance_prototype_state_init($instance);
 		if ($instance) {
 			return $instance;
 		}
+		if ($check) {
+			return False_class::instance();
+		}
 		$class = get_called_class();
-		if (substr($class, 0, 2) != 'cs') {
+		if (strpos($class, 'cs') !== 0) {
 			return False_class::instance();
 		}
 		$custom_class_base = 'cs\\custom'.substr($class, 2);
@@ -60,7 +64,7 @@ trait Base {
 				'aliases'     => &$aliases,
 				'final_class' => &$next_alias
 			];
-			$classes                  = glob(CUSTOM.'/classes/'.substr($class, 2).'_*.php');
+			$classes                  = defined('CUSTOM') ? glob(CUSTOM.'/classes/'.substr($class, 2).'_*.php') : [];
 			foreach ($classes as $custom_class) {
 				// Path to file with customized class
 				$custom_class = str_replace(CUSTOM.'/classes/', '', substr($custom_class, 0, -4));
@@ -75,14 +79,11 @@ trait Base {
 				];
 				$next_alias      = "cs\\custom\\$custom_class";
 			}
-			if (!is_dir(CACHE.'/classes')) {
-				@mkdir(CACHE.'/classes', 0770, true);
-			}
 			modified_classes($modified_classes);
 		}
 		foreach ($modified_classes[$class]['aliases'] as $alias) {
 			/**
-			 * If for whatever reason base class does or file that should be included does not exists
+			 * If for whatever reason base class does not exists or file that should be included does not exists
 			 */
 			if (
 				!class_exists($alias['original'], false) ||
@@ -90,6 +91,7 @@ trait Base {
 			) {
 				clean_classes_cache();
 				$instance = new $class;
+				static::instance_prototype_state_init($instance);
 				$instance->construct();
 				return $instance;
 			}
@@ -97,8 +99,20 @@ trait Base {
 			require_once CUSTOM."/classes/$alias[path].php";
 		}
 		$instance = new $modified_classes[$class]['final_class'];
+		static::instance_prototype_state_init($instance);
 		$instance->construct();
 		return $instance;
+	}
+	/**
+	 * @param static $instance
+	 */
+	protected static function instance_prototype_state_init (&$instance) {
+		if ($instance && $instance->__request_id !== Request::$id) {
+			$instance->__request_id = Request::$id;
+			if (defined('static::INIT_STATE_METHOD')) {
+				$instance->{constant('static::INIT_STATE_METHOD')}();
+			}
+		}
 	}
 	final protected function __clone () {
 	}

@@ -5,7 +5,18 @@
  * @copyright Copyright (c) 2011-2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
  */
+namespace cs;
+use
+	cs\Cache\Prefix,
+	cs\DB\Accessor,
+	cs\User\Data as User_data,
+	cs\User\Group as User_group,
+	cs\User\Management as User_management,
+	cs\User\Permission as User_permission;
+
 /**
+ * Class for users manipulating
+ *
  * Provides next events:
  *  System/User/construct/before
  *
@@ -37,17 +48,6 @@
  *    'id'       => <i>user_id</i>,
  *    'contacts' => <i>&$contacts</i> //Array of user id
  *  ]
- */
-namespace cs;
-use
-	cs\Cache\Prefix,
-	cs\DB\Accessor,
-	cs\User\Data as User_data,
-	cs\User\Group as User_group,
-	cs\User\Management as User_management,
-	cs\User\Permission as User_permission;
-/**
- * Class for users manipulating
  *
  * @property int    $id
  * @property string $login
@@ -65,7 +65,7 @@ use
  * @property int    $block_until   unix timestamp
  * @property string $avatar
  *
- * @method static User instance($check = false)
+ * @method static $this instance($check = false)
  */
 class User {
 	use
@@ -141,9 +141,6 @@ class User {
 			return false;
 		}
 		$time = time();
-		/**
-		 * @var \cs\_SERVER $_SERVER
-		 */
 		return $this->db()->qfs(
 			[
 				"SELECT COUNT(`expire`)
@@ -155,7 +152,7 @@ class User {
 						`ip`			= '%s'
 					)",
 				$login_hash,
-				ip2hex($_SERVER->ip)
+				ip2hex(Request::instance()->ip)
 			]
 		);
 	}
@@ -169,10 +166,7 @@ class User {
 		if (!preg_match('/^[0-9a-z]{56}$/', $login_hash)) {
 			return;
 		}
-		/**
-		 * @var \cs\_SERVER $_SERVER
-		 */
-		$ip   = ip2hex($_SERVER->ip);
+		$ip   = ip2hex(Request::instance()->ip);
 		$time = time();
 		if ($success) {
 			$this->db_prime()->q(
@@ -272,9 +266,9 @@ class User {
 		return Session::instance()->bot();
 	}
 	/**
-	 * Saving changes of cache and users data
+	 * @deprecated Does nothing
+	 * @todo       Remove in 4.x
 	 */
 	function __finish () {
-		$this->save_cache_and_user_data();
 	}
 }

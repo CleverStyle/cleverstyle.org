@@ -49,11 +49,12 @@ trait databases {
 	/**
 	 * Update database or database mirror settings
 	 *
-	 * @param int[] $route_ids
+	 * @param \cs\Request $Request
 	 *
 	 * @throws ExitException
 	 */
-	static function admin_databases_patch ($route_ids) {
+	static function admin_databases_patch ($Request) {
+		$route_ids = $Request->route_ids;
 		if (
 			!isset($route_ids[0], $_POST['host'], $_POST['type'], $_POST['prefix'], $_POST['name'], $_POST['user'], $_POST['password'], $_POST['charset']) ||
 			!in_array($_POST['type'], static::admin_databases_get_engines())
@@ -90,11 +91,12 @@ trait databases {
 	/**
 	 * Create database or database mirror
 	 *
-	 * @param int[] $route_ids
+	 * @param \cs\Request $Request
 	 *
 	 * @throws ExitException
 	 */
-	static function admin_databases_post ($route_ids) {
+	static function admin_databases_post ($Request) {
+		$route_ids = $Request->route_ids;
 		if (
 			!isset($_POST['mirror'], $_POST['host'], $_POST['type'], $_POST['prefix'], $_POST['name'], $_POST['user'], $_POST['password'], $_POST['charset']) ||
 			!in_array($_POST['type'], static::admin_databases_get_engines())
@@ -127,11 +129,12 @@ trait databases {
 	/**
 	 * Delete database or database mirror
 	 *
-	 * @param int[] $route_ids
+	 * @param \cs\Request $Request
 	 *
 	 * @throws ExitException
 	 */
-	static function admin_databases_delete ($route_ids) {
+	static function admin_databases_delete ($Request) {
+		$route_ids = $Request->route_ids;
 		if (!isset($route_ids[0])) {
 			throw new ExitException(400);
 		}
@@ -171,7 +174,7 @@ trait databases {
 		}
 		if ($used_by) {
 			throw new ExitException(
-				Language::instance()->db_used_by_modules.': '.implode(', ', $used_by),
+				Language::instance()->system_admin_blocks_db_used_by_modules(implode(', ', $used_by)),
 				409
 			);
 		}
@@ -203,7 +206,6 @@ trait databases {
 		) {
 			throw new ExitException(400);
 		}
-		errors_off();
 		$engine_class = "\\cs\\DB\\$_POST[type]";
 		/**
 		 * @var \cs\DB\_Abstract $connection
@@ -215,7 +217,6 @@ trait databases {
 			$_POST['host'],
 			$_POST['charset']
 		);
-		errors_on();
 		if (!$connection->connected()) {
 			throw new ExitException(500);
 		}

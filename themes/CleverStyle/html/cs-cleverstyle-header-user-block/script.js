@@ -11,11 +11,11 @@
   L = cs.Language;
   Polymer({
     'is': 'cs-cleverstyle-header-user-block',
-    behaviors: [cs.Polymer.behaviors.Language],
+    behaviors: [cs.Polymer.behaviors.Language('system_profile_')],
     properties: {
-      avatar: '',
+      avatar: String,
       guest: Boolean,
-      username: '' + L.guest,
+      username: String,
       login: String
     },
     ready: function(){
@@ -32,7 +32,7 @@
       cs.ui.simple_modal("<cs-system-change-password/>");
     },
     _general_settings: function(){
-      cs.ui.simple_modal("<cs-system-user-setings/>");
+      cs.ui.simple_modal("<cs-system-user-settings/>");
     }
   });
 }).call(this);

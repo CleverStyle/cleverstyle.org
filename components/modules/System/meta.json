@@ -1,18 +1,20 @@
 {
 	"package"             : "System",
 	"category"            : "modules",
-	"version"             : "3.145.7+build-1787",
+	"version"             : "3.212.0+build-1965",
 	"description"         : "Base system module of CleverStyle CMS",
 	"author"              : "Nazar Mokrynskyi",
 	"website"             : "cleverstyle.org/cms",
 	"license"             : "MIT License",
-	"update_from_version" : "2.119",
+	"update_from_version" : "3.145",
 	"update_versions"     : [
-		"3.6",
-		"3.53",
-		"3.97",
-		"3.117",
-		"3.142"
+		"3.147",
+		"3.149",
+		"3.153",
+		"3.168",
+		"3.175",
+		"3.195",
+		"3.206"
 	],
 	"db"                  : [
 		"keys",
@@ -20,11 +22,14 @@
 		"users"
 	],
 	"db_support"          : [
-		"MySQLi"
+		"MySQLi",
+		"SQLite"
 	],
 	"provide"             : "system",
 	"optional"            : [
-		"simple_editor"
+		"editor",
+		"simple_editor",
+		"file_upload"
 	],
 	"multilingual"        : [
 		"interface",

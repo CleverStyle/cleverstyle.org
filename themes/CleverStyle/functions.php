@@ -13,8 +13,10 @@ use
 	cs\Event,
 	cs\Language,
 	cs\Page,
+	cs\Request,
 	cs\User,
 	h;
+
 /**
  * Returns array with `a` items
  *
@@ -30,7 +32,7 @@ function get_main_menu () {
 	 */
 	if ($User->admin()) {
 		$main_menu_items[] = h::a(
-			$L->administration,
+			$L->system_admin_administration,
 			[
 				'href' => 'admin'
 			]
@@ -40,7 +42,7 @@ function get_main_menu () {
 	 * Home item
 	 */
 	$main_menu_items[] = h::a(
-		$L->home,
+		$L->system_home,
 		[
 			'href' => '/'
 		]
@@ -48,11 +50,9 @@ function get_main_menu () {
 	/**
 	 * All other active modules if permissions allow to visit
 	 */
-	// TODO remove this later, needed for smooth update from 2.x versions
-	$system_module = defined(Config::class.'::SYSTEM_MODULE') ? Config::SYSTEM_MODULE : 'System';
 	foreach (array_keys($Config->components['modules']) as $module) {
 		if (
-			$module != $system_module &&
+			$module != Config::SYSTEM_MODULE &&
 			$module != $Config->core['default_module'] &&
 			$User->get_permission($module, 'index') &&
 			file_exists_with_extension(MODULES."/$module/index", ['php', 'html', 'json']) &&
@@ -87,23 +87,31 @@ function get_footer () {
 			$Page->Html = str_replace(
 				[
 					'<!--generate time-->',
+					'<!--memory usage-->',
 					'<!--peak memory usage-->'
 				],
 				[
-					format_time(round(microtime(true) - MICROTIME, 5)),
-					format_filesize(memory_get_usage(), 5).h::sup(format_filesize(memory_get_peak_usage(), 5))
+					round(microtime(true) - Request::instance()->started, 5),
+					round(memory_get_usage() / 1024 / 1024, 5),
+					round(memory_get_peak_usage() / 1024 / 1024, 5)
 				],
 				$Page->Html
 			);
 		}
 	);
 	return h::div(
-		Language::instance()->page_footer_info(
+		sprintf(
+			'Page generated in %s s; %d queries to DB in %f s; memory consumption %s MiB (peak %s MiB)',
 			'<!--generate time-->',
 			$db ? $db->queries() : 0,
-			format_time(round($db ? $db->time() : 0, 5)),
+			$db ? round($db->time(), 5) : 0,
+			'<!--memory usage-->',
 			'<!--peak memory usage-->'
 		),
 		'© Powered by <a target="_blank" href="http://cleverstyle.org/cms" title="CleverStyle CMS">CleverStyle CMS</a>'
 	);
+}
+
+function level ($in, $level) {
+	return trim(h::level($in, $level))."\n";
 }

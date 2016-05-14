@@ -9,10 +9,10 @@
  */
 (function(){
   var L;
-  L = cs.Language;
+  L = cs.Language('system_admin_storages_');
   Polymer({
     'is': 'cs-system-admin-storages-list',
-    behaviors: [cs.Polymer.behaviors.Language],
+    behaviors: [cs.Polymer.behaviors.Language('system_admin_storages_')],
     ready: function(){
       this.reload();
     },
@@ -42,7 +42,7 @@
       storage_model = this.$.storages_list.modelForElement(e.target);
       storage = e.model.storage || storage_model.storage;
       name = storage.host + '/' + storage.connection;
-      cs.ui.confirm(L.sure_to_delete + " " + name + "?", function(){
+      cs.ui.confirm(L.sure_to_delete(name), function(){
         $.ajax({
           url: 'api/System/admin/storages/' + storage.index,
           type: 'delete',

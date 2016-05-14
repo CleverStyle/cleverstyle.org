@@ -4,10 +4,13 @@
  * @copyright Copyright (c) 2015-2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
  */
-L	= cs.Language
+L	= cs.Language('system_profile_')
 Polymer(
-	'is'		: 'cs-system-user-setings'
-	behaviors	: [cs.Polymer.behaviors.Language]
+	'is'		: 'cs-system-user-settings'
+	behaviors	: [
+		cs.Polymer.behaviors.cs
+		cs.Polymer.behaviors.Language('system_profile_')
+	]
 	properties	:
 		languages	: Array
 		timezones	: Array
@@ -41,6 +44,12 @@ Polymer(
 			@set('languages', languages_list)
 			@set('timezones', timezones_list)
 			@set('user_data', user_data)
+		cs.file_upload?(
+			@$['upload-avatar']
+			(files) !~>
+				if files.length
+					@set('user_data.avatar', files[0])
+		)
 	_save : (e) !->
 		e.preventDefault()
 		$.ajax(

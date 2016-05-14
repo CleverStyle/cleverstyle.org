@@ -6,12 +6,14 @@
  * @license   MIT License, see license.txt
  */
 namespace cs;
-use            h;
+use
+	h;
+
 /**
  * Core class.
  * Provides loading of base system configuration
  *
- * @method static Core instance($check = false)
+ * @method static $this instance($check = false)
  */
 class Core {
 	use Singleton;
@@ -26,6 +28,8 @@ class Core {
 	protected $config = [];
 	/**
 	 * Loading of base system configuration, creating of missing directories
+	 *
+	 * @throws ExitException
 	 */
 	protected function construct () {
 		$this->config = $this->load_config();
@@ -34,6 +38,7 @@ class Core {
 		defined('DOMAIN') || define('DOMAIN', $this->config['domain']);
 		date_default_timezone_set($this->config['timezone']);
 		if (!is_dir(PUBLIC_STORAGE)) {
+			/** @noinspection MkdirRaceConditionInspection */
 			@mkdir(PUBLIC_STORAGE, 0775, true);
 			file_put_contents(
 				PUBLIC_STORAGE.'/.htaccess',
@@ -46,9 +51,11 @@ class Core {
 			);
 		}
 		if (!is_dir(CACHE)) {
+			/** @noinspection MkdirRaceConditionInspection */
 			@mkdir(CACHE, 0770);
 		}
 		if (!is_dir(PUBLIC_CACHE)) {
+			/** @noinspection MkdirRaceConditionInspection */
 			@mkdir(PUBLIC_CACHE, 0770);
 			file_put_contents(
 				PUBLIC_CACHE.'/.htaccess',
@@ -69,40 +76,18 @@ AddEncoding gzip .html
 			);
 		}
 		if (!is_dir(LOGS)) {
+			/** @noinspection MkdirRaceConditionInspection */
 			@mkdir(LOGS, 0770);
 		}
 		if (!is_dir(TEMP)) {
+			/** @noinspection MkdirRaceConditionInspection */
 			@mkdir(TEMP, 0775);
 			file_put_contents(
 				TEMP.'/.htaccess',
 				"Allow From All\n"
 			);
 		}
-		$this->fill_post_request();
 		$this->constructed = true;
-	}
-	/**
-	 * Fill `$_POST` and `$_REQUEST` when there is request method different than POST or if Content-Type is JSON
-	 */
-	protected function fill_post_request () {
-		/**
-		 * @var _SERVER $_SERVER
-		 */
-		if (!$_SERVER->content_type) {
-			return;
-		}
-		/**
-		 * Support for JSON requests, filling $_POST array for request method different than POST
-		 */
-		if (preg_match('#^application/([^+\s]+\+)?json#', $_SERVER->content_type)) {
-			$_POST = _json_decode(@file_get_contents('php://input')) ?: [];
-		} elseif (
-			strtolower($_SERVER->request_method) !== 'post' &&
-			strpos($_SERVER->content_type, 'application/x-www-form-urlencoded') === 0
-		) {
-			@parse_str(file_get_contents('php://input'), $_POST);
-		}
-		$_REQUEST = $_POST + $_REQUEST;
 	}
 	/**
 	 * Load main.json config file and return array of it contents

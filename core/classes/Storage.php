@@ -1,14 +1,14 @@
 <?php
 /**
- * @package        CleverStyle CMS
- * @author         Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright      Copyright (c) 2011-2016, Nazar Mokrynskyi
- * @license        MIT License, see license.txt
+ * @package   CleverStyle CMS
+ * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
+ * @copyright Copyright (c) 2011-2016, Nazar Mokrynskyi
+ * @license   MIT License, see license.txt
  */
 namespace cs;
 
 /**
- * @method static Storage instance($check = false)
+ * @method static $this instance($check = false)
  */
 class Storage {
 	use    Singleton;

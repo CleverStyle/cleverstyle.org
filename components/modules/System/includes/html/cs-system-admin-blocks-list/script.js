@@ -9,10 +9,10 @@
  */
 (function(){
   var L;
-  L = cs.Language;
+  L = cs.Language('system_admin_blocks_');
   Polymer({
     'is': 'cs-system-admin-blocks-list',
-    behaviors: [cs.Polymer.behaviors.Language],
+    behaviors: [cs.Polymer.behaviors.Language('system_admin_blocks_')],
     properties: {
       blocks: Object,
       blocks_count: Number
@@ -93,13 +93,13 @@
     },
     _add_block: function(){
       var this$ = this;
-      $(cs.ui.simple_modal("<h3>" + L.adding_a_block + "</h3>\n<cs-system-admin-blocks-form/>")).on('close', function(){
+      $(cs.ui.simple_modal("<h3>" + L.block_addition + "</h3>\n<cs-system-admin-blocks-form/>")).on('close', function(){
         this$._reload();
       });
     },
     _edit_block: function(e){
       var title, this$ = this;
-      title = L.editing_a_block(e.model.item.title);
+      title = L.editing_block(e.model.item.title);
       $(cs.ui.simple_modal("<h3>" + title + "</h3>\n<cs-system-admin-blocks-form index=\"" + e.model.item.index + "\"/>")).on('close', function(){
         this$._reload();
       });

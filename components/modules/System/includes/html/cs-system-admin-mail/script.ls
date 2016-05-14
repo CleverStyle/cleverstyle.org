@@ -6,11 +6,11 @@
  * @copyright  Copyright (c) 2015-2016, Nazar Mokrynskyi
  * @license    MIT License, see license.txt
  */
-L = cs.Language
+L = cs.Language('system_admin_mail_')
 Polymer(
 	'is'		: 'cs-system-admin-mail'
 	behaviors	: [
-		cs.Polymer.behaviors.Language
+		cs.Polymer.behaviors.Language('system_admin_mail_')
 		cs.Polymer.behaviors.admin.System.settings
 	]
 	properties	:
@@ -26,7 +26,7 @@ Polymer(
 	_smtp_auth : (smtp, smtp_auth) ->
 		smtp ~= 1 && smtp_auth ~= 1
 	_test_email : !->
-		email = prompt(L.email)
+		email = prompt('Email')
 		if email
 			$.ajax(
 				url		: 'api/System/admin/mail'

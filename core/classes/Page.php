@@ -1,79 +1,185 @@
 <?php
 /**
- * @package		CleverStyle CMS
- * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2016, Nazar Mokrynskyi
- * @license		MIT License, see license.txt
+ * @package   CleverStyle CMS
+ * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
+ * @copyright Copyright (c) 2011-2016, Nazar Mokrynskyi
+ * @license   MIT License, see license.txt
  */
-namespace	cs;
+namespace cs;
 use
 	h,
 	cs\Page\Includes,
 	cs\Page\Meta;
 
 /**
- * @method static Page instance($check = false)
+ * @method static $this instance($check = false)
  */
 class Page {
 	use
 		Singleton,
 		Includes;
-	public	$Content;
-	public	$interface	= true;
-	public	$pre_Html	= '';
-	public	$Html 		= '';
-	public		$Description	= '';
+	const INIT_STATE_METHOD = 'init';
+	/**
+	 * Complete page contents
+	 *
+	 * @var string
+	 */
+	public $Content;
+	/**
+	 * If `false` - only page content will be shown, without the rest of interface (useful for AJAX request, though for API it is set to `false` automatically)
+	 *
+	 * @var bool
+	 */
+	public $interface;
+	/**
+	 * @var string
+	 */
+	public $pre_Html;
+	/**
+	 * @var string
+	 */
+	public $Html;
+	/**
+	 * @var string
+	 */
+	public $Description;
 	/**
 	 * @var string|string[]
 	 */
-	public		$Title			= [];
-	public	$Head		= '';
-	public	$pre_Body	= '';
-	public		$Left	= '';
-	public		$Top	= '';
-	public		$Right	= '';
-	public		$Bottom	= '';
-	public	$post_Body	= '';
-	public	$post_Html	= '';
+	public $Title;
+	/**
+	 * @var string
+	 */
+	public $Head;
+	/**
+	 * @var string
+	 */
+	public $pre_Body;
+	/**
+	 * @var string
+	 */
+	public $Left;
+	/**
+	 * @var string
+	 */
+	public $Top;
+	/**
+	 * @var string
+	 */
+	public $Right;
+	/**
+	 * @var string
+	 */
+	public $Bottom;
+	/**
+	 * @var string
+	 */
+	public $post_Body;
+	/**
+	 * @var string
+	 */
+	public $post_Html;
 	/**
 	 * Number of tabs by default for indentation the substitution of values into template
 	 *
 	 * @var array
 	 */
-	public	$level = [
-		'Head'		=> 0,
-		'pre_Body'	=> 1,
-		'Left'		=> 3,
-		'Top'		=> 3,
-		'Content'	=> 4,
-		'Bottom'	=> 3,
-		'Right'		=> 3,
-		'post_Body'	=> 1
-	];
-	public	$link			= [];
-	public	$Search			= [];
-	public	$Replace		= [];
-	public	$canonical_url	= false;
-	protected	$theme;
-	protected	$error_showed		= false;
-	protected	$finish_called_once	= false;
+	public $level;
 	/**
-	 * Initialization: setting of title and theme according to specified parameters
+	 * @var array[]
+	 */
+	protected $link;
+	/**
+	 * @var string[]
+	 */
+	protected $search_replace;
+	/**
+	 * @var false|string
+	 */
+	protected $canonical_url;
+	protected $theme;
+	protected $finish_called_once;
+	/**
+	 * @param string $property
 	 *
-	 * @param string	$title
-	 * @param string	$theme
+	 * @return false|null|string
+	 */
+	function __get ($property) {
+		// Hack: for internal use by \cs\Meta class
+		if ($property === 'canonical_url') {
+			return $this->canonical_url;
+		}
+		return false;
+	}
+	protected function init () {
+		$this->Content            = '';
+		$this->interface          = true;
+		$this->pre_Html           = '';
+		$this->Html               = '';
+		$this->Description        = '';
+		$this->Title              = [];
+		$this->Head               = '';
+		$this->pre_Body           = '';
+		$this->Left               = '';
+		$this->Top                = '';
+		$this->Right              = '';
+		$this->Bottom             = '';
+		$this->post_Body          = '';
+		$this->post_Html          = '';
+		$this->level              = [
+			'Head'      => 0,
+			'pre_Body'  => 1,
+			'Left'      => 3,
+			'Top'       => 3,
+			'Content'   => 4,
+			'Bottom'    => 3,
+			'Right'     => 3,
+			'post_Body' => 1
+		];
+		$this->link               = [];
+		$this->search_replace     = [];
+		$this->canonical_url      = false;
+		$this->theme              = null;
+		$this->finish_called_once = false;
+		$this->init_includes();
+		$Config = Config::instance(true);
+		/**
+		 * We need Config for initialization
+		 */
+		if (!$Config) {
+			Event::instance()->once(
+				'System/Config/init/after',
+				function () {
+					$this->init_config();
+				}
+			);
+		} else {
+			$this->init_config();
+		}
+		Event::instance()->on(
+			'System/Config/changed',
+			function () {
+				$this->init_config();
+			}
+		);
+	}
+	/**
+	 * Initialization: setting of title and theme according to system configuration
+	 *
+	 * @todo Probably, make public and add resetting here in order to avoid complete object recreation
 	 *
 	 * @return Page
 	 */
-	function init ($title, $theme) {
-		$this->Title[0] = htmlentities($title, ENT_COMPAT, 'utf-8');
-		$this->set_theme($theme);
+	protected function init_config () {
+		$Config         = Config::instance();
+		$this->Title[0] = htmlentities(get_core_ml_text('name'), ENT_COMPAT, 'utf-8');
+		$this->set_theme($Config->core['theme']);
 		return $this;
 	}
 	/**
 	 * Theme changing
 	 *
-	 * @param string	$theme
+	 * @param string $theme
 	 *
 	 * @return Page
 	 */
@@ -84,8 +190,8 @@ class Page {
 	/**
 	 * Adding of content on the page
 	 *
-	 * @param string	$add
-	 * @param bool|int	$level
+	 * @param string   $add
+	 * @param bool|int $level
 	 *
 	 * @return Page
 	 */
@@ -100,50 +206,31 @@ class Page {
 	/**
 	 * Sets body with content, that is transformed into JSON format
 	 *
-	 * @param mixed	$add
+	 * @param mixed $add
 	 *
 	 * @return Page
 	 */
 	function json ($add) {
-		_header('Content-Type: application/json; charset=utf-8', true);
-		interface_off();
-		$this->Content	= _json_encode($add);
+		Response::instance()->header('content-type', 'application/json; charset=utf-8');
+		$this->interface = false;
+		$this->Content   = _json_encode($add);
 		return $this;
 	}
 	/**
 	 * Loading of theme template
-	 *
-	 * @return Page
 	 */
 	protected function get_template () {
 		/**
 		 * Theme is fixed for administration, and may vary for other pages
 		 */
-		if (admin_path()) {
-			$this->theme	= 'CleverStyle';
+		if (Request::instance()->admin_path) {
+			$this->theme = 'CleverStyle';
 		}
-		$theme_dir	= THEMES."/$this->theme";
+		$theme_dir = THEMES."/$this->theme";
 		_include("$theme_dir/prepare.php", false, false);
 		ob_start();
-		/**
-		 * If website is closed and user is not an administrator - send `503 Service Unavailable` header and show closed site page
-		 */
-		if (
-			!Config::instance()->core['site_mode'] &&
-			!User::instance(true)->admin() &&
-			status_code(503) &&
-			!_include("$theme_dir/closed.php", false, false) &&
-			!_include("$theme_dir/closed.html", false, false)
-		) {
-			echo
-				"<!doctype html>\n".
-				h::title(get_core_ml_text('closed_title')).
-				get_core_ml_text('closed_text');
-		} else {
-			_include("$theme_dir/index.php", false, false) || _include("$theme_dir/index.html");
-		}
+		_include("$theme_dir/index.php", false, false) || _include("$theme_dir/index.html");
 		$this->Html = ob_get_clean();
-		return $this;
 	}
 	/**
 	 * Processing of template, substituting of content, preparing for the output
@@ -170,11 +257,15 @@ class Page {
 			h::meta(
 				[
 					'charset' => 'utf-8'
-				],
+				]
+			).
+			h::meta(
 				$this->Description ? [
 					'name'    => 'description',
 					'content' => $this->Description
-				] : false,
+				] : false
+			).
+			h::meta(
 				[
 					'name'    => 'generator',
 					'content' => 'CleverStyle CMS by Mokrynskyi Nazar'
@@ -192,7 +283,7 @@ class Page {
 					'href' => $this->get_favicon_path()
 				]
 			).
-			h::link($this->link ?: false);
+			h::link(array_values($this->link) ?: false);
 		/**
 		 * Addition of CSS, JavaScript and Web Components includes
 		 */
@@ -259,115 +350,112 @@ class Page {
 	 *
 	 * Parameters may be both simply strings for str_replace() and regular expressions for preg_replace()
 	 *
-	 * @param string|string[]	$search
-	 * @param string|string[]	$replace
+	 * @param string|string[] $search
+	 * @param string|string[] $replace
 	 *
 	 * @return Page
 	 */
 	function replace ($search, $replace = '') {
 		if (is_array($search)) {
-			foreach ($search as $i => $val) {
-				$this->Search[] = $val;
-				$this->Replace[] = is_array($replace) ? $replace[$i] : $replace;
-			}
+			$this->search_replace = $search + $this->search_replace;
 		} else {
-			$this->Search[] = $search;
-			$this->Replace[] = $replace;
+			/** @noinspection OffsetOperationsInspection */
+			$this->search_replace[$search] = $replace;
 		}
 		return $this;
 	}
 	/**
 	 * Processing of replacing in content
 	 *
-	 * @param string	$content
+	 * @param string $content
 	 *
 	 * @return string
 	 */
 	protected function process_replacing ($content) {
-		array_map(
-			function ($search, $replace) use (&$content) {
-				$content = _preg_replace($search, $replace, $content) ?: str_replace($search, $replace, $content);
-			},
-			$this->Search,
-			$this->Replace
-		);
-		$this->Search  = [];
-		$this->Replace = [];
+		foreach ($this->search_replace as $search => $replace) {
+			$content = _preg_replace($search, $replace, $content) ?: str_replace($search, $replace, $content);
+		}
+		$this->search_replace = [];
 		return $content;
 	}
 	/**
 	 * Adding links
 	 *
-	 * @param array	$data	According to h class syntax
+	 * @param array $data According to h class syntax
 	 *
 	 * @return Page
 	 */
 	function link ($data) {
 		if ($data !== false) {
-			$this->link[]	= [$data];
+			$this->link[] = $data;
 		}
 		return $this;
 	}
 	/**
 	 * Simple wrapper of $Page->link() for inserting Atom feed on page
 	 *
-	 * @param string    $href
-	 * @param string    $title
+	 * @param string $href
+	 * @param string $title
 	 *
 	 * @return Page
 	 */
 	function atom ($href, $title = 'Atom Feed') {
-		return $this->link([
-			'href'	=> $href,
-			'title'	=> $title,
-			'rel'	=> 'alternate',
-			'type'	=> 'application/atom+xml'
-		]);
+		return $this->link(
+			[
+				'href'  => $href,
+				'title' => $title,
+				'rel'   => 'alternate',
+				'type'  => 'application/atom+xml'
+			]
+		);
 	}
 	/**
 	 * Simple wrapper of $Page->link() for inserting RSS feed on page
 	 *
-	 * @param string	$href
-	 * @param string	$title
+	 * @param string $href
+	 * @param string $title
 	 *
 	 * @return Page
 	 */
 	function rss ($href, $title = 'RSS Feed') {
-		return $this->link([
-			'href'	=> $href,
-			'title'	=> $title,
-			'rel'	=> 'alternate',
-			'type'	=> 'application/rss+xml'
-		]);
+		return $this->link(
+			[
+				'href'  => $href,
+				'title' => $title,
+				'rel'   => 'alternate',
+				'type'  => 'application/rss+xml'
+			]
+		);
 	}
 	/**
 	 * Specify canonical url of current page
 	 *
-	 * @param string	$url
+	 * @param string $url
 	 *
 	 * @return Page
 	 */
 	function canonical_url ($url) {
-		$this->canonical_url	= $url;
-		return $this->link([
-			'href'	=> $this->canonical_url,
-			'rel'	=> 'canonical'
-		]);
+		$this->canonical_url         = $url;
+		$this->link['canonical_url'] = [
+			'href' => $this->canonical_url,
+			'rel'  => 'canonical'
+		];
+		return $this;
 	}
 	/**
 	 * Adding text to the title page
 	 *
-	 * @param string	$title
-	 * @param bool		$replace	Replace whole title by this
+	 * @param string $title
+	 * @param bool   $replace Replace whole title by this
 	 *
 	 * @return Page
 	 */
 	function title ($title, $replace = false) {
-		$title	= htmlentities($title, ENT_COMPAT, 'utf-8');
+		$title = htmlentities($title, ENT_COMPAT, 'utf-8');
 		if ($replace) {
-			$this->Title	= [$title];
+			$this->Title = [$title];
 		} else {
-			$this->Title[]	= $title;
+			$this->Title[] = $title;
 		}
 		return $this;
 	}
@@ -413,7 +501,7 @@ class Page {
 		$this->Top .= h::div(
 			$message,
 			[
-				'class'	=> "cs-text-center cs-block-$class_ending cs-text-$class_ending"
+				'class' => "cs-text-center cs-block-$class_ending cs-text-$class_ending"
 			]
 		);
 		return $this;
@@ -423,81 +511,87 @@ class Page {
 	 *
 	 * @param null|string|string[] $custom_text Custom error text instead of text like "404 Not Found" or array with two elements: [error, error_description]
 	 * @param bool                 $json        Force JSON return format
-	 * @param int                  $error_code  HTTP status code
-	 *
-	 * @throws ExitException
 	 */
-	function error ($custom_text = null, $json = false, $error_code = 500) {
-		if ($this->error_showed) {
-			return;
-		}
-		$this->error_showed	= true;
+	function error ($custom_text = null, $json = false) {
+		$Request    = Request::instance();
+		$Response   = Response::instance();
+		$error_code = $Response->code;
 		/**
 		 * Hack for 403 after sign out in administration
 		 */
-		if ($error_code == 403 && !api_path() && _getcookie('sign_out')) {
-			_header('Location: /', true, 302);
-			$this->Content	= '';
-			throw new ExitException;
+		if ($error_code == 403 && !$Request->api_path && $Request->cookie('sign_out')) {
+			$Response->redirect('/');
+			$this->Content = '';
+			return;
 		}
-		interface_off();
-		$error_description	= status_code($error_code);
+		$status_text       = status_code_string($error_code);
+		$error_description = $status_text;
 		if (is_array($custom_text)) {
-			list($error_code, $error_description)	= $custom_text;
+			list($status_text, $error_description) = $custom_text;
 		} elseif ($custom_text) {
-			$error_description	= $custom_text;
+			$error_description = $custom_text;
 		}
-		if ($json || api_path()) {
-			if ($json) {
-				_header('Content-Type: application/json; charset=utf-8', true);
-				interface_off();
-			}
-			$this->json([
-				'error'				=> $error_code,
-				'error_description'	=> $error_description
-			]);
+		if ($json || $Request->api_path) {
+			$this->json(
+				[
+					'error'             => $error_code,
+					'error_description' => $error_description
+				]
+			);
 		} else {
 			ob_start();
 			if (
 				!_include(THEMES."/$this->theme/error.html", false, false) &&
 				!_include(THEMES."/$this->theme/error.php", false, false)
 			) {
-				echo "<!doctype html>\n".
-					h::title($error_code).
-					($error_description ?: $error_code);
+				echo
+					"<!doctype html>\n".
+					h::title($status_text).
+					$error_description;
 			}
-			$this->Content	= ob_get_clean();
+			$this->Content = ob_get_clean();
 		}
-		$this->__finish();
-		throw new ExitException;
+		$Response->body = $this->Content;
+	}
+	/**
+	 * @deprecated Use `cs\Page::render()` instead
+	 */
+	function __finish () {
+		$this->render();
 	}
 	/**
 	 * Provides next events:
-	 *  System/Page/display/before
+	 *  System/Page/render/before
 	 *
-	 *  System/Page/display/after
+	 *  System/Page/render/after
 	 *
 	 * Page generation
 	 */
-	function __finish () {
+	function render () {
 		/**
 		 * Protection from double calling
 		 */
 		if ($this->finish_called_once) {
 			return;
 		}
-		$this->finish_called_once	= true;
+		$this->finish_called_once = true;
+		$Response                 = Response::instance();
+		if (is_resource($Response->body_stream)) {
+			return;
+		}
 		/**
 		 * For AJAX and API requests only content without page template
 		 */
-		$api = api_path();
-		if ($api || !$this->interface) {
+		$api_path = Request::instance()->api_path;
+		if ($api_path || !$this->interface) {
 			/**
 			 * Processing of replacing in content
 			 */
-			echo $this->process_replacing($this->Content ?: ($api ? 'null' : ''));
+			/** @noinspection NestedTernaryOperatorInspection */
+			$Response->body = $this->process_replacing($this->Content ?: ($api_path ? 'null' : ''));
 		} else {
 			Event::instance()->fire('System/Page/display/before');
+			Event::instance()->fire('System/Page/render/before');
 			/**
 			 * Processing of template, substituting of content, preparing for the output
 			 */
@@ -507,7 +601,8 @@ class Page {
 			 */
 			$this->Html = $this->process_replacing($this->Html);
 			Event::instance()->fire('System/Page/display/after');
-			echo rtrim($this->Html);
+			Event::instance()->fire('System/Page/render/after');
+			$Response->body = rtrim($this->Html);
 		}
 	}
 }

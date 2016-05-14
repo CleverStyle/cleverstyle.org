@@ -22,10 +22,11 @@ namespace cs;
 use
 	cs\Cache\Prefix,
 	cs\Permission\Any;
+
 /**
  * Class for groups manipulating
- *
- * @method static Group instance($check = false)
+ * 
+ * @method static $this instance($check = false)
  */
 class Group {
 	use

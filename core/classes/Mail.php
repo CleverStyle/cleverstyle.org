@@ -11,7 +11,7 @@ use
 	PHPMailer;
 
 /**
- * @method static Mail instance($check = false)
+ * @method static $this instance($check = false)
  */
 class Mail extends PHPMailer {
 	use Singleton;
@@ -21,9 +21,10 @@ class Mail extends PHPMailer {
 	function construct () {
 		$Config = Config::instance();
 		if ($Config->core['smtp']) {
-			$this->IsSMTP();
+			$this->isSMTP();
 			$this->Host       = $Config->core['smtp_host'];
-			$this->Port       = $Config->core['smtp_port'] ?: $Config->core['smtp_secure'] ? 465 : 25;
+			/** @noinspection NestedTernaryOperatorInspection */
+			$this->Port       = $Config->core['smtp_port'] ?: ($Config->core['smtp_secure'] ? 465 : 25);
 			$this->SMTPSecure = $Config->core['smtp_secure'];
 			if ($Config->core['smtp_auth']) {
 				$this->SMTPAuth = true;
@@ -34,7 +35,7 @@ class Mail extends PHPMailer {
 		$this->From     = $Config->core['mail_from'];
 		$this->FromName = get_core_ml_text('mail_from_name');
 		$this->CharSet  = 'utf-8';
-		$this->IsHTML();
+		$this->isHTML();
 	}
 	/**
 	 * Sending of email
@@ -73,10 +74,10 @@ class Mail extends PHPMailer {
 		if ($body_text) {
 			$this->AltBody = $body_text.strip_tags($signature);
 		}
-		$result = $this->Send();
-		$this->ClearAddresses();
-		$this->ClearAttachments();
-		$this->ClearReplyTos();
+		$result = $this->send();
+		$this->clearAddresses();
+		$this->clearAttachments();
+		$this->clearReplyTos();
 		return $result;
 	}
 	/**
@@ -113,7 +114,7 @@ class Mail extends PHPMailer {
 			$body = "<!doctype html>\n$body";
 		}
 		if (strpos($body, '<html') === false) {
-			if (substr($body, 0, 5) != '<body') {
+			if (strpos($body, '<body') === false) {
 				$body = h::body($body.$signature);
 			} else {
 				$body = str_replace('</body>', "$signature</body>", $body);

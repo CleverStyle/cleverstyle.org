@@ -6,11 +6,11 @@
  * @copyright  Copyright (c) 2015-2016, Nazar Mokrynskyi
  * @license    MIT License, see license.txt
  */
-L				= cs.Language
+L = cs.Language('system_admin_storages_')
 Polymer(
 	'is'		: 'cs-system-admin-storages-list'
 	behaviors	: [
-		cs.Polymer.behaviors.Language
+		cs.Polymer.behaviors.Language('system_admin_storages_')
 	]
 	ready : !->
 		@reload()
@@ -41,7 +41,7 @@ Polymer(
 		storage			= e.model.storage || storage_model.storage
 		name			= storage.host + '/' + storage.connection
 		cs.ui.confirm(
-			"#{L.sure_to_delete} #name?"
+			L.sure_to_delete(name)
 			!~>
 				$.ajax(
 					url		: 'api/System/admin/storages/' + storage.index

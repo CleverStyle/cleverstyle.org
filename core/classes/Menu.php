@@ -1,26 +1,39 @@
 <?php
 /**
- * @package        CleverStyle CMS
- * @author         Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright      Copyright (c) 2014-2016, Nazar Mokrynskyi
- * @license        MIT License, see license.txt
+ * @package   CleverStyle CMS
+ * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
+ * @copyright Copyright (c) 2014-2016, Nazar Mokrynskyi
+ * @license   MIT License, see license.txt
  */
 namespace cs;
 use
 	h;
+
 /**
  * Menu class is used in administration for generating second and third level of menu
  *
  * Provides next events:<br>
  *  admin/System/Menu
  *
- * @method static Menu instance($check = false)
+ * @method static $this instance($check = false)
  */
 class Menu {
 	use
 		Singleton;
-	public $section_items = [];
-	public $items         = [];
+	const INIT_STATE_METHOD = 'init';
+	/**
+	 * @var array
+	 */
+	public $section_items;
+	/**
+	 * @var array
+	 */
+	public $items;
+
+	protected function init () {
+		$this->section_items = [];
+		$this->items         = [];
+	}
 	/**
 	 * Get menu in HTML format
 	 *
@@ -28,7 +41,7 @@ class Menu {
 	 */
 	function get_menu () {
 		Event::instance()->fire('admin/System/Menu');
-		$current_module = current_module();
+		$current_module = Request::instance()->current_module;
 		if (isset($this->section_items[$current_module])) {
 			$content = $this->render_sections($current_module);
 		} else {
@@ -46,10 +59,6 @@ class Menu {
 	protected function render_sections ($module) {
 		$content = '';
 		foreach ($this->section_items[$module] as $item) {
-			// TODO remove this later, needed for smooth update from 2.x versions
-			if (!isset($item[1]['href'])) {
-				return '';
-			}
 			$dropdown = $this->render_items($module, $item[1]['href']);
 			if ($dropdown) {
 				$dropdown = h::{'nav[is=cs-nav-dropdown] nav[is=cs-nav-button-group][vertical]'}($dropdown);
@@ -76,10 +85,6 @@ class Menu {
 		}
 		$content = '';
 		foreach ($this->items[$module] as $item) {
-			// TODO remove this later, needed for smooth update from 2.x versions
-			if (!isset($item[1]['href'])) {
-				return '';
-			}
 			/**
 			 * Nested items for parent
 			 */

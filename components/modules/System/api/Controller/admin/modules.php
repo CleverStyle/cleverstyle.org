@@ -13,19 +13,20 @@ use
 	cs\Config,
 	cs\Event,
 	cs\ExitException,
-	cs\Language,
+	cs\Language\Prefix,
 	cs\Page,
 	cs\Permission,
 	cs\Session,
 	cs\modules\System\Packages_manipulation;
+
 trait modules {
 	/**
-	 * @param int[]    $route_ids
-	 * @param string[] $route_path
+	 * @param \cs\Request $Request
 	 *
 	 * @throws ExitException
 	 */
-	static function admin_modules_get ($route_ids, $route_path) {
+	static function admin_modules_get ($Request) {
+		$route_path = $Request->route_path;
 		if (isset($route_path[3])) {
 			switch ($route_path[3]) {
 				/**
@@ -120,7 +121,7 @@ trait modules {
 		}
 		$new_meta = file_get_json("$tmp_dir/meta.json");
 		if (!static::is_same_module($new_meta, $module)) {
-			throw new ExitException(Language::instance()->this_is_not_module_installer_file, 400);
+			throw new ExitException((new Prefix('system_admin_modules_'))->this_is_not_module_installer_file, 400);
 		}
 		Page::instance()->json(
 			Packages_manipulation::get_dependencies($new_meta)
@@ -218,12 +219,12 @@ trait modules {
 		);
 	}
 	/**
-	 * @param int[]    $route_ids
-	 * @param string[] $route_path
+	 * @param \cs\Request $Request
 	 *
 	 * @throws ExitException
 	 */
-	static function admin_modules_put ($route_ids, $route_path) {
+	static function admin_modules_put ($Request) {
+		$route_path = $Request->route_path;
 		if (isset($route_path[3])) {
 			switch ($route_path[3]) {
 				/**
@@ -313,12 +314,12 @@ trait modules {
 	 *  admin/System/components/modules/enable/after
 	 *  ['name' => module_name]
 	 *
-	 * @param int[]    $route_ids
-	 * @param string[] $route_path
+	 * @param \cs\Request $Request
 	 *
 	 * @throws ExitException
 	 */
-	static function admin_modules_enable ($route_ids, $route_path) {
+	static function admin_modules_enable ($Request) {
+		$route_path = $Request->route_path;
 		if (!isset($route_path[2])) {
 			throw new ExitException(400);
 		}
@@ -340,7 +341,8 @@ trait modules {
 		$Cache = System_cache::instance();
 		unset(
 			$Cache->functionality,
-			$Cache->languages
+			$Cache->languages,
+			$Cache->events_files_paths
 		);
 		clean_classes_cache();
 	}
@@ -354,12 +356,12 @@ trait modules {
 	 *  admin/System/components/modules/disable/after
 	 *  ['name' => module_name]
 	 *
-	 * @param int[]    $route_ids
-	 * @param string[] $route_path
+	 * @param \cs\Request $Request
 	 *
 	 * @throws ExitException
 	 */
-	static function admin_modules_disable ($route_ids, $route_path) {
+	static function admin_modules_disable ($Request) {
+		$route_path = $Request->route_path;
 		if (!isset($route_path[2])) {
 			throw new ExitException(400);
 		}
@@ -390,12 +392,12 @@ trait modules {
 	 *  admin/System/components/modules/install/after
 	 *  ['name' => module_name]
 	 *
-	 * @param int[]    $route_ids
-	 * @param string[] $route_path
+	 * @param \cs\Request $Request
 	 *
 	 * @throws ExitException
 	 */
-	static function admin_modules_install ($route_ids, $route_path) {
+	static function admin_modules_install ($Request) {
+		$route_path = $Request->route_path;
 		if (!isset($route_path[2])) {
 			throw new ExitException(400);
 		}
@@ -431,12 +433,12 @@ trait modules {
 	 *  admin/System/components/modules/uninstall/after
 	 *  ['name' => module_name]
 	 *
-	 * @param int[]    $route_ids
-	 * @param string[] $route_path
+	 * @param \cs\Request $Request
 	 *
 	 * @throws ExitException
 	 */
-	static function admin_modules_uninstall ($route_ids, $route_path) {
+	static function admin_modules_uninstall ($Request) {
+		$route_path = $Request->route_path;
 		if (!isset($route_path[2])) {
 			throw new ExitException(400);
 		}
@@ -485,7 +487,7 @@ trait modules {
 	 */
 	static function admin_modules_extract () {
 		$Config       = Config::instance();
-		$L            = Language::instance();
+		$L            = new Prefix('system_admin_modules_');
 		$tmp_location = TEMP.'/System/admin/'.Session::instance()->get_id().'.phar';
 		$tmp_dir      = "phar://$tmp_location";
 		if (
@@ -504,16 +506,17 @@ trait modules {
 		$Config->components['modules'][$new_meta['package']] = ['active' => Config\Module_Properties::UNINSTALLED];
 		ksort($Config->components['modules'], SORT_STRING | SORT_FLAG_CASE);
 		static::admin_modules_save();
+		static::admin_modules_cleanup();
 	}
 	/**
 	 * Update module (or system if module name is System)
 	 *
-	 * @param int[]    $route_ids
-	 * @param string[] $route_path
+	 * @param \cs\Request $Request
 	 *
 	 * @throws ExitException
 	 */
-	static function admin_modules_update ($route_ids, $route_path) {
+	static function admin_modules_update ($Request) {
+		$route_path = $Request->route_path;
 		if (!isset($route_path[2])) {
 			throw new ExitException(400);
 		}
@@ -536,7 +539,7 @@ trait modules {
 		if ($module == Config::SYSTEM_MODULE) {
 			static::update_system($module, $existing_meta, $new_meta, $tmp_location);
 		} else {
-			static::update_module($module, $existing_meta, $new_meta, $tmp_location, $route_ids, $route_path);
+			static::update_module($module, $existing_meta, $new_meta, $tmp_location, $Request);
 		}
 		static::admin_modules_cleanup();
 	}
@@ -548,23 +551,22 @@ trait modules {
 	 *  admin/System/components/modules/update/after
 	 *  ['name' => module_name]
 	 *
-	 * @param string   $module
-	 * @param array    $existing_meta
-	 * @param array    $new_meta
-	 * @param string   $tmp_location
-	 * @param int[]    $route_ids
-	 * @param string[] $route_path
+	 * @param string      $module
+	 * @param array       $existing_meta
+	 * @param array       $new_meta
+	 * @param string      $tmp_location
+	 * @param \cs\Request $Request
 	 *
 	 * @throws ExitException
 	 */
-	protected static function update_module ($module, $existing_meta, $new_meta, $tmp_location, $route_ids, $route_path) {
+	protected static function update_module ($module, $existing_meta, $new_meta, $tmp_location, $Request) {
 		$Config     = Config::instance();
-		$L          = Language::instance();
+		$L          = new Prefix('system_admin_modules_');
 		$module_dir = MODULES."/$module";
 		$enabled    = $Config->module($module)->enabled();
 		// If module is currently enabled - disable it temporary
 		if ($enabled) {
-			static::admin_modules_disable($route_ids, $route_path);
+			static::admin_modules_disable($Request);
 		}
 		if (!static::is_same_module($new_meta, $module)) {
 			throw new ExitException($L->this_is_not_module_installer_file, 400);
@@ -584,7 +586,7 @@ trait modules {
 		Event::instance()->fire('admin/System/components/modules/update/after', ['name' => $module]);
 		// If module was enabled before update - enable it back
 		if ($enabled) {
-			static::admin_modules_enable($route_ids, $route_path);
+			static::admin_modules_enable($Request);
 		}
 	}
 	/**
@@ -602,7 +604,7 @@ trait modules {
 	 */
 	protected static function update_system ($module, $existing_meta, $new_meta, $tmp_location) {
 		$Config     = Config::instance();
-		$L          = Language::instance();
+		$L          = new Prefix('system_admin_modules_');
 		$module_dir = MODULES."/$module";
 		/**
 		 * Temporary close site
@@ -632,16 +634,17 @@ trait modules {
 			$Config->core['site_mode'] = 1;
 			static::admin_modules_save();
 		}
+		static::admin_modules_cleanup();
 	}
 	/**
 	 * Delete module completely
 	 *
-	 * @param int[]    $route_ids
-	 * @param string[] $route_path
+	 * @param \cs\Request $Request
 	 *
 	 * @throws ExitException
 	 */
-	static function admin_modules_delete ($route_ids, $route_path) {
+	static function admin_modules_delete ($Request) {
+		$route_path = $Request->route_path;
 		if (!isset($route_path[2])) {
 			throw new ExitException(400);
 		}
@@ -698,6 +701,7 @@ trait modules {
 		$modules = array_merge($modules_list, array_intersect_key($modules, $modules_list));
 		ksort($modules, SORT_STRING | SORT_FLAG_CASE);
 		static::admin_modules_save();
+		static::admin_modules_cleanup();
 	}
 	/**
 	 * Save changes

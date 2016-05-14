@@ -10,7 +10,7 @@ use
 	cs\Config,
 	cs\Language,
 	cs\Page,
-	cs\Route,
+	cs\Request,
 	cs\Singleton,
 	h;
 
@@ -66,7 +66,7 @@ class Meta {
 	 * @param string  $type
 	 * @param mixed[] $params
 	 *
-	 * @return $this
+	 * @return Meta
 	 */
 	function __call ($type, $params) {
 		if (!$params) {
@@ -148,12 +148,13 @@ class Meta {
 		}
 		$Config = Config::instance();
 		if (!@$og['url']) {
+			$Request = Request::instance();
 			/** @noinspection NestedTernaryOperatorInspection */
 			$this->og(
 				'url',
-				home_page()
+				$Request->home_page
 					? $Config->base_url()
-					: ($Page->canonical_url ?: $Config->base_url().'/'.Route::instance()->relative_address)
+					: ($Page->canonical_url ?: $Config->base_url().'/'.$Request->path_normalized)
 			);
 		}
 		if (!@$og['site_name']) {

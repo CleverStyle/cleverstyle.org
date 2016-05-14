@@ -39,7 +39,7 @@ $links		= $('body > header > nav a')
 		# Ignore left click
 		e.which != 1
 title_format	= document.title
-L				= cs.Language
+L				= cs.Language('system_admin_')
 !function go (href)
 	href_splitted	= href.split('/')
 	document.title	= sprintf(
@@ -56,7 +56,7 @@ L				= cs.Language
 				.prev()
 					.prop('primary', true)
 !function popstate (e)
-	if location.href.indexOf('admin/System') != -1
+	if location.href.indexOf('admin/System/') != -1
 		go(
 			location.href.match(/admin\/System\/\w+\/\w+/)[0]
 		)

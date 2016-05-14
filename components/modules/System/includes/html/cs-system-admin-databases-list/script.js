@@ -9,10 +9,10 @@
  */
 (function(){
   var L;
-  L = cs.Language;
+  L = cs.Language('system_admin_databases_');
   Polymer({
     'is': 'cs-system-admin-databases-list',
-    behaviors: [cs.Polymer.behaviors.Language, cs.Polymer.behaviors.admin.System.settings],
+    behaviors: [cs.Polymer.behaviors.Language('system_admin_databases_'), cs.Polymer.behaviors.admin.System.settings],
     properties: {
       settings_api_url: 'api/System/admin/databases'
     },
@@ -28,7 +28,7 @@
     _add: function(e){
       var database, this$ = this;
       database = e.model && e.model.database;
-      $(cs.ui.simple_modal("<h3>" + L.addition_of_db + "</h3>\n<cs-system-admin-databases-form add database-index=\"" + (database && database.index) + "\"/>")).on('close', function(){
+      $(cs.ui.simple_modal("<h3>" + L.database_addition + "</h3>\n<cs-system-admin-databases-form add database-index=\"" + (database && database.index) + "\"/>")).on('close', function(){
         this$.reload();
       });
     },
@@ -38,7 +38,7 @@
       database = e.model.database || database_model.database;
       mirror = e.model.mirror;
       name = this._database_name(database, mirror);
-      $(cs.ui.simple_modal("<h3>" + L.editing_the_database(name) + "</h3>\n<cs-system-admin-databases-form database-index=\"" + database.index + "\" mirror-index=\"" + (mirror && mirror.index) + "\"/>")).on('close', function(){
+      $(cs.ui.simple_modal("<h3>" + L.editing_database(name) + "</h3>\n<cs-system-admin-databases-form database-index=\"" + database.index + "\" mirror-index=\"" + (mirror && mirror.index) + "\"/>")).on('close', function(){
         this$.reload();
       });
     },
@@ -67,7 +67,7 @@
       database = e.model.database || database_model.database;
       mirror = e.model.mirror;
       name = this._database_name(database, mirror);
-      cs.ui.confirm(L.sure_to_delete + " " + name + "?", function(){
+      cs.ui.confirm(L.sure_to_delete(name), function(){
         $.ajax({
           url: 'api/System/admin/databases/' + database.index + (mirror ? '/' + mirror.index : ''),
           type: 'delete',

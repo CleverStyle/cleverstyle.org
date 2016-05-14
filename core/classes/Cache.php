@@ -8,7 +8,7 @@
 namespace cs;
 
 /**
- * @method static Cache instance($check = false)
+ * @method static $this instance($check = false)
  */
 class Cache {
 	use Singleton;
@@ -56,7 +56,7 @@ class Cache {
 	 */
 	function get ($item, $callback = null) {
 		if (!$this->state) {
-			return false;
+			return is_callable($callback) ? $callback() : false;
 		}
 		$item = trim($item, '/');
 		$data = $this->engine_instance->get($item);

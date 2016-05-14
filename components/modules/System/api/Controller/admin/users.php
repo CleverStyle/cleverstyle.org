@@ -10,9 +10,11 @@
 namespace cs\modules\System\api\Controller\admin;
 use
 	cs\ExitException,
-	cs\Language,
+	cs\Language\Prefix,
 	cs\Page,
+	cs\Response,
 	cs\User;
+
 trait users {
 	/**
 	 * Get user's data or data of several specified groups if specified in ids query parameter or allows to search for users by login or email (users id will
@@ -20,17 +22,17 @@ trait users {
 	 *
 	 * Data will be pre-processed with `reg_date_formatted` and `reg_ip_formatted` keys added
 	 *
-	 * @param int[] $route_ids
+	 * @param \cs\Request $Request
 	 *
 	 * @throws ExitException
 	 */
-	static function admin_users___get ($route_ids) {
+	static function admin_users___get ($Request) {
 		$User    = User::instance();
 		$Page    = Page::instance();
 		$columns = static::admin_users___search_options_get()['columns'];
-		if (isset($route_ids[0])) {
+		if (isset($Request->route_ids[0])) {
 			$result = static::admin_users___get_post_process(
-				$User->get($columns, $route_ids[0])
+				$User->get($columns, $Request->route_ids[0])
 			);
 		} elseif (isset($_GET['ids'])) {
 			$ids    = _int(explode(',', $_GET['ids']));
@@ -51,7 +53,7 @@ trait users {
 		$Page->json($result);
 	}
 	protected static function admin_users___get_post_process ($data) {
-		$L                          = Language::instance();
+		$L                          = new Prefix('system_admin_users_');
 		$data['reg_date_formatted'] = $data['reg_date'] ? date($L->_date, $data['reg_date']) : $L->undefined;
 		$data['reg_ip_formatted']   = hex2ip($data['reg_ip'], 10);
 		return $data;
@@ -59,16 +61,16 @@ trait users {
 	/**
 	 * Update user's data
 	 *
-	 * @param int[] $route_ids
+	 * @param \cs\Request $Request
 	 *
 	 * @throws ExitException
 	 */
-	static function admin_users___patch ($route_ids) {
-		if (!isset($route_ids[0], $_POST['user'])) {
+	static function admin_users___patch ($Request) {
+		if (!isset($Request->route_ids[0], $_POST['user'])) {
 			throw new ExitException(400);
 		}
 		$User    = User::instance();
-		$user_id = (int)$route_ids[0];
+		$user_id = (int)$Request->route_ids[0];
 		$is_bot  = in_array(User::BOT_GROUP_ID, $User->get_groups($user_id));
 		if ($is_bot && !@$_POST['user']['login'] && !@$_POST['user']['email']) {
 			throw new ExitException(400);
@@ -90,7 +92,7 @@ trait users {
 		if (!$user_data && ($is_bot || !isset($_POST['user']['password']))) {
 			throw new ExitException(400);
 		}
-		$L = Language::instance();
+		$L = new Prefix('system_admin_users_');
 		if (
 			isset($user_data['login']) &&
 			$user_data['login'] !== $User->get('login', $user_id) &&
@@ -122,14 +124,17 @@ trait users {
 			throw new ExitException(400);
 		}
 		$User = User::instance();
-		$Page = Page::instance();
 		if ($_POST['type'] === 'user' && isset($_POST['email'])) {
 			$result = $User->registration($_POST['email'], false, false);
 			if (!$result) {
 				throw new ExitException(500);
 			}
-			status_code(201);
-			$Page->json(
+			if ($result === 'exists') {
+				$L = new Prefix('system_admin_users_');
+				throw new ExitException($L->user_already_exists, 400);
+			}
+			Response::instance()->code = 201;
+			Page::instance()->json(
 				[
 					'login'    => $User->get('login', $result['id']),
 					'password' => $result['password']
@@ -137,7 +142,7 @@ trait users {
 			);
 		} elseif ($_POST['type'] === 'bot' && isset($_POST['name'], $_POST['user_agent'], $_POST['ip'])) {
 			if ($User->add_bot($_POST['name'], $_POST['user_agent'], $_POST['ip'])) {
-				status_code(201);
+				Response::instance()->code = 201;
 			} else {
 				throw new ExitException(500);
 			}
@@ -171,15 +176,6 @@ trait users {
 		}
 		$cdb   = User::instance()->db();
 		$where = static::admin_users___search_prepare_where($mode, $text, $column ?: $search_options['columns'], $cdb);
-		/**
-		 * Deleted users do not have any email, login or password, all of them are empty strings
-		 */
-		$where =
-			"$where AND
-			(
-				`login`	!= `password_hash` OR
-				`email`	!= `password_hash`
-			)";
 		$count = $cdb->qfs(
 			[
 				"SELECT COUNT(`id`)

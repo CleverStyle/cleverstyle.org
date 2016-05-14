@@ -1,30 +1,26 @@
 <?php
 /**
- * @package		CleverStyle CMS
- * @subpackage	CleverStyle theme
- * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2014-2016, Nazar Mokrynskyi
- * @license		MIT License, see license.txt
+ * @package    CleverStyle CMS
+ * @subpackage CleverStyle theme
+ * @author     Nazar Mokrynskyi <nazar@mokrynskyi.com>
+ * @copyright  Copyright (c) 2014-2016, Nazar Mokrynskyi
+ * @license    MIT License, see license.txt
  */
 namespace cs\themes\CleverStyle;
 use
 	cs\Language,
 	cs\Menu,
+	cs\Request,
 	cs\User,
 	h;
 include_once __DIR__.'/functions.php';
-if (!function_exists(__NAMESPACE__.'\\level')) {
-	function level ($in, $level) {
-		return trim(h::level($in, $level))."\n";
-	}
-}
 $main_menu	= h::nav(
 	implode('', get_main_menu())
 );
-$submenu	= admin_path() ? Menu::instance()->get_menu() : '';
+$submenu	= Request::instance()->admin_path ? Menu::instance()->get_menu() : '';
 $User		= User::instance();
 $avatar		= $User->avatar();
-$username	= $User->guest() ? Language::instance()->guest : $User->username();
+$username	= $User->username();
 $login		= $User->login;
 ?><!doctype html>
 <!--pre_Html--><!--head-->
