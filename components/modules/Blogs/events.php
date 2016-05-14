@@ -6,14 +6,21 @@
  * @copyright Copyright (c) 2011-2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
  */
-namespace cs;
+namespace cs\modules\Blogs;
 use
+	cs\Cache,
+	cs\Config,
+	cs\DB,
+	cs\Event,
+	cs\ExitException,
 	cs\Language\Prefix,
-	cs\Request;
+	cs\Menu,
+	cs\Request,
+	cs\User;
 
 Event::instance()
 	->on(
-		'System/Route/routing_replace',
+		'System/Request/routing_replace',
 		function ($data) {
 			$rc = explode('/', $data['rc']);
 			$L  = new Prefix('blogs_');
@@ -61,20 +68,111 @@ Event::instance()
 		}
 	)
 	->on(
-		'System/Index/construct',
-		function () {
+		'api/Comments/add',
+		function ($data) {
 			$module_data = Config::instance()->module('Blogs');
-			switch (true) {
-				case $module_data->uninstalled():
-					require __DIR__.'/events/uninstalled.php';
-					break;
-				case $module_data->enabled():
-					require __DIR__.'/events/enabled.php';
-					if (Request::instance()->current_module == 'Blogs') {
-						require __DIR__.'/events/enabled/admin.php';
-					}
-				case $module_data->installed():
-					require __DIR__.'/events/installed.php';
+			if (
+				$module_data->enabled() &&
+				$data['module'] == 'Blogs' &&
+				$module_data->enable_comments &&
+				User::instance()->user() &&
+				Posts::instance()->get($data['item'])
+			) {
+				$data['allow'] = true;
+				return false;
 			}
+		}
+	)
+	->on(
+		'api/Comments/edit',
+		function ($data) {
+			$User        = User::instance();
+			$module_data = Config::instance()->module('Blogs');
+			if (
+				$module_data->enabled() &&
+				$data['module'] == 'Blogs' &&
+				$module_data->enable_comments &&
+				$User->user() &&
+				($data['user'] == $User->id || $User->admin())
+			) {
+				$data['allow'] = true;
+				return false;
+			}
+		}
+	)
+	->on(
+		'api/Comments/delete',
+		function ($data) {
+			$User        = User::instance();
+			$module_data = Config::instance()->module('Blogs');
+			if (
+				$module_data->enabled() &&
+				$data['module'] == 'Blogs' &&
+				$module_data->enable_comments &&
+				$User->user() &&
+				($data['user'] == $User->id || $User->admin())
+			) {
+				$data['allow'] = true;
+				return false;
+			}
+		}
+	)
+	->on(
+		'admin/System/Menu',
+		function () {
+			$L       = new Prefix('blogs_');
+			$Menu    = Menu::instance();
+			$Request = Request::instance();
+			foreach (['browse_sections', 'browse_posts', 'general'] as $section) {
+				$Menu->add_item(
+					'Blogs',
+					$L->$section,
+					[
+						'href'    => "admin/Blogs/$section",
+						'primary' => $Request->route_path(0) == $section
+					]
+				);
+			}
+		}
+	)
+	->on(
+		'admin/System/components/modules/uninstall/before',
+		function ($data) {
+			if ($data['name'] != 'Blogs') {
+				return;
+			}
+			time_limit_pause();
+			$Posts    = Posts::instance();
+			$Sections = Sections::instance();
+			foreach (Sections::instance()->get_all() as $section) {
+				$Sections->del($section['id']);
+			}
+			unset($section);
+			$posts = DB::instance()->db(Config::instance()->module('Blogs')->db('posts'))->qfas(
+				"SELECT `id`
+				FROM `[prefix]blogs_posts`"
+			) ?: [];
+			foreach ($posts as $post) {
+				$Posts->del($post);
+			}
+			Cache::instance()->del('Blogs');
+			time_limit_pause(false);
+		}
+	)
+	->on(
+		'admin/System/components/modules/install/after',
+		function ($data) {
+			if ($data['name'] != 'Blogs') {
+				return;
+			}
+			Config::instance()->module('Blogs')->set(
+				[
+					'posts_per_page'                => 10,
+					'max_sections'                  => 3,
+					'enable_comments'               => 1,
+					'new_posts_only_from_admins'    => 1,
+					'allow_iframes_without_content' => 1
+				]
+			);
 		}
 	);

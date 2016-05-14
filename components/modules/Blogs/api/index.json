@@ -1,5 +1,10 @@
 {
-	"posts"	: [
-		"preview"
+	"_"        : [],
+	"posts"    : [],
+	"sections" : [],
+	"admin"    : [
+		"_",
+		"posts",
+		"sections"
 	]
 }

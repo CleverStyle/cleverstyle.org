@@ -11,7 +11,6 @@ use
 	cs\Config,
 	cs\Language\Prefix,
 	cs\Page,
-	cs\User,
 	h;
 
 class Helpers {
@@ -29,14 +28,8 @@ class Helpers {
 		$module_data = Config::instance()->module('Blogs');
 		$L           = new Prefix('blogs_');
 		$Page        = Page::instance();
-		$User        = User::instance();
 		$Page->content(
-			h::{'cs-blogs-head-actions'}(
-				[
-					'admin'          => $User->admin() && $User->get_permission('admin/Blogs', 'index'),
-					'can_write_post' => $User->admin() || !$module_data->new_posts_only_from_admins
-				]
-			)
+			h::cs_blogs_head_actions()
 		);
 		if (!$posts) {
 			$Page->content(
@@ -45,16 +38,11 @@ class Helpers {
 			return;
 		}
 		$Page->content(
-			h::{'section[is=cs-blogs-posts]'}(
-				h::{'script[type=application/ld+json]'}(
-					json_encode(
-						Posts::instance()->get_as_json_ld($posts),
-						JSON_UNESCAPED_UNICODE
-					)
-				),
-				[
-					'comments_enabled' => $module_data->enable_comments && functionality('comments')
-				]
+			h::{'section[is=cs-blogs-posts] script[type=application/ld+json]'}(
+				json_encode(
+					Posts::instance()->get_as_json_ld($posts),
+					JSON_UNESCAPED_UNICODE
+				)
 			).
 			h::{'.cs-block-margin.cs-text-center.cs-margin nav[is=cs-nav-pagination]'}(
 				pages(

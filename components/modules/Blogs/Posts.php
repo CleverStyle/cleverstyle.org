@@ -8,13 +8,12 @@
  */
 namespace cs\modules\Blogs;
 use
-	cs\Event,
-	cs\Cache\Prefix as Cache_prefix,
+	cs\Cache,
 	cs\Config,
+	cs\Event,
 	cs\Language,
-	cs\Language\Prefix as Language_prefix,
 	cs\User,
-	cs\CRUD,
+	cs\CRUD_helpers,
 	cs\Singleton,
 	cs\plugins\Json_ld\Json_ld;
 
@@ -23,29 +22,40 @@ use
  */
 class Posts {
 	use
-		CRUD,
+		CRUD_helpers,
 		Singleton;
 	protected $data_model                  = [
-		'id'      => 'int:0',
-		'user'    => 'int:0',
-		'date'    => 'int:0',
-		'title'   => 'ml:text',
-		'path'    => 'ml:text',
-		'content' => 'ml:html',
-		'draft'   => 'int:0..1'
+		'id'       => 'int:0',
+		'user'     => 'int:0',
+		'date'     => 'int:0',
+		'title'    => 'ml:text',
+		'path'     => 'ml:text',
+		'content'  => 'ml:html',
+		'draft'    => 'int:0..1',
+		'sections' => [
+			'data_model' => [
+				'id'      => 'int:0',
+				'section' => 'int:0'
+			]
+		],
+		'tags'     => [
+			'data_model'     => [
+				'id'  => 'int:0',
+				'tag' => 'int:0'
+			],
+			'language_field' => 'lang'
+		]
 	];
 	protected $table                       = '[prefix]blogs_posts';
 	protected $data_model_ml_group         = 'Blogs/posts';
 	protected $data_model_files_tag_prefix = 'Blogs/posts';
-	protected $table_sections              = '[prefix]blogs_posts_sections';
-	protected $table_tags                  = '[prefix]blogs_posts_tags';
 	/**
-	 * @var Cache_prefix
+	 * @var Cache\Prefix
 	 */
 	protected $cache;
 
 	protected function construct () {
-		$this->cache = new Cache_prefix('Blogs');
+		$this->cache = Cache::prefix('Blogs');
 		if (Config::instance()->module('Blogs')->allow_iframes_without_content) {
 			$this->data_model['content'] = 'ml:html_iframe';
 		}
@@ -72,64 +82,39 @@ class Posts {
 			}
 			return $id;
 		}
-		$L        = Language::instance();
-		$id       = (int)$id;
-		$data     = $this->cache->get(
+		$L    = Language::instance();
+		$id   = (int)$id;
+		$data = $this->cache->get(
 			"posts/$id/$L->clang",
-			function () use ($id, $L) {
+			function () use ($id) {
 				$data = $this->read($id);
 				if ($data) {
 					$data['short_content'] = truncate(explode('<!-- pagebreak -->', $data['content'])[0]);
-					$data['sections']      = $this->db()->qfas(
-						"SELECT `section`
-						FROM `$this->table_sections`
-						WHERE `id` = $id"
-					);
-					$data['tags']          = $this->db()->qfas(
-						"SELECT DISTINCT `tag`
-						FROM `$this->table_tags`
-						WHERE
-							`id`	= $id AND
-							`lang`	= '$L->clang'"
-					);
-					if (!$data['tags']) {
-						$l            = $this->db()->qfs(
-							"SELECT `lang`
-							FROM `$this->table_tags`
-							WHERE `id` = $id
-							LIMIT 1"
-						);
-						$data['tags'] = $this->db()->qfas(
-							"SELECT DISTINCT `tag`
-							FROM `$this->table_tags`
-							WHERE
-								`id`	= $id AND
-								`lang`	= '$l'"
-						);
-					}
-					$data['tags'] = array_column(
-						Tags::instance()->get($data['tags']),
-						'text'
-					);
+					$data['tags']          = $this->read_tags_processing($data['tags']);
 				}
 				return $data;
 			}
 		);
-		$Comments = null;
-		Event::instance()->fire(
-			'Comments/instance',
-			[
-				'Comments' => &$Comments
-			]
-		);
-		/**
-		 * @var \cs\modules\Comments\Comments $Comments
-		 */
-		$data['comments_count'] =
-			Config::instance()->module('Blogs')->enable_comments && $Comments
-				? $Comments->count($data['id'])
-				: 0;
 		return $data;
+	}
+	/**
+	 * @param int $page
+	 * @param int $count
+	 *
+	 * @return int[]
+	 */
+	function get_all ($page, $count) {
+		return $this->search([], $page, $count, 'id');
+	}
+	/**
+	 * Transform tags ids back into array of strings
+	 *
+	 * @param int[] $tags
+	 *
+	 * @return string[]
+	 */
+	protected function read_tags_processing ($tags) {
+		return array_column(Tags::instance()->get($tags) ?: [], 'text');
 	}
 	/**
 	 * Get data of specified post
@@ -143,12 +128,19 @@ class Posts {
 		if (!$post) {
 			return false;
 		}
+		return $this->post_to_jsonld($post);
+	}
+	/**
+	 * @param array|array[] $post
+	 *
+	 * @return array
+	 */
+	function post_to_jsonld ($post) {
 		$base_structure = [
 			'@context' =>
 				[
 					'content'        => 'articleBody',
 					'title'          => 'headline',
-					'comments_count' => 'commentCount',
 					'tags'           => 'keywords',
 					'datetime'       => null,
 					'sections_paths' => null,
@@ -160,16 +152,16 @@ class Posts {
 				$base_structure +
 				[
 					'@graph' => array_map(
-						[$this, 'get_as_json_ld_single_post'],
+						[$this, 'post_to_jsonld_single_post'],
 						$post
 					)
 				];
 		}
 		return
 			$base_structure +
-			$this->get_as_json_ld_single_post($post);
+			$this->post_to_jsonld_single_post($post);
 	}
-	protected function get_as_json_ld_single_post ($post) {
+	protected function post_to_jsonld_single_post ($post) {
 		if (preg_match_all('/<img[^>]src=["\'](.*)["\']/Uims', $post['content'], $images)) {
 			$images = $images[1];
 		}
@@ -181,7 +173,7 @@ class Posts {
 				'title'
 			);
 		}
-		$L            = new Language_prefix('blogs_');
+		$L            = Language::prefix('blogs_');
 		$base_url     = Config::instance()->base_url();
 		$module_path  = path($L->Blogs);
 		$section_path = "$base_url/$module_path/".path($L->section);
@@ -217,45 +209,50 @@ class Posts {
 	 * Get latest posts
 	 *
 	 * @param int $page
-	 * @param int $number
+	 * @param int $count
 	 *
 	 * @return int[]
 	 */
-	function get_latest_posts ($page, $number) {
-		$number = (int)$number;
-		$from   = ($page - 1) * $number;
-		return $this->db()->qfas(
-			"SELECT `id`
-			FROM `$this->table`
-			WHERE `draft` = 0
-			ORDER BY `date` DESC
-			LIMIT $from, $number"
-		) ?: [];
+	function get_latest_posts ($page, $count) {
+		$search_parameters = [
+			'draft' => 0
+		];
+		return $this->search($search_parameters, $page, $count, 'date', false) ?: [];
 	}
 	/**
 	 * Get posts for section
 	 *
 	 * @param int $section
 	 * @param int $page
-	 * @param int $number
+	 * @param int $count
 	 *
 	 * @return int[]
 	 */
-	function get_for_section ($section, $page, $number) {
-		$section = (int)$section;
-		$number  = (int)$number;
-		$from    = ($page - 1) * $number;
-		return $this->db()->qfas(
-			"SELECT `s`.`id`
-			FROM `$this->table_sections` AS `s`
-				LEFT JOIN `$this->table` AS `p`
-			ON `s`.`id` = `p`.`id`
-			WHERE
-				`s`.`section`	= $section AND
-				`p`.`draft`		= 0
-			ORDER BY `p`.`date` DESC
-			LIMIT $from, $number"
-		) ?: [];
+	function get_for_section ($section, $page, $count) {
+		$search_parameters = [
+			'draft'    => 0,
+			'sections' => [
+				'section' => $section
+			]
+		];
+		return $this->search($search_parameters, $page, $count, 'date', false) ?: [];
+	}
+	/**
+	 * Get number of posts for section
+	 *
+	 * @param int $section
+	 *
+	 * @return int
+	 */
+	function get_for_section_count ($section) {
+		$search_parameters = [
+			'draft'       => 0,
+			'sections'    => [
+				'section' => $section
+			],
+			'total_count' => true
+		];
+		return $this->search($search_parameters);
 	}
 	/**
 	 * Get posts for tag
@@ -263,29 +260,19 @@ class Posts {
 	 * @param int    $tag
 	 * @param string $lang
 	 * @param int    $page
-	 * @param int    $number
+	 * @param int    $count
 	 *
 	 * @return int[]
 	 */
-	function get_for_tag ($tag, $lang, $page, $number) {
-		$number = (int)$number;
-		$from   = ($page - 1) * $number;
-		return $this->db()->qfas(
-			[
-				"SELECT `t`.`id`
-				FROM `$this->table_tags` AS `t`
-					LEFT JOIN `$this->table` AS `p`
-				ON `t`.`id` = `p`.`id`
-				WHERE
-					`t`.`tag`	= '%s' AND
-					`p`.`draft`	= 0 AND
-					`t`.`lang`	= '%s'
-				ORDER BY `p`.`date` DESC
-				LIMIT $from, $number",
-				$tag,
-				$lang
+	function get_for_tag ($tag, $lang, $page, $count) {
+		$search_parameters = [
+			'draft' => 0,
+			'tags'  => [
+				'tag'  => $tag,
+				'lang' => $lang
 			]
-		) ?: [];
+		];
+		return $this->search($search_parameters, $page, $count, 'date', false) ?: [];
 	}
 	/**
 	 * Get number of posts for tag
@@ -296,45 +283,31 @@ class Posts {
 	 * @return int
 	 */
 	function get_for_tag_count ($tag, $lang) {
-		return $this->db()->qfs(
-			[
-				"SELECT COUNT(`t`.`id`)
-				FROM `$this->table_tags` AS `t`
-					LEFT JOIN `$this->table` AS `p`
-				ON `t`.`id` = `p`.`id`
-				WHERE
-					`t`.`tag`	= '%s' AND
-					`p`.`draft`	= 0 AND
-					`t`.`lang`	= '%s'",
-				$tag,
-				$lang
-			]
-		) ?: 0;
+		$search_parameters = [
+			'draft'       => 0,
+			'tags'        => [
+				'tag'  => $tag,
+				'lang' => $lang
+			],
+			'total_count' => true
+		];
+		return $this->search($search_parameters);
 	}
 	/**
 	 * Get drafts
 	 *
 	 * @param int $user
 	 * @param int $page
-	 * @param int $number
+	 * @param int $count
 	 *
 	 * @return int[]
 	 */
-	function get_drafts ($user, $page, $number) {
-		$number = (int)$number;
-		$from   = ($page - 1) * $number;
-		return $this->db()->qfas(
-			[
-				"SELECT `id`
-				FROM `$this->table`
-				WHERE
-					`draft` = 1 AND
-					`user`	= '%s'
-				ORDER BY `date` DESC
-				LIMIT $from, $number",
-				$user
-			]
-		) ?: [];
+	function get_drafts ($user, $page, $count) {
+		$search_parameters = [
+			'user'  => $user,
+			'draft' => 1
+		];
+		return $this->search($search_parameters, $page, $count, 'date', false) ?: [];
 	}
 	/**
 	 * Get number of drafts
@@ -344,16 +317,12 @@ class Posts {
 	 * @return int
 	 */
 	function get_drafts_count ($user) {
-		return $this->db()->qfs(
-			[
-				"SELECT COUNT(`id`)
-				FROM `$this->table`
-				WHERE
-					`draft` = 1 AND
-					`user`	= '%s'",
-				$user
-			]
-		) ?: 0;
+		$search_parameters = [
+			'user'        => $user,
+			'draft'       => 1,
+			'total_count' => true
+		];
+		return $this->search($search_parameters);
 	}
 	/**
 	 * Add new post
@@ -372,19 +341,29 @@ class Posts {
 			return false;
 		}
 		$id = $this->create(
-			[
-				User::instance()->id,
-				$draft ? 0 : time(),
-				$title,
-				path($path ?: $title),
-				$content,
-				(int)(bool)$draft
-			]
+			User::instance()->id,
+			$draft ? 0 : time(),
+			$title,
+			path($path ?: $title),
+			$content,
+			$draft,
+			$sections,
+			$this->prepare_tags($tags)
 		);
 		if ($id) {
-			$this->final_updates_and_cache_cleanups($id, $sections, $tags);
+			$this->cache_cleanups($id);
 		}
 		return $id;
+	}
+	/**
+	 * Transform array of string tags into array of their ids
+	 *
+	 * @param string[] $tags
+	 *
+	 * @return int[]
+	 */
+	protected function prepare_tags ($tags) {
+		return Tags::instance()->add($tags) ?: [];
 	}
 	/**
 	 * @param string   $content
@@ -398,95 +377,21 @@ class Posts {
 			return false;
 		}
 		$sections = array_intersect(
-			array_keys(Sections::instance()->get_list()),
+			array_column(Sections::instance()->get_all(), 'id'),
 			$sections
 		);
-		return
-			$sections && count($sections) <= Config::instance()->module('Blogs')->max_sections;
+		$sections = array_values($sections);
+		return $sections && count($sections) <= Config::instance()->module('Blogs')->max_sections;
 	}
 	/**
-	 * @param int      $id
-	 * @param int[]    $sections
-	 * @param string[] $tags
+	 * @param int $id
 	 */
-	protected function final_updates_and_cache_cleanups ($id, $sections, $tags) {
-		$this->update_sections($id, $sections);
-		$this->update_tags($id, $tags);
+	protected function cache_cleanups ($id) {
 		$Cache = $this->cache;
 		unset(
 			$Cache->{"posts/$id"},
 			$Cache->sections,
 			$Cache->total_count
-		);
-	}
-	/**
-	 * Remove existing sections and set as specified
-	 *
-	 * @param int   $id
-	 * @param int[] $sections Empty array to just remove all existing sections
-	 */
-	protected function update_sections ($id, $sections = []) {
-		$this->db_prime()->q(
-			"DELETE FROM `$this->table_sections`
-			WHERE `id` = %d",
-			$id
-		);
-		if (!$sections) {
-			return;
-		}
-		$id = (int)$id;
-		$this->db_prime()->insert(
-			"INSERT INTO `$this->table_sections`
-				(
-					`id`,
-					`section`
-				) VALUES (
-					$id,
-					%d
-				)",
-			array_unique($sections),
-			true
-		);
-	}
-	/**
-	 * Remove existing tags and set as specified
-	 *
-	 * @param int      $id
-	 * @param string[] $tags Empty array to just remove all existing tags
-	 */
-	protected function update_tags ($id, $tags = []) {
-		if (!$tags) {
-			$this->db_prime()->q(
-				"DELETE FROM `$this->table_tags`
-				WHERE
-					`id` = %d",
-				$id
-			);
-			return;
-		}
-		$L = Language::instance();
-		$this->db_prime()->q(
-			"DELETE FROM `$this->table_tags`
-			WHERE
-				`id`	= %d AND
-				`lang`	= '%s'",
-			$id,
-			$L->clang
-		);
-		$id = (int)$id;
-		$this->db_prime()->insert(
-			"INSERT INTO `$this->table_tags`
-				(
-					`id`,
-					`tag`,
-					`lang`
-				) VALUES (
-					$id,
-					%d,
-					'$L->clang'
-				)",
-			Tags::instance()->add($tags),
-			true
 		);
 	}
 	/**
@@ -508,19 +413,17 @@ class Posts {
 		}
 		$old_data = $this->get($id);
 		$result   = $this->update(
-			[
-				$id,
-				$old_data['user'],
-				$old_data['draft'] == 1 && $old_data['date'] == 0 && !$draft ? time() : $old_data['date'],
-				$title,
-				path($path ?: $title),
-				$content,
-				(int)(bool)$draft
-			]
+			$id,
+			$old_data['user'],
+			$old_data['draft'] == 1 && $old_data['date'] == 0 && !$draft ? time() : $old_data['date'],
+			$title,
+			path($path ?: $title),
+			$content,
+			$draft,
+			$sections,
+			$this->prepare_tags($tags)
 		);
-		if ($result) {
-			$this->final_updates_and_cache_cleanups($id, $sections, $tags);
-		}
+		$this->cache_cleanups($id);
 		return $result;
 	}
 	/**
@@ -534,20 +437,14 @@ class Posts {
 		$id     = (int)$id;
 		$result = $this->delete($id);
 		if ($result) {
-			$Comments = null;
 			Event::instance()->fire(
-				'Comments/instance',
+				'Comments/deleted',
 				[
-					'Comments' => &$Comments
+					'module' => 'Blogs',
+					'item'   => $id
 				]
 			);
-			/**
-			 * @var \cs\modules\Comments\Comments $Comments
-			 */
-			if ($Comments) {
-				$Comments->del_all($id);
-			}
-			$this->final_updates_and_cache_cleanups($id, [], []);
+			$this->cache_cleanups($id);
 		}
 		return $result;
 	}
@@ -560,11 +457,11 @@ class Posts {
 		return $this->cache->get(
 			'total_count',
 			function () {
-				return $this->db()->qfs(
-					"SELECT COUNT(`id`)
-					FROM `$this->table`
-					WHERE `draft` = 0"
-				);
+				$search_parameters = [
+					'draft'       => 0,
+					'total_count' => true
+				];
+				return $this->search($search_parameters);
 			}
 		);
 	}
