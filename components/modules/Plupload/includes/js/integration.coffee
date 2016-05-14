@@ -1,10 +1,9 @@
 ###*
- * @package		Plupload
- * @category	modules
- * @author		Moxiecode Systems AB
- * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com> (integration into CleverStyle CMS)
- * @copyright	Moxiecode Systems AB
- * @license		GNU GPL v2, see license.txt
+ * @package   Plupload
+ * @category  modules
+ * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
+ * @copyright Copyright (c) 2013-2016, Nazar Mokrynskyi
+ * @license   GNU GPL v2, see license.txt
  ###
 ###*
  * Files uploading interface
@@ -49,7 +48,7 @@ cs.file_upload	= (button, success, error, progress, multi, drop_element) ->
 					files.push(response.result)
 				else
 					if error
-						error response.error
+						error response.error.message
 					else
 						alert response.error.message
 		)

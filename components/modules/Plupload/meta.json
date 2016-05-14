@@ -1,8 +1,8 @@
 {
 	"package"         : "Plupload",
 	"category"        : "modules",
-	"version"         : "2.1.4-cs6",
-	"description"     : "Integration of Plupload into CleverStyle CMS for files uploading, adds files uploading functionality to other modules",
+	"version"         : "2.1.4-cs18",
+	"description"     : "DEPRECATED, Integration of Plupload into CleverStyle CMS for files uploading, adds files uploading functionality to other modules",
 	"author"          : "Moxiecode Systems AB",
 	"website"         : "www.plupload.com",
 	"license"         : "GNU GPL v2",
@@ -20,8 +20,8 @@
 	],
 	"provide"         : "file_upload",
 	"require"         : [
-		"System>=2.119",
-		"System<=3.0"
+		"System>=3.145",
+		"System<4.0"
 	],
 	"multilingual"    : [
 		"interface"
