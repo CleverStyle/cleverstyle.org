@@ -1,9 +1,9 @@
 /**
- * @package		Static Pages
- * @category	modules
- * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2015, Nazar Mokrynskyi
- * @license		MIT License, see license.txt
+ * @package   Static Pages
+ * @category  modules
+ * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
+ * @copyright Copyright (c) 2011-2016, Nazar Mokrynskyi
+ * @license   MIT License, see license.txt
  */
 .cs-static-pages- {
 	&-padding-left- {
@@ -41,10 +41,10 @@
 		float : right;
 	}
 
-	&page-form cs-table-cell {
-		.INLINE_EDITOR,
+	&page-form td {
+		cs-editor-inline,
 		[contenteditable=true] {
-			outline : #333333 dotted 1px
+			outline : #333 dotted 1px
 		}
 	}
 }

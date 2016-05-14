@@ -3,7 +3,7 @@
  * @package   Static Pages
  * @category  modules
  * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright Copyright (c) 2011-2015, Nazar Mokrynskyi
+ * @copyright Copyright (c) 2011-2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
  */
 namespace cs\modules\Static_pages;
@@ -171,12 +171,10 @@ class Pages {
 				WHERE `category` = '%s'",
 				$parent
 			]
-		);
+		) ?: [];
 		$structure['pages'] = [];
-		if (!empty($pages)) {
-			foreach ($pages as $id) {
-				$structure['pages'][$this->get($id)['path']] = $id;
-			}
+		foreach ($pages as $id) {
+			$structure['pages'][$this->get($id)['path']] = $id;
 		}
 		unset($pages);
 		$categories              = $this->db()->qfa(
@@ -188,7 +186,7 @@ class Pages {
 				WHERE `parent` = '%s'",
 				$parent
 			]
-		);
+		) ?: [];
 		$structure['categories'] = [];
 		foreach ($categories as $category) {
 			$structure['categories'][$category['path']] = $this->get_structure_internal($category['id']);

@@ -3,7 +3,7 @@
  * @package   Static Pages
  * @category  modules
  * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright Copyright (c) 2011-2015, Nazar Mokrynskyi
+ * @copyright Copyright (c) 2011-2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
  */
 namespace cs\modules\Static_pages;
@@ -31,7 +31,7 @@ function get_categories_rows ($structure = null, $level = 0, $parent_categories 
 					h::{'b.cs-static-pages-count'}(
 						count($structure['pages']),
 						[
-							'data-title' => $L->pages_in_category
+							'tooltip' => $L->pages_in_category
 						]
 					),
 					[
@@ -42,38 +42,33 @@ function get_categories_rows ($structure = null, $level = 0, $parent_categories 
 					'class' => "cs-static-pages-padding-left-$level"
 				]
 			],
-			h::{'a.uk-button.cs-button-compact'}(
+			h::{'a[is=cs-link-button][icon=plus]'}(
 				[
-					h::icon('plus'),
-					[
-						'href'       => "admin/Static_pages/add_category/$structure[id]",
-						'data-title' => $L->add_subcategory
-					]
-				],
-				[
-					h::icon('file-text'),
-					[
-						'href'       => "admin/Static_pages/add_page/$structure[id]",
-						'data-title' => $L->add_page
-					]
+					'href'    => "admin/Static_pages/add_category/$structure[id]",
+					'tooltip' => $L->add_subcategory
 				]
 			).
-			(!$root ? h::{'a.uk-button.cs-button-compact'}(
+			h::{'a[is=cs-link-button][icon=file-text]'}(
 				[
-					h::icon('pencil'),
-					[
-						'href'       => "admin/Static_pages/edit_category/$structure[id]",
-						'data-title' => $L->edit
-					]
-				],
-				[
-					h::icon('trash-o'),
-					[
-						'href'       => "admin/Static_pages/delete_category/$structure[id]",
-						'data-title' => $L->delete
-					]
+					'href'    => "admin/Static_pages/add_page/$structure[id]",
+					'tooltip' => $L->add_page
 				]
-			) : false)
+			).
+			(!$root ?
+				h::{'a[is=cs-link-button][icon=pencil]'}(
+					[
+						'href'    => "admin/Static_pages/edit_category/$structure[id]",
+						'tooltip' => $L->edit
+					]
+				).
+				h::{'a[is=cs-link-button][icon=trash]'}(
+					[
+						'href'    => "admin/Static_pages/delete_category/$structure[id]",
+						'tooltip' => $L->delete
+					]
+				)
+				: false
+			)
 		]
 	];
 	if (!empty($structure['categories'])) {
@@ -81,7 +76,7 @@ function get_categories_rows ($structure = null, $level = 0, $parent_categories 
 			$content = array_merge($content, get_categories_rows($category, $level + 1, $parent_categories));
 		}
 	}
-	return [$content];
+	return $content;
 }
 
 function get_categories_list ($current = null, $structure = null, $level = 0) {
@@ -144,25 +139,21 @@ function get_pages_rows () {
 						'class' => 'cs-static-pages-padding-left-0'
 					]
 				],
-				h::{'a.uk-button.cs-button-compact'}(
+				h::{'a[is=cs-link-button][icon=file-text]'}(
 					[
-						h::icon('file-text'),
-						[
-							'href'       => "admin/Static_pages/edit_page/$page[id]",
-							'data-title' => $L->edit
-						]
-					],
+						'href'    => "admin/Static_pages/edit_page/$page[id]",
+						'tooltip' => $L->edit
+					]
+				).
+				h::{'a[is=cs-link-button][icon=trash]'}(
 					[
-						h::icon('trash-o'),
-						[
-							'href'       => "admin/Static_pages/delete_page/$page[id]",
-							'data-title' => $L->delete
-						]
+						'href'    => "admin/Static_pages/delete_page/$page[id]",
+						'tooltip' => $L->delete
 					]
 				)
 			];
 		}
 		unset($page);
 	}
-	return [$content];
+	return $content;
 }

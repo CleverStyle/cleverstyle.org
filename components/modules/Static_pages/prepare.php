@@ -3,37 +3,44 @@
  * @package   Static Pages
  * @category  modules
  * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright Copyright (c) 2011-2015, Nazar Mokrynskyi
+ * @copyright Copyright (c) 2011-2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
  */
 namespace cs\modules\Static_pages;
 use
 	h,
 	cs\Config,
-	cs\Index,
+	cs\ExitException,
 	cs\Language,
 	cs\Page\Meta,
 	cs\Page,
 	cs\Route,
 	cs\User;
+
 $Config     = Config::instance();
-$Index      = Index::instance();
 $L          = Language::instance();
 $Pages      = Pages::instance();
 $Categories = Categories::instance();
-$page       = $Pages->get(
-	home_page() ? $Pages->get_structure()['pages']['index'] : Route::instance()->route[0]
-);
-$Page       = Page::instance();
-$User       = User::instance();
+if (home_page()) {
+	$page = $Pages->get($Pages->get_structure()['pages']['index']);
+} else {
+	$Route = Route::instance();
+	if (!isset($Route->route[0])) {
+		throw new ExitException(404);
+	}
+	$page = $Pages->get($Route->route[0]);
+}
+$Page = Page::instance();
+$User = User::instance();
 if (isset($_POST['save'])) {
 	if (!$User->get_permission('admin/Pages', 'edit_page')) {
-		error_code(403);
-		return;
+		throw new ExitException(403);
 	}
-	$Index->save(
-		$Pages->set($page['id'], $page['category'], $_POST['title'], $page['path'], $_POST['content'], $page['interface'])
-	);
+	if ($Pages->set($page['id'], $page['category'], $_POST['title'], $page['path'], $_POST['content'], $page['interface'])) {
+		$Page->success($L->changes_saved);
+	} else {
+		$Page->warning($L->changes_save_error);
+	}
 	$page = $Pages->get($page['id']);
 }
 if ($page['interface']) {
@@ -66,66 +73,64 @@ if ($page['interface']) {
 	$is_admin = $User->admin();
 	if (isset($_GET['edit'])) {
 		if (!$is_admin) {
-			error_code(404);
-			return;
+			throw new ExitException(404);
 		}
-		$Index->form    = true;
-		$Index->buttons = false;
-		$Index->action  = $canonical_url;
-		$Index->content(
-			h::{'h2.cs-center'}(
-				$L->editing_of_page($page['title'])
-			).
-			h::{'cs-table.cs-static-pages-page-form[right-left] cs-table-row| cs-table-cell'}(
-				[
-					$L->page_title,
-					h::{'h1.cs-static-pages-page-title[contenteditable=true]'}(
-						$page['title']
-					)
-				],
-				[
-					$L->page_content,
-					(functionality('inline_editor')
-						? h::{'div.cs-static-pages-page-content.INLINE_EDITOR'}(
-							$page['content']
-						)
-						: h::{'textarea.cs-static-pages-page-content.EDITOR[name=content][required]'}(
-							$page['content']
-						)
-					)
-				]
-			).
-			h::{'p.cs-center'}(
-				h::{'button.uk-button.cs-static-pages-page-save[type=submit][name=save]'}(
-					$L->save
+		$Page->content(
+			h::{'form[is=cs-form]'}(
+				h::{'h2.cs-text-center'}(
+					$L->editing_of_page($page['title'])
 				).
-				h::{'button.uk-button'}(
-					$L->cancel,
+				h::{'table.cs-table.cs-static-pages-page-form[right-left] tr| td'}(
 					[
-						'onclick' => 'history.go(-1);'
+						$L->page_title,
+						h::{'h1.cs-static-pages-page-title[contenteditable=true]'}(
+							$page['title']
+						)
+					],
+					[
+						$L->page_content,
+						(functionality('inline_editor')
+							? h::{'cs-editor-inline div.cs-static-pages-page-content'}(
+								$page['content']
+							)
+							: h::{'cs-editor textarea.cs-static-pages-page-content[is=cs-textarea][autosize]name=content][required]'}(
+								$page['content']
+							)
+						)
 					]
-				)
+				).
+				h::{'p.cs-text-center'}(
+					h::{'button.cs-static-pages-page-save[is=cs-button][type=submit][name=save]'}(
+						$L->save
+					).
+					h::{'button[is=cs-button]'}(
+						$L->cancel,
+						[
+							'onclick' => 'history.go(-1);'
+						]
+					)
+				),
+				[
+					'action' => $canonical_url
+				]
 			)
 		);
 	} else {
 		$Page->content(
 			h::p(
-				$is_admin ? h::{'a.uk-button'}(
-					[
-						h::icon('pencil'),
+				$is_admin ?
+					h::{'a[is=cs-link-button][icon=pencil]'}(
 						[
-							'href'       => "$canonical_url?edit",
-							'data-title' => $L->edit
+							'href'    => "$canonical_url?edit",
+							'tooltip' => $L->edit
 						]
-					],
-					[
-						h::icon('trash-o'),
+					).
+					h::{'a[is=cs-link-button][icon=trash]'}(
 						[
-							'href'       => "admin/Pages/delete_page/$page[id]",
-							'data-title' => $L->delete
+							'href'    => "admin/Pages/delete_page/$page[id]",
+							'tooltip' => $L->delete
 						]
-					]
-				) : false
+					) : false
 			).
 			h::section($page['content'])
 		);

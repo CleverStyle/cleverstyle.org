@@ -3,7 +3,7 @@
  * @package   Static Pages
  * @category  modules
  * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright Copyright (c) 2011-2015, Nazar Mokrynskyi
+ * @copyright Copyright (c) 2011-2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
  */
 namespace cs\modules\Static_pages;
@@ -16,7 +16,7 @@ Event::instance()
 		function ($data) {
 			if (
 				substr($data['rc'], 0, 5) != 'admin' &&
-				!Config::instance()->module('Static_pages')->active()
+				!Config::instance()->module('Static_pages')->enabled()
 			) {
 				return;
 			}
@@ -48,13 +48,8 @@ Event::instance()
 	->on(
 		'System/Index/construct',
 		function () {
-			if (!admin_path()) {
-				return;
-			}
-			switch (Config::instance()->components['modules']['Static_pages']['active']) {
-				case 0:
-				case 1:
-					require __DIR__.'/events/installed.php';
+			if (Config::instance()->module('Static_pages')->installed()) {
+				require __DIR__.'/events/installed.php';
 			}
 		}
 	);
