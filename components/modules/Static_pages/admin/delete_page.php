@@ -9,12 +9,12 @@
 namespace cs\modules\Static_pages;
 use
 	h,
-	cs\Language,
+	cs\Language\Prefix,
 	cs\Page,
-	cs\Route;
+	cs\Request;
 
-$L     = Language::instance();
-$id    = (int)Route::instance()->route[1];
+$L     = new Prefix('static_pages_');
+$id    = (int)Request::instance()->route[1];
 $title = Pages::instance()->get($id)['title'];
 Page::instance()
 	->title($L->deletion_of_page($title))

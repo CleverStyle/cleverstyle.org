@@ -15,7 +15,7 @@ use
 	cs\Language;
 
 /**
- * @method static Pages instance($check = false)
+ * @method static $this instance($check = false)
  */
 class Pages {
 	use

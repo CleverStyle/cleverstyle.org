@@ -9,12 +9,12 @@
 namespace cs\modules\Static_pages;
 use
 	h,
-	cs\Language,
-	cs\Route,
+	cs\Language\Prefix,
+	cs\Request,
 	cs\Page;
 
-$L  = Language::instance();
-$rc = Route::instance()->route;
+$L  = new Prefix('static_pages_');
+$rc = Request::instance()->route;
 Page::instance()->content(
 	h::{'table.cs-table[list]'}(
 		h::{'tr th'}(

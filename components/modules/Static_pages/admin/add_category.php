@@ -9,12 +9,12 @@
 namespace cs\modules\Static_pages;
 use
 	h,
-	cs\Language,
+	cs\Language\Prefix,
 	cs\Page,
-	cs\Route;
+	cs\Request;
 
-$L     = Language::instance();
-$Route = Route::instance();
+$L       = new Prefix('static_pages_');
+$Request = Request::instance();
 Page::instance()
 	->title($L->addition_of_page_category)
 	->content(
@@ -24,12 +24,12 @@ Page::instance()
 			h::{'select[is=cs-select][name=parent][size=5]'}(
 				get_categories_list(),
 				[
-					'selected' => isset($Route->route[1]) ? (int)$Route->route[1] : 0
+					'selected' => isset($Request->route[1]) ? (int)$Request->route[1] : 0
 				]
 			).
 			h::label($L->category_title).
 			h::{'input[is=cs-input-text][name=title]'}().
-			h::{'label info'}('category_path').
+			h::{'label info'}('static_pages_category_path').
 			h::{'input[is=cs-input-text][name=path]'}().
 			h::p(
 				h::{'button[is=cs-button][type=submit][name=mode][value=add_category]'}(

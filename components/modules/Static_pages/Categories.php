@@ -14,7 +14,7 @@ use
 	cs\Config;
 
 /**
- * @method static Categories instance($check = false)
+ * @method static $this instance($check = false)
  */
 class Categories {
 	use

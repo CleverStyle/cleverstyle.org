@@ -11,24 +11,24 @@ use
 	h,
 	cs\Config,
 	cs\ExitException,
-	cs\Language,
+	cs\Language\Prefix,
 	cs\Page\Meta,
 	cs\Page,
-	cs\Route,
+	cs\Request,
 	cs\User;
 
 $Config     = Config::instance();
-$L          = Language::instance();
+$L          = new Prefix('static_pages_');
+$Request    = Request::instance();
 $Pages      = Pages::instance();
 $Categories = Categories::instance();
-if (home_page()) {
+if ($Request->home_page) {
 	$page = $Pages->get($Pages->get_structure()['pages']['index']);
 } else {
-	$Route = Route::instance();
-	if (!isset($Route->route[0])) {
+	if (!isset($Request->route[0])) {
 		throw new ExitException(404);
 	}
-	$page = $Pages->get($Route->route[0]);
+	$page = $Pages->get($Request->route[0]);
 }
 $Page = Page::instance();
 $User = User::instance();
@@ -44,7 +44,7 @@ if (isset($_POST['save'])) {
 	$page = $Pages->get($page['id']);
 }
 if ($page['interface']) {
-	if (!home_page()) {
+	if (!$Request->home_page) {
 		$Page->Title[1] = $page['title'];
 	}
 	$Page->Description = description($page['content']);
@@ -55,7 +55,7 @@ if ($page['interface']) {
 	}
 	unset($images);
 	$canonical_url = $Config->base_url();
-	if (home_page()) {
+	if ($Request->home_page) {
 		$Page->canonical_url($canonical_url);
 	} else {
 		$category      = $page['category'];
@@ -136,6 +136,6 @@ if ($page['interface']) {
 		);
 	}
 } else {
-	interface_off();
-	$Page->Content = $page['content'];
+	$Page->interface = false;
+	$Page->Content   = $page['content'];
 }
