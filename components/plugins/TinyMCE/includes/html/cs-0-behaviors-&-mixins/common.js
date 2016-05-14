@@ -14,11 +14,15 @@
     },
     properties: {
       value: {
+        notify: true,
         observer: '_value_changed',
         type: String
       }
     },
-    attached: function(){
+    ready: function(){
+      cs.ui.ready.then(bind$(this, '_initialize_editor'));
+    },
+    _initialize_editor: function(){
       var this$ = this;
       if (this._init_started) {
         return;
@@ -48,6 +52,7 @@
           editor.on('remove', function(){
             target.focus = target._original_focus;
           });
+          this$._editor_change_callback_init(editor);
         }
       }, this.editor_config));
     },
@@ -70,18 +75,33 @@
         this$.scopeSubtree(node, true);
       });
     },
+    _editor_change_callback_init: function(editor){
+      var this$ = this;
+      editor.once('change', function(){
+        this$._editor_change_callback(editor);
+      });
+    },
+    _editor_change_callback: function(editor){
+      var event;
+      editor.save();
+      this.value = editor.getContent();
+      event = document.createEvent('Event');
+      event.initEvent('change', false, true);
+      editor.getElement().dispatchEvent(event);
+      this._editor_change_callback_init(editor);
+    },
     _value_changed: function(){
       if (this._tinymce_editor && this.value !== this._tinymce_editor.getContent()) {
-        this._tinymce_editor.setContent(this.value);
+        this._tinymce_editor.setContent(this.value || '');
         this._tinymce_editor.save();
       }
     }
   };
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
   function importAll$(obj, src){
     for (var key in src) obj[key] = src[key];
     return obj;
-  }
-  function bind$(obj, key, target){
-    return function(){ return (target || obj)[key].apply(obj, arguments) };
   }
 }).call(this);

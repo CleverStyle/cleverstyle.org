@@ -10,9 +10,13 @@ Polymer.cs.behaviors.{}TinyMCE.editor =
 		tap	: '_style_fix'
 	properties	:
 		value	:
+			notify		: true
 			observer	: '_value_changed'
 			type		: String
-	attached : !->
+	ready : !->
+		# Hack: we need to wait until all Web Components are loaded
+		cs.ui.ready.then(@~_initialize_editor)
+	_initialize_editor : !->
 		# TinyMCE takes some time to initialize, if we'll re-attach it right from start we might end up with two instances instead of one, so lets check if
 		# initialization already started
 		if @_init_started
@@ -44,6 +48,7 @@ Polymer.cs.behaviors.{}TinyMCE.editor =
 					editor.on('remove', !->
 						target.focus = target._original_focus
 					)
+					@_editor_change_callback_init(editor)
 			} <<<< @editor_config
 		)
 	detached : !->
@@ -63,7 +68,18 @@ Polymer.cs.behaviors.{}TinyMCE.editor =
 			(node) !~>
 				@scopeSubtree(node, true)
 		)
+	_editor_change_callback_init : (editor) !->
+		editor.once('change', !~>
+			@_editor_change_callback(editor)
+		)
+	_editor_change_callback : (editor) !->
+		editor.save()
+		@value	= editor.getContent()
+		event	= document.createEvent('Event')
+		event.initEvent('change', false, true)
+		editor.getElement().dispatchEvent(event)
+		@_editor_change_callback_init(editor)
 	_value_changed : !->
 		if @_tinymce_editor && @value != @_tinymce_editor.getContent()
-			@_tinymce_editor.setContent(@value)
+			@_tinymce_editor.setContent(@value || '')
 			@_tinymce_editor.save()

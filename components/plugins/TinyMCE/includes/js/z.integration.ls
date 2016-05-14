@@ -7,8 +7,9 @@
  */
 tinymce.baseURL		= '/components/plugins/TinyMCE/includes/js'
 uploader_callback	= undefined
-uploader			= cs.file_upload && cs.file_upload(
-	null
+button				= document.createElement('button')
+uploader			= cs.file_upload?(
+	button
 	(files) !->
 		tinymce.uploader_dialog.close()
 		if files.length
@@ -21,7 +22,7 @@ uploader			= cs.file_upload && cs.file_upload(
 		if !tinymce.uploader_dialog
 			progress								= document.createElement('progress', 'cs-progress')
 			tinymce.uploader_dialog					= cs.ui.modal(progress)
-			tinymce.uploader_dsialog.progress		= progress
+			tinymce.uploader_dialog.progress		= progress
 			tinymce.uploader_dialog.style.zIndex	= 100000
 			tinymce.uploader_dialog.open()
 		tinymce.uploader_dialog.progress.value = file.percent || 1
@@ -42,14 +43,7 @@ base_config =
 	table_style_by_css		: true
 	file_picker_callback	: uploader && (callback) !->
 		uploader_callback := callback
-		uploader.browse()
-	setup					: (editor) !->
-		editor.on('change', !->
-			editor.save()
-			event = document.createEvent('Event')
-			event.initEvent('change', false, true)
-			editor.getElement().dispatchEvent(event)
-		)
+		button.click()
 tinymce
 	..editor_config_full = {
 		toolbar1 : 'styleselect fontselect fontsizeselect | alignleft aligncenter alignright alignjustify | bold italic underline strikethrough superscript subscript | forecolor backcolor | fullscreen',
