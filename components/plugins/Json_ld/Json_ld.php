@@ -3,13 +3,12 @@
  * @package   Json_ld
  * @category  plugins
  * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright Copyright (c) 2015, Nazar Mokrynskyi
+ * @copyright Copyright (c) 2015-2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
  */
 
 namespace cs\plugins\Json_ld;
 use
-	cs\Config,
 	cs\User;
 
 /**
@@ -48,15 +47,11 @@ class Json_ld {
 	 * @return string[]
 	 */
 	static function Person ($user_id) {
-		$Config    = Config::instance();
 		$user_data = new User\Properties($user_id);
-		$url       = $Config->core_url()."/profile/$user_data->login";
 		return [
 			'@context' => self::SCHEMA_ORG,
-			'@id'      => $url,
 			'@type'    => 'Person',
 			'name'     => $user_data->username(),
-			'url'      => $url,
 			'image'    => $user_data->avatar()
 		];
 	}
