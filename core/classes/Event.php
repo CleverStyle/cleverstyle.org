@@ -22,12 +22,11 @@ class Event {
 	 */
 	protected $callbacks;
 	/**
-	 * @var bool
+	 * @var callable[][]
 	 */
-	protected $initialized;
+	protected $callbacks_cache;
 	protected function init () {
-		$this->callbacks   = [];
-		$this->initialized = false;
+		$this->callbacks = [];
 	}
 	/**
 	 * Add event handler
@@ -80,9 +79,9 @@ class Event {
 		if (!$event || !is_callable($callback)) {
 			return $this;
 		}
-		$wrapped_callback = function () use (&$wrapped_callback, $event, $callback) {
+		$wrapped_callback = function (...$arguments) use (&$wrapped_callback, $event, $callback) {
 			$this->off($event, $wrapped_callback);
-			call_user_func_array($callback, func_get_args());
+			$callback(...$arguments);
 		};
 		return $this->on($event, $wrapped_callback);
 	}
@@ -91,59 +90,60 @@ class Event {
 	 *
 	 * After event name it is possible to specify as many arguments as needed
 	 *
-	 * @param string $event For example `admin/System/components/plugins/disable`
-	 * @param mixed  $param1
-	 * @param mixed  $_
+	 * @param string  $event For example `admin/System/components/plugins/disable`
+	 * @param mixed[] $arguments
 	 *
 	 * @return bool
 	 */
-	function fire ($event, $param1 = null, $_ = null) {
-		if (!$this->initialized) {
-			$this->initialize();
-		}
+	function fire ($event, ...$arguments) {
+		$this->ensure_events_registered();
 		if (
 			!$event ||
 			!isset($this->callbacks[$event])
 		) {
 			return true;
 		}
-		$arguments = array_slice(func_get_args(), 1);
 		foreach ($this->callbacks[$event] as $callback) {
-			if (call_user_func_array($callback, $arguments) === false) {
+			if ($callback(...$arguments) === false) {
 				return false;
 			}
 		}
 		return true;
 	}
 	/**
+	 * Before firing events we need to ensure that events callbacks were registered
+	 */
+	protected function ensure_events_registered () {
+		if (!$this->callbacks_cache) {
+			$this->register_events();
+			$this->callbacks_cache = $this->callbacks;
+		} elseif (!$this->callbacks) {
+			$this->callbacks = $this->callbacks_cache;
+		}
+	}
+	/**
 	 * Initialize all events handlers
 	 */
-	protected function initialize () {
+	protected function register_events () {
 		foreach ($this->events_files_paths() as $path) {
 			include DIR."/$path";
 		}
-		$this->initialized = true;
 	}
 	/**
 	 * @return string[]
 	 */
 	protected function events_files_paths () {
-		return Cache::instance()->get(
-			'events_files_paths',
-			function () {
-				$paths = [];
-				foreach (get_files_list(MODULES, false, 'd', 'components/modules') as $path) {
-					if (file_exists(DIR."/$path/events.php")) {
-						$paths[] = "$path/events.php";
-					}
-				}
-				foreach (get_files_list(PLUGINS, false, 'd', 'components/plugins') as $path) {
-					if (file_exists(DIR."/$path/events.php")) {
-						$paths[] = "$path/events.php";
-					}
-				}
-				return $paths;
+		$paths = [];
+		foreach (get_files_list(MODULES, false, 'd', 'components/modules') as $path) {
+			if (file_exists(DIR."/$path/events.php")) {
+				$paths[] = "$path/events.php";
 			}
-		);
+		}
+		foreach (get_files_list(PLUGINS, false, 'd', 'components/plugins') as $path) {
+			if (file_exists(DIR."/$path/events.php")) {
+				$paths[] = "$path/events.php";
+			}
+		}
+		return $paths;
 	}
 }

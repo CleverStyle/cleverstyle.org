@@ -6,9 +6,6 @@
  * @license   MIT License, see license.txt
  */
 namespace cs;
-use
-	cs\Cache\Prefix,
-	cs\DB\Accessor;
 
 /**
  * Class for permissions manipulating
@@ -17,15 +14,22 @@ use
  */
 class Permission {
 	use
-		Accessor,
+		CRUD_helpers,
 		Singleton;
+
+	protected $data_model = [
+		'id'    => 'int:0',
+		'group' => 'text',
+		'label' => 'text'
+	];
+	protected $table      = '[prefix]permissions';
 	/**
 	 * Array of all permissions for quick selecting
 	 * @var array
 	 */
 	protected $permissions_table = [];
 	/**
-	 * @var Prefix
+	 * @var Cache\Prefix
 	 */
 	protected $cache;
 	/**
@@ -37,7 +41,7 @@ class Permission {
 		return Config::instance()->module('System')->db('users');
 	}
 	protected function construct () {
-		$this->cache = new Prefix('permissions');
+		$this->cache = Cache::prefix('permissions');
 	}
 	/**
 	 * Get permission data<br>
@@ -46,66 +50,26 @@ class Permission {
 	 * @param int|null    $id
 	 * @param null|string $group
 	 * @param null|string $label
-	 * @param string      $condition and|or
 	 *
 	 * @return array|false If only <b>$id</b> specified - result is array of permission data, in other cases result will be array of arrays of corresponding
 	 *                     permissions data
 	 */
-	function get ($id = null, $group = null, $label = null, $condition = 'and') {
-		$condition = $condition == 'or' ? 'OR' : 'AND';
-		if ($group !== null && $label !== null) {
-			return $this->db()->qfa(
-				[
-					"SELECT
-						`id`,
-						`label`,
-						`group`
-					FROM `[prefix]permissions`
-					WHERE
-						`group` = '%s' $condition
-						`label` = '%s'",
-					$group,
-					$label
-				]
-			) ?: [];
-		} /** @noinspection NotOptimalIfConditionsInspection */ elseif ($group !== null) {
-			return $this->db()->qfa(
-				[
-					"SELECT
-						`id`,
-						`label`,
-						`group`
-					FROM `[prefix]permissions`
-					WHERE `group` = '%s'",
-					$group
-				]
-			) ?: [];
-		} /** @noinspection NotOptimalIfConditionsInspection */ elseif ($label !== null) {
-			return $this->db()->qfa(
-				[
-					"SELECT
-						`id`,
-						`label`,
-						`group`
-					FROM `[prefix]permissions`
-					WHERE `label` = '%s'",
-					$label
-				]
-			) ?: [];
+	function get ($id = null, $group = null, $label = null) {
+		if ($group !== null || $label !== null) {
+			return $this->read(
+				$this->search(
+					[
+						'group' => $group,
+						'label' => $label
+					],
+					1,
+					PHP_INT_MAX,
+					'id',
+					true
+				) ?: []
+			);
 		} else {
-			$id = (int)$id;
-			if (!$id) {
-				return false;
-			}
-			return $this->db()->qf(
-				"SELECT
-					`id`,
-					`label`,
-					`group`
-				FROM `[prefix]permissions`
-				WHERE `id` = '$id'
-				LIMIT 1"
-			) ?: false;
+			return $this->read($id);
 		}
 	}
 	/**
@@ -117,23 +81,11 @@ class Permission {
 	 * @return false|int Group id or <b>false</b> on failure
 	 */
 	function add ($group, $label) {
-		if ($this->db_prime()->q(
-			"INSERT INTO `[prefix]permissions`
-				(
-					`label`,
-					`group`
-				) VALUES (
-					'%s',
-					'%s'
-				)",
-			xap($label),
-			xap($group)
-		)
-		) {
+		$id = $this->create($group, $label);
+		if ($id) {
 			$this->del_all_cache();
-			return $this->db_prime()->id();
 		}
-		return false;
+		return $id;
 	}
 	/**
 	 * Set permission
@@ -145,26 +97,11 @@ class Permission {
 	 * @return bool
 	 */
 	function set ($id, $group, $label) {
-		$id = (int)$id;
-		if (!$id) {
-			return false;
-		}
-		if ($this->db_prime()->q(
-			"UPDATE `[prefix]permissions`
-			SET
-				`label` = '%s',
-				`group` = '%s'
-			WHERE `id` = '$id'
-			LIMIT 1",
-			xap($label),
-			xap($group)
-		)
-		) {
+		$result = $this->update($id, $group, $label);
+		if ($result) {
 			$this->del_all_cache();
-			return true;
-		} else {
-			return false;
 		}
+		return $result;
 	}
 	/**
 	 * Deletion of permission or array of permissions
@@ -203,26 +140,19 @@ class Permission {
 	/**
 	 * Returns array of all permissions grouped by permissions groups
 	 *
-	 * @return array    Format of array: ['group']['label'] = <i>permission_id</i>
+	 * @return array Format of array: ['group']['label'] = <i>permission_id</i>
 	 */
 	function get_all () {
 		if (empty($this->permissions_table)) {
 			$this->permissions_table = $this->cache->get(
 				'all',
 				function () {
-					$data = $this->db()->qfa(
-						'SELECT
-							`id`,
-							`label`,
-							`group`
-						FROM `[prefix]permissions`'
+					$data            = $this->read(
+						$this->search([], 1, PHP_INT_MAX, 'id', true) ?: []
 					);
-					if (!is_array($data)) {
-						return [];
-					}
 					$all_permissions = [];
 					foreach ($data as $item) {
-						$all_permissions[$item['group']][$item['label']] = (int)$item['id'];
+						$all_permissions[$item['group']][$item['label']] = $item['id'];
 					}
 					return $all_permissions;
 				}

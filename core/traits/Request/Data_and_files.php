@@ -8,7 +8,8 @@
 namespace cs\Request;
 use
 	UnexpectedValueException,
-	cs\ExitException;
+	cs\ExitException,
+	nazarpc\Stream_slicer;
 
 trait Data_and_files {
 	/**
@@ -78,22 +79,40 @@ trait Data_and_files {
 	/**
 	 * Get data item by name
 	 *
-	 * @param string|string[] $name
+	 * @param string[]|string[][] $name
 	 *
-	 * @return false|mixed|mixed[] Data if exists or `false` otherwise (in case if `$name` is an array even one missing key will cause the whole thing to fail)
+	 * @return mixed|mixed[]|null Data items (or associative array of data items) if exists or `null` otherwise (in case if `$name` is an array even one
+	 *                             missing key will cause the whole thing to fail)
 	 */
-	function data ($name) {
+	function data (...$name) {
+		if (count($name) === 1) {
+			$name = $name[0];
+		}
+		/**
+		 * @var string|string[] $name
+		 */
 		if (is_array($name)) {
+			$result = [];
 			foreach ($name as &$n) {
-				if (!isset($this->data[$n])) {
-					return false;
+				if (!array_key_exists($n, $this->data)) {
+					return null;
 				}
-				$n = $this->data[$n];
+				$result[$n] = $this->data[$n];
 			}
-			return $name;
+			return $result;
 		}
 		/** @noinspection OffsetOperationsInspection */
-		return isset($this->data[$name]) ? $this->data[$name] : false;
+		return @$this->data[$name];
+	}
+	/**
+	 * Get file item by name
+	 *
+	 * @param string $name
+	 *
+	 * @return array|null File item if exists or `null` otherwise
+	 */
+	function files ($name) {
+		return @$this->files[$name];
 	}
 	/**
 	 * @param array[] $files
@@ -116,8 +135,8 @@ trait Data_and_files {
 						'name'     => $files['name'][$index],
 						'type'     => $files['type'][$index],
 						'size'     => $files['size'][$index],
-						'tmp_name' => @$files['tmp_name'][$index] ?: null,
-						'stream'   => @$files['stream'][$index] ?: null,
+						'tmp_name' => @$files['tmp_name'][$index],
+						'stream'   => @$files['stream'][$index],
 						'error'    => $files['error'][$index]
 					],
 					$file_path
@@ -275,9 +294,8 @@ trait Data_and_files {
 		$data  = [];
 		$files = [];
 		foreach ($parts as $part) {
-			fseek($stream, $part['headers']['offset']);
 			$headers = $this->parse_multipart_headers(
-				fread($stream, $part['headers']['size'])
+				stream_get_contents($stream, $part['headers']['size'], $part['headers']['offset'])
 			);
 			if (
 				!isset($headers['content-disposition'][0], $headers['content-disposition']['name']) ||
@@ -288,30 +306,29 @@ trait Data_and_files {
 			$name = $headers['content-disposition']['name'];
 			if (isset($headers['content-disposition']['filename'])) {
 				$file = [
-					'name'     => $headers['content-disposition']['filename'],
-					'type'     => @$headers['content-type'] ?: 'application/octet-stream',
-					'size'     => $part['body']['size'],
-					'tmp_name' => 'request-data://'.$part['body']['offset'].':'.$part['body']['size'],
-					'error'    => UPLOAD_ERR_OK
+					'name'   => $headers['content-disposition']['filename'],
+					'type'   => @$headers['content-type'] ?: 'application/octet-stream',
+					'size'   => $part['body']['size'],
+					'stream' => Stream_slicer::slice($stream, $part['body']['offset'], $part['body']['size']),
+					'error'  => UPLOAD_ERR_OK
 				];
 				if ($headers['content-disposition']['filename'] === '') {
-					$file['type']     = '';
-					$file['tmp_name'] = '';
-					$file['error']    = UPLOAD_ERR_NO_FILE;
+					$file['type']   = '';
+					$file['stream'] = null;
+					$file['error']  = UPLOAD_ERR_NO_FILE;
 				} elseif ($file['size'] > $this->upload_max_file_size()) {
-					$file['tmp_name'] = '';
-					$file['error']    = UPLOAD_ERR_INI_SIZE;
+					$file['stream'] = null;
+					$file['error']  = UPLOAD_ERR_INI_SIZE;
 				}
 				$this->parse_multipart_set_target($files, $name, $file);
 			} else {
 				if ($part['body']['size'] == 0) {
 					$this->parse_multipart_set_target($data, $name, '');
 				} else {
-					fseek($stream, $part['body']['offset']);
 					$this->parse_multipart_set_target(
 						$data,
 						$name,
-						fread($stream, $part['body']['size'])
+						stream_get_contents($stream, $part['body']['size'], $part['body']['offset'])
 					);
 				}
 			}
@@ -322,31 +339,31 @@ trait Data_and_files {
 	 * @return int
 	 */
 	protected function post_max_size () {
-		$post_max_size = ini_get('post_max_size') ?: ini_get('hhvm.server.max_post_size');
-		switch (strtolower(substr($post_max_size, -1))) {
-			case 'g';
-				$post_max_size = (int)$post_max_size * 1024;
-			case 'm';
-				$post_max_size = (int)$post_max_size * 1024;
-			case 'k';
-				$post_max_size = (int)$post_max_size * 1024;
-		}
-		return (int)$post_max_size ?: PHP_INT_MAX;
+		$size = ini_get('post_max_size') ?: ini_get('hhvm.server.max_post_size');
+		return $this->convert_size_to_bytes($size);
 	}
 	/**
 	 * @return int
 	 */
 	protected function upload_max_file_size () {
-		$upload_max_file_size = ini_get('upload_max_filesize') ?: ini_get('hhvm.server.upload.upload_max_file_size');
-		switch (strtolower(substr($upload_max_file_size, -1))) {
+		$size = ini_get('upload_max_filesize') ?: ini_get('hhvm.server.upload.upload_max_file_size');
+		return $this->convert_size_to_bytes($size);
+	}
+	/**
+	 * @param int|string $size
+	 *
+	 * @return int
+	 */
+	protected function convert_size_to_bytes ($size) {
+		switch (strtolower(substr($size, -1))) {
 			case 'g';
-				$upload_max_file_size = (int)$upload_max_file_size * 1024;
+				$size = (int)$size * 1024;
 			case 'm';
-				$upload_max_file_size = (int)$upload_max_file_size * 1024;
+				$size = (int)$size * 1024;
 			case 'k';
-				$upload_max_file_size = (int)$upload_max_file_size * 1024;
+				$size = (int)$size * 1024;
 		}
-		return (int)$upload_max_file_size ?: PHP_INT_MAX;
+		return (int)$size ?: PHP_INT_MAX;
 	}
 	/**
 	 * @param resource $stream
@@ -415,12 +432,12 @@ trait Data_and_files {
 			return;
 		}
 		foreach ($matches[1] as $component) {
-			if (!isset($source[$component])) {
-				$source[$component] = [];
-			}
 			if (!strlen($component)) {
-				$source = &$source[$component][];
+				$source = &$source[];
 			} else {
+				if (!isset($source[$component])) {
+					$source[$component] = [];
+				}
 				$source = &$source[$component];
 			}
 		}

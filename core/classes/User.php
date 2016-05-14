@@ -7,12 +7,12 @@
  */
 namespace cs;
 use
-	cs\Cache\Prefix,
 	cs\DB\Accessor,
 	cs\User\Data as User_data,
 	cs\User\Group as User_group,
 	cs\User\Management as User_management,
-	cs\User\Permission as User_permission;
+	cs\User\Permission as User_permission,
+	cs\User\Profile as User_profile;
 
 /**
  * Class for users manipulating
@@ -39,9 +39,6 @@ use
  *
  *  System/User/del/after
  *  ['id' => <i>user_id</i>]
- *
- *  System/User/add_bot
- *  ['id' => <i>bot_id</i>]
  *
  *  System/User/get_contacts
  *  [
@@ -74,7 +71,8 @@ class User {
 		User_data,
 		User_group,
 		User_management,
-		User_permission;
+		User_permission,
+		User_profile;
 	/**
 	 * Id of system guest user
 	 */
@@ -92,10 +90,6 @@ class User {
 	 */
 	const USER_GROUP_ID = 2;
 	/**
-	 * Id of system group for bots
-	 */
-	const BOT_GROUP_ID = 3;
-	/**
 	 * Status of active user
 	 */
 	const STATUS_ACTIVE = 1;
@@ -108,7 +102,7 @@ class User {
 	 */
 	const STATUS_NOT_ACTIVATED = -1;
 	/**
-	 * @var Prefix
+	 * @var Cache\Prefix
 	 */
 	protected $cache;
 	/**
@@ -120,7 +114,7 @@ class User {
 		return Config::instance()->module('System')->db('users');
 	}
 	protected function construct () {
-		$this->cache = new Prefix('users');
+		$this->cache = Cache::prefix('users');
 		Event::instance()->fire('System/User/construct/before');
 		$this->initialize_data();
 		/**
@@ -142,18 +136,16 @@ class User {
 		}
 		$time = time();
 		return $this->db()->qfs(
-			[
-				"SELECT COUNT(`expire`)
-				FROM `[prefix]sign_ins`
-				WHERE
-					`expire` > $time AND
-					(
-						`login_hash`	= '%s' OR
-						`ip`			= '%s'
-					)",
-				$login_hash,
-				ip2hex(Request::instance()->ip)
-			]
+			"SELECT COUNT(`expire`)
+			FROM `[prefix]sign_ins`
+			WHERE
+				`expire` > $time AND
+				(
+					`login_hash`	= '%s' OR
+					`ip`			= '%s'
+				)",
+			$login_hash,
+			ip2hex(Request::instance()->ip)
 		);
 	}
 	/**
@@ -197,7 +189,7 @@ class User {
 				$ip
 			);
 			if ($this->db_prime()->id() % $Config->core['inserts_limit'] == 0) {
-				$this->db_prime()->aq("DELETE FROM `[prefix]sign_ins` WHERE `expire` < $time");
+				$this->db_prime()->q("DELETE FROM `[prefix]sign_ins` WHERE `expire` < $time");
 			}
 		}
 	}
@@ -254,21 +246,5 @@ class User {
 	 */
 	function guest () {
 		return Session::instance()->guest();
-	}
-	/**
-	 * Is bot
-	 *
-	 * Proxy to \cs\Session::instance()->bot() for convenience
-	 *
-	 * @return bool
-	 */
-	function bot () {
-		return Session::instance()->bot();
-	}
-	/**
-	 * @deprecated Does nothing
-	 * @todo       Remove in 4.x
-	 */
-	function __finish () {
 	}
 }

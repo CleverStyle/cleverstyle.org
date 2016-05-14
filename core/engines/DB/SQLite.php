@@ -31,10 +31,13 @@ class SQLite extends _Abstract {
 		} catch (\Exception $e) {
 		}
 	}
-	function q ($query, $params = [], $_ = null) {
+	/**
+	 * @inheritdoc
+	 */
+	function q ($query, $params = [], ...$param) {
 		// Hack to convert small subset of MySQL queries into SQLite-compatible syntax
 		$query = str_replace('INSERT IGNORE', 'INSERT OR IGNORE', $query);
-		return call_user_func_array([__NAMESPACE__.'\\_Abstract', 'q'], [$query] + func_get_args());
+		return parent::q(...([$query] + func_get_args()));
 	}
 	/**
 	 * @inheritdoc
@@ -58,6 +61,9 @@ class SQLite extends _Abstract {
 		return $result;
 	}
 	/**
+	 * @deprecated
+	 * @todo remove after 4.x release
+	 *
 	 * @inheritdoc
 	 */
 	function n ($query_result) {
@@ -116,7 +122,7 @@ class SQLite extends _Abstract {
 	 */
 	function free ($query_result) {
 		if (is_object($query_result)) {
-			$query_result->finalize();
+			return $query_result->finalize();
 		}
 		return true;
 	}
@@ -137,12 +143,16 @@ class SQLite extends _Abstract {
 		if ($like) {
 			if (substr($like, -1) == '%') {
 				$like = substr($like, 0, -1);
-				return array_filter(
-					$columns,
-					function ($column) use ($like) {
-						return strpos($column, $like) === 0;
-					}
+				return array_values(
+					array_filter(
+						$columns,
+						function ($column) use ($like) {
+							return strpos($column, $like) === 0;
+						}
+					)
 				);
+			} elseif (strpos($like, '%') === false) {
+				return in_array($like, $columns) ? [$like] : [];
 			} else {
 				trigger_error("Can't get columns like $like, SQLite engine doesn't support such conditions", E_USER_WARNING);
 				return [];
@@ -162,7 +172,8 @@ class SQLite extends _Abstract {
 				WHERE
 					`type` = 'table' AND
 					`name` != 'sqlite_sequence' AND
-					`name` LIKE $like"
+					`name` LIKE $like
+				ORDER BY `name` ASC"
 			) ?: [];
 		} else {
 			return $this->qfas(
@@ -170,7 +181,8 @@ class SQLite extends _Abstract {
 				FROM `sqlite_master`
 				WHERE
 					`type` = 'table' AND
-					`name` != 'sqlite_sequence'"
+					`name` != 'sqlite_sequence'
+				ORDER BY `name` ASC"
 			) ?: [];
 		}
 	}

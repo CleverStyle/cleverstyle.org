@@ -31,8 +31,7 @@ class Text {
 		if ($store_in_cache && ($text = $Cache->$cache_key) !== false) {
 			return $text;
 		}
-		$db  = DB::instance();
-		$cdb = $db->$database;
+		$cdb = DB::instance()->db($database);
 		if ($id) {
 			$text = $this->get_text_by_id($id, $cdb, $L);
 		} else {
@@ -55,7 +54,21 @@ class Text {
 	 */
 	protected function get_text_by_id ($id, $cdb, $L) {
 		$text = $cdb->qf(
-			[
+			"SELECT
+				`d`.`id`,
+				`d`.`lang`,
+				`d`.`text`
+			FROM `[prefix]texts` AS `t`
+				LEFT JOIN `[prefix]texts_data` AS `d`
+			ON `t`.`id` = `d`.`id`
+			WHERE
+				`t`.`id`	= $id AND
+				`d`.`lang`	= '%s'
+			LIMIT 1",
+			$L->clang
+		);
+		if (!$text) {
+			$text = $cdb->qf(
 				"SELECT
 					`d`.`id`,
 					`d`.`lang`,
@@ -63,27 +76,9 @@ class Text {
 				FROM `[prefix]texts` AS `t`
 					LEFT JOIN `[prefix]texts_data` AS `d`
 				ON `t`.`id` = `d`.`id`
-				WHERE
-					`t`.`id`	= $id AND
-					`d`.`lang`	= '%s'
+				WHERE `t`.`id` = $id
 				LIMIT 1",
 				$L->clang
-			]
-		);
-		if (!$text) {
-			$text = $cdb->qf(
-				[
-					"SELECT
-						`d`.`id`,
-						`d`.`lang`,
-						`d`.`text`
-					FROM `[prefix]texts` AS `t`
-						LEFT JOIN `[prefix]texts_data` AS `d`
-					ON `t`.`id` = `d`.`id`
-					WHERE `t`.`id` = $id
-					LIMIT 1",
-					$L->clang
-				]
 			);
 		}
 		return $text;
@@ -98,7 +93,24 @@ class Text {
 	 */
 	protected function get_text_by_group_and_label ($group, $label, $cdb, $L) {
 		$text = $cdb->qf(
-			[
+			"SELECT
+				`t`.`id`,
+				`d`.`lang`,
+				`d`.`text`
+			FROM `[prefix]texts` AS `t`
+				LEFT JOIN `[prefix]texts_data` AS `d`
+			ON `t`.`id` = `d`.`id`
+			WHERE
+				`t`.`group`	= '%s' AND
+				`t`.`label`	= '%s' AND
+				`d`.`lang`	= '%s'
+			LIMIT 1",
+			$group,
+			$label,
+			$L->clang
+		);
+		if (!$text) {
+			$text = $cdb->qf(
 				"SELECT
 					`t`.`id`,
 					`d`.`lang`,
@@ -108,32 +120,11 @@ class Text {
 				ON `t`.`id` = `d`.`id`
 				WHERE
 					`t`.`group`	= '%s' AND
-					`t`.`label`	= '%s' AND
-					`d`.`lang`	= '%s'
+					`t`.`label`	= '%s'
 				LIMIT 1",
 				$group,
 				$label,
 				$L->clang
-			]
-		);
-		if (!$text) {
-			$text = $cdb->qf(
-				[
-					"SELECT
-						`t`.`id`,
-						`d`.`lang`,
-						`d`.`text`
-					FROM `[prefix]texts` AS `t`
-						LEFT JOIN `[prefix]texts_data` AS `d`
-					ON `t`.`id` = `d`.`id`
-					WHERE
-						`t`.`group`	= '%s' AND
-						`t`.`label`	= '%s'
-					LIMIT 1",
-					$group,
-					$label,
-					$L->clang
-				]
 			);
 		}
 		return $text;
@@ -149,9 +140,8 @@ class Text {
 	 * @return array[]|false Array of items `['id' => id, 'lang' => lang]` on success, `false` otherwise
 	 */
 	function search ($database, $group, $label, $text) {
-		return DB::instance()->$database->qfa(
-			[
-				"SELECT
+		return DB::instance()->db($database)->qfa(
+			"SELECT
 				`t`.`id`,
 				`d`.`lang`
 			FROM `[prefix]texts` AS `t`
@@ -161,10 +151,9 @@ class Text {
 				`t`.`group`		= '%s' AND
 				`t`.`label`		= '%s' AND
 				`d`.`text_md5`	= '%s'",
-				$group,
-				$label,
-				md5($text)
-			]
+			$group,
+			$label,
+			md5($text)
 		);
 	}
 	/**
@@ -182,7 +171,7 @@ class Text {
 		$Cache  = Cache::instance();
 		$Config = Config::instance();
 		$L      = Language::instance();
-		$cdb    = DB::instance()->$database();
+		$cdb    = DB::instance()->db_prime($database);
 		/**
 		 * Security check, do not allow to silently substitute text from another item
 		 */
@@ -194,16 +183,14 @@ class Text {
 		 */
 		// Find existing text id
 		$id = $cdb->qfs(
-			[
-				"SELECT `id`
-				FROM `[prefix]texts`
-				WHERE
-					`label`	= '%s' AND
-					`group`	= '%s'
-				LIMIT 1",
-				$label,
-				$group
-			]
+			"SELECT `id`
+			FROM `[prefix]texts`
+			WHERE
+				`label`	= '%s' AND
+				`group`	= '%s'
+			LIMIT 1",
+			$label,
+			$group
 		);
 		if (!$id) {
 			// If not found - either return text directly or add new text entry and obtain id
@@ -245,16 +232,14 @@ class Text {
 	 */
 	protected function set_text ($id, $text, $cdb, $Config, $L) {
 		$exists_for_current_language = $cdb->qfs(
-			[
-				"SELECT `id`
-				FROM `[prefix]texts_data`
-				WHERE
-					`id`	= '%s' AND
-					`lang`	= '%s'
-				LIMIT 1",
-				$id,
-				$L->clang
-			]
+			"SELECT `id`
+			FROM `[prefix]texts_data`
+			WHERE
+				`id`	= '%s' AND
+				`lang`	= '%s'
+			LIMIT 1",
+			$id,
+			$L->clang
 		);
 		if ($exists_for_current_language) {
 			if ($cdb->q(
@@ -262,8 +247,7 @@ class Text {
 				SET `text` = '%s'
 				WHERE
 					`id` = '%s' AND
-					`lang` = '%s'
-				LIMIT 1",
+					`lang` = '%s'",
 				$text,
 				$id,
 				$L->clang
@@ -307,8 +291,8 @@ class Text {
 	 */
 	function del ($database, $group, $label) {
 		$Cache = Cache::instance();
-		$db    = DB::instance();
-		$id    = $db->$database()->qfs(
+		$cdb   = DB::instance()->db_prime($database);
+		$id    = $cdb->qfs(
 			[
 				"SELECT `id`
 				FROM `[prefix]texts`
@@ -326,7 +310,7 @@ class Text {
 				$Cache->{"texts/$database/{$id}_$L->clang"},
 				$Cache->{"texts/$database/".md5($group).md5($label)."_$L->clang"}
 			);
-			return $db->$database()->q(
+			return $cdb->q(
 				[
 					"DELETE FROM `[prefix]texts`
 					WHERE `id` = '%s'",

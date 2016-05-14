@@ -3,21 +3,22 @@
  * @package   Update
  * @category  modules
  * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright Copyright (c) 2013, Nazar Mokrynskyi
+ * @copyright Copyright (c) 2013-2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
  */
 namespace cs;
 use
 	h;
+
 $Config        = Config::instance();
-$Route         = Route::instance();
+$Request       = Request::instance();
 $cdb           = DB::instance()->db_prime(0);
-$Index         = Index::instance();
+$Page          = Page::instance();
 $module_object = $Config->module('Update');
 if (!$module_object->version) {
 	$module_object->version = 0;
 }
-if (@$Route->route[0] == 'process') {
+if ($Request->route(0) == 'process') {
 	$version = (int)$module_object->version;
 	/** @noinspection CallableInLoopTerminationConditionInspection */
 	for ($i = 1; file_exists(__DIR__."/sql/$i.sql") || file_exists(__DIR__."/php/$i.php"); ++$i) {
@@ -35,10 +36,13 @@ if (@$Route->route[0] == 'process') {
 			$module_object->version = $i;
 		}
 	}
-	$Index->save(true);
+	if ($Config->save()) {
+		$Page->success('Success');
+	} else {
+		$Page->error('Error');
+	}
 }
-$Index->buttons = false;
-$Index->content(
+$Page->content(
 	h::{'p.cs-center'}("Current revision: $module_object->version").
 	h::{'a.uk-button.cs-center'}(
 		'Update System structure',

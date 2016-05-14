@@ -13,7 +13,6 @@ use
 	cs\Event,
 	cs\ExitException,
 	cs\Language,
-	cs\Page,
 	cs\Session,
 	cs\modules\System\Packages_manipulation;
 
@@ -21,29 +20,32 @@ trait themes {
 	/**
 	 * @param \cs\Request $Request
 	 *
+	 * @return mixed
+	 *
 	 * @throws ExitException
 	 */
 	static function admin_themes_get ($Request) {
-		$route_path = $Request->route_path;
-		if (isset($route_path[3]) && $route_path[3] == 'update_dependencies') {
+		if ($Request->route_path(3) == 'update_dependencies') {
 			/**
 			 * Get dependencies for theme during update
 			 */
-			static::get_update_dependencies_for_theme($route_path[2]);
-		} elseif (isset($route_path[2]) && $route_path[2] == 'current') {
+			return static::get_update_dependencies_for_theme($Request->route_path[2]);
+		} elseif ($Request->route_path(2) == 'current') {
 			/**
 			 * Get current theme
 			 */
-			static::get_current_theme();
+			return static::get_current_theme();
 		} else {
 			/**
 			 * Get array of themes in extended form
 			 */
-			static::get_themes_list();
+			return static::get_themes_list();
 		}
 	}
 	/**
 	 * @param string $theme
+	 *
+	 * @return array
 	 *
 	 * @throws ExitException
 	 */
@@ -75,13 +77,17 @@ trait themes {
 				'to'   => $new_meta['version']
 			];
 		}
-		Page::instance()->json($dependencies);
+		return $dependencies;
 	}
+	/**
+	 * @return string
+	 */
 	protected static function get_current_theme () {
-		Page::instance()->json(
-			Config::instance()->core['theme']
-		);
+		return Config::instance()->core['theme'];
 	}
+	/**
+	 * @return array
+	 */
 	protected static function get_themes_list () {
 		$themes = get_files_list(THEMES, false, 'd');
 		asort($themes);
@@ -103,8 +109,7 @@ trait themes {
 			}
 			$themes_list[] = $theme;
 		}
-		unset($theme_name, $theme);
-		Page::instance()->json($themes_list);
+		return $themes_list;
 	}
 	/**
 	 * @param array  $theme
@@ -128,15 +133,15 @@ trait themes {
 	 * @throws ExitException
 	 */
 	static function admin_themes_put ($Request) {
-		$route_path = $Request->route_path;
-		if (isset($route_path[2]) && $route_path[2] == 'current') {
-			if (!isset($_POST['theme'])) {
+		if ($Request->route_path(2) == 'current') {
+			$theme = $Request->data('theme');
+			if (!$theme) {
 				throw new ExitException(400);
 			}
 			/**
 			 * Set current theme
 			 */
-			static::set_current_theme($_POST['theme']);
+			static::set_current_theme($theme);
 		} else {
 			throw new ExitException(400);
 		}
@@ -220,12 +225,8 @@ trait themes {
 	 * @throws ExitException
 	 */
 	static function admin_themes_update ($Request) {
-		$route_path = $Request->route_path;
-		if (!isset($route_path[2])) {
-			throw new ExitException(400);
-		}
 		$L      = Language::instance();
-		$theme  = $route_path[2];
+		$theme  = $Request->route_path(2);
 		$themes = get_files_list(THEMES, false, 'd');
 		if (!in_array($theme, $themes, true)) {
 			throw new ExitException(404);
@@ -277,11 +278,8 @@ trait themes {
 	 * @throws ExitException
 	 */
 	static function admin_themes_delete ($Request) {
-		if (!isset($Request->route_path[2])) {
-			throw new ExitException(400);
-		}
-		$theme  = $Request->route_path[2];
 		$Config = Config::instance();
+		$theme  = $Request->route_path(2);
 		$themes = get_files_list(THEMES, false, 'd');
 		if (
 			$theme == Config::SYSTEM_THEME ||

@@ -11,7 +11,6 @@ namespace cs\modules\System\api\Controller\admin\users;
 use
 	cs\ExitException,
 	cs\Group,
-	cs\Page,
 	cs\User;
 
 trait groups {
@@ -20,15 +19,15 @@ trait groups {
 	 *
 	 * @param \cs\Request $Request
 	 *
+	 * @return array
+	 *
 	 * @throws ExitException
 	 */
 	static function admin_users_groups_get ($Request) {
 		if (!isset($Request->route_ids[0])) {
 			throw new ExitException(400);
 		}
-		Page::instance()->json(
-			User::instance()->get_groups($Request->route_ids[0]) ?: []
-		);
+		return User::instance()->get_groups($Request->route_ids[0]) ?: [];
 	}
 	/**
 	 * Get user's groups
@@ -38,15 +37,17 @@ trait groups {
 	 * @throws ExitException
 	 */
 	static function admin_users_groups_put ($Request) {
+		$user_id = $Request->route_ids(0);
+		$groups  = $Request->data('groups');
 		if (
-			!isset($Request->route_ids[0], $_POST['groups']) ||
-			$Request->route_ids[0] == User::ROOT_ID ||
-			array_diff($_POST['groups'], Group::instance()->get_all()) ||
-			in_array(User::BOT_GROUP_ID, $_POST['groups'])
+			!$user_id ||
+			!$groups ||
+			$user_id == User::ROOT_ID ||
+			array_diff($groups, Group::instance()->get_all())
 		) {
 			throw new ExitException(400);
 		}
-		if (!User::instance()->set_groups($_POST['groups'], $Request->route_ids[0])) {
+		if (!User::instance()->set_groups($groups, $user_id)) {
 			throw new ExitException(500);
 		}
 	}

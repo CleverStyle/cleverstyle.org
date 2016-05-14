@@ -13,51 +13,51 @@ use
 	cs\Config,
 	cs\Event,
 	cs\ExitException,
-	cs\Language\Prefix,
-	cs\Page,
+	cs\Language,
 	cs\Session,
+	cs\modules\System\Packages_dependencies,
 	cs\modules\System\Packages_manipulation;
 
 trait plugins {
 	/**
 	 * @param \cs\Request $Request
 	 *
+	 * @return mixed
+	 *
 	 * @throws ExitException
 	 */
 	static function admin_plugins_get ($Request) {
-		$route_path = $Request->route_path;
-		if (isset($route_path[3])) {
+		if ($Request->route_path(3)) {
+			$route_path = $Request->route_path;
 			switch ($route_path[3]) {
 				/**
 				 * Get dependent packages for plugin
 				 */
 				case 'dependent_packages':
-					static::get_dependent_packages_for_plugin($route_path[2]);
-					break;
+					return static::get_dependent_packages_for_plugin($route_path[2]);
 				/**
 				 * Get dependencies for plugin
 				 */
 				case 'dependencies':
-					static::get_dependencies_for_plugin($route_path[2]);
-					break;
+					return static::get_dependencies_for_plugin($route_path[2]);
 				/**
 				 * Get dependencies for plugin during update
 				 */
 				case 'update_dependencies':
-					static::get_update_dependencies_for_plugin($route_path[2]);
-					break;
+					return static::get_update_dependencies_for_plugin($route_path[2]);
 				default:
 					throw new ExitException(400);
 			}
-			return;
 		}
 		/**
 		 * Get array of plugins in extended form
 		 */
-		static::get_plugins_list();
+		return static::get_plugins_list();
 	}
 	/**
 	 * @param string $plugin
+	 *
+	 * @return string[][]
 	 *
 	 * @throws ExitException
 	 */
@@ -66,12 +66,12 @@ trait plugins {
 			throw new ExitException(404);
 		}
 		$meta_file = PLUGINS."/$plugin/meta.json";
-		Page::instance()->json(
-			file_exists($meta_file) ? Packages_manipulation::get_dependent_packages(file_get_json($meta_file)) : []
-		);
+		return file_exists($meta_file) ? Packages_dependencies::get_dependent_packages(file_get_json($meta_file)) : [];
 	}
 	/**
 	 * @param string $plugin
+	 *
+	 * @return array
 	 *
 	 * @throws ExitException
 	 */
@@ -81,12 +81,12 @@ trait plugins {
 			throw new ExitException(404);
 		}
 		$meta_file = PLUGINS."/$plugin/meta.json";
-		Page::instance()->json(
-			file_exists($meta_file) ? Packages_manipulation::get_dependencies(file_get_json($meta_file)) : []
-		);
+		return file_exists($meta_file) ? Packages_dependencies::get_dependencies(file_get_json($meta_file)) : [];
 	}
 	/**
 	 * @param string $plugin
+	 *
+	 * @return array
 	 *
 	 * @throws ExitException
 	 */
@@ -109,11 +109,9 @@ trait plugins {
 			$existing_meta['package'] !== $new_meta['package'] ||
 			$existing_meta['category'] !== $new_meta['category']
 		) {
-			throw new ExitException((new Prefix('system_admin_modules_'))->this_is_not_plugin_installer_file, 400);
+			throw new ExitException(Language::prefix('system_admin_modules_')->this_is_not_plugin_installer_file, 400);
 		}
-		Page::instance()->json(
-			Packages_manipulation::get_dependencies($new_meta)
-		);
+		return Packages_dependencies::get_dependencies($new_meta);
 	}
 	protected static function get_plugins_list () {
 		$Config       = Config::instance();
@@ -137,8 +135,7 @@ trait plugins {
 			}
 			$plugins_list[] = $plugin;
 		}
-		unset($plugin_name, $plugin);
-		Page::instance()->json($plugins_list);
+		return $plugins_list;
 	}
 	/**
 	 * @param array  $plugin
@@ -171,12 +168,8 @@ trait plugins {
 	 * @throws ExitException
 	 */
 	static function admin_plugins_enable ($Request) {
-		$route_path = $Request->route_path;
-		if (!isset($route_path[2])) {
-			throw new ExitException(400);
-		}
 		$Config  = Config::instance();
-		$plugin  = $route_path[2];
+		$plugin  = $Request->route_path(2);
 		$plugins = get_files_list(PLUGINS, false, 'd');
 		if (!in_array($plugin, $plugins, true) || in_array($plugin, $Config->components['plugins'])) {
 			throw new ExitException(400);
@@ -207,7 +200,7 @@ trait plugins {
 		$Cache = System_cache::instance();
 		unset(
 			$Cache->functionality,
-			$Cache->events_files_paths
+			$Cache->languages
 		);
 		clean_classes_cache();
 	}
@@ -226,12 +219,8 @@ trait plugins {
 	 * @throws ExitException
 	 */
 	static function admin_plugins_disable ($Request) {
-		$route_path = $Request->route_path;
-		if (!isset($route_path[2])) {
-			throw new ExitException(400);
-		}
 		$Config       = Config::instance();
-		$plugin       = $route_path[2];
+		$plugin       = $Request->route_path(2);
 		$plugin_index = array_search($plugin, $Config->components['plugins'], true);
 		if ($plugin_index === false) {
 			throw new ExitException(400);
@@ -263,7 +252,7 @@ trait plugins {
 	 * @throws ExitException
 	 */
 	static function admin_plugins_extract () {
-		$L            = new Prefix('system_admin_modules_');
+		$L            = Language::prefix('system_admin_modules_');
 		$tmp_location = TEMP.'/System/admin/'.Session::instance()->get_id().'.phar';
 		$tmp_dir      = "phar://$tmp_location";
 		if (
@@ -296,13 +285,9 @@ trait plugins {
 	 * @throws ExitException
 	 */
 	static function admin_plugins_update ($Request) {
-		$route_path = $Request->route_path;
-		if (!isset($route_path[2])) {
-			throw new ExitException(400);
-		}
 		$Config  = Config::instance();
-		$L       = new Prefix('system_admin_modules_');
-		$plugin  = $route_path[2];
+		$L       = Language::prefix('system_admin_modules_');
+		$plugin  = $Request->route_path(2);
 		$plugins = get_files_list(PLUGINS, false, 'd');
 		if (!in_array($plugin, $plugins, true)) {
 			throw new ExitException(404);
@@ -366,13 +351,9 @@ trait plugins {
 	 * @throws ExitException
 	 */
 	static function admin_plugins_delete ($Request) {
-		$route_path = $Request->route_path;
-		if (!isset($route_path[2])) {
-			throw new ExitException(400);
-		}
-		$plugin  = $route_path[2];
-		$plugins = get_files_list(PLUGINS, false, 'd');
 		$Config  = Config::instance();
+		$plugin  = $Request->route_path(2);
+		$plugins = get_files_list(PLUGINS, false, 'd');
 		if (
 			!in_array($plugin, $plugins, true) ||
 			in_array($plugin, $Config->components['plugins'])

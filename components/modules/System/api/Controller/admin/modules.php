@@ -13,69 +13,68 @@ use
 	cs\Config,
 	cs\Event,
 	cs\ExitException,
-	cs\Language\Prefix,
-	cs\Page,
+	cs\Language,
 	cs\Permission,
 	cs\Session,
+	cs\modules\System\Packages_dependencies,
 	cs\modules\System\Packages_manipulation;
 
 trait modules {
 	/**
 	 * @param \cs\Request $Request
 	 *
+	 * @return mixed
+	 *
 	 * @throws ExitException
 	 */
 	static function admin_modules_get ($Request) {
-		$route_path = $Request->route_path;
-		if (isset($route_path[3])) {
+		if ($Request->route_path(3)) {
+			$route_path = $Request->route_path;
 			switch ($route_path[3]) {
 				/**
 				 * Get dependent packages for module
 				 */
 				case 'dependent_packages':
-					static::get_dependent_packages_for_module($route_path[2]);
-					break;
+					return static::get_dependent_packages_for_module($route_path[2]);
 				/**
 				 * Get dependencies for module (packages, databases, storages)
 				 */
 				case 'dependencies':
-					static::get_dependencies_for_module($route_path[2]);
-					break;
+					return static::get_dependencies_for_module($route_path[2]);
 				/**
 				 * Get dependencies for module during update
 				 */
 				case 'update_dependencies':
-					static::get_update_dependencies_for_module($route_path[2]);
-					break;
+					return static::get_update_dependencies_for_module($route_path[2]);
 				/**
 				 * Get mapping of named module's databases to indexes of system databases
 				 */
 				case 'db':
-					static::get_module_databases($route_path[2]);
-					break;
+					return static::get_module_databases($route_path[2]);
 				/**
 				 * Get mapping of named module's storages to indexes of system storages
 				 */
 				case 'storage':
-					static::get_module_storages($route_path[2]);
-					break;
+					return static::get_module_storages($route_path[2]);
 				default:
 					throw new ExitException(400);
 			}
-		} elseif (isset($route_path[2]) && $route_path[2] == 'default') {
+		} elseif ($Request->route_path(2) == 'default') {
 			/**
 			 * Get current default module
 			 */
-			static::get_default_module();
+			return static::get_default_module();
 		} else {
 			/**
 			 * Get array of modules in extended form
 			 */
-			static::get_modules_list();
+			return static::get_modules_list();
 		}
 	}
 	/**
 	 * @param string $module
+	 *
+	 * @return string[][]
 	 *
 	 * @throws ExitException
 	 */
@@ -84,12 +83,12 @@ trait modules {
 			throw new ExitException(404);
 		}
 		$meta_file = MODULES."/$module/meta.json";
-		Page::instance()->json(
-			file_exists($meta_file) ? Packages_manipulation::get_dependent_packages(file_get_json($meta_file)) : []
-		);
+		return file_exists($meta_file) ? Packages_dependencies::get_dependent_packages(file_get_json($meta_file)) : [];
 	}
 	/**
 	 * @param string $module
+	 *
+	 * @return array
 	 *
 	 * @throws ExitException
 	 */
@@ -98,12 +97,12 @@ trait modules {
 			throw new ExitException(404);
 		}
 		$meta_file = MODULES."/$module/meta.json";
-		Page::instance()->json(
-			file_exists($meta_file) ? Packages_manipulation::get_dependencies(file_get_json($meta_file)) : []
-		);
+		return file_exists($meta_file) ? Packages_dependencies::get_dependencies(file_get_json($meta_file)) : [];
 	}
 	/**
 	 * @param string $module
+	 *
+	 * @return array
 	 *
 	 * @throws ExitException
 	 */
@@ -121,11 +120,9 @@ trait modules {
 		}
 		$new_meta = file_get_json("$tmp_dir/meta.json");
 		if (!static::is_same_module($new_meta, $module)) {
-			throw new ExitException((new Prefix('system_admin_modules_'))->this_is_not_module_installer_file, 400);
+			throw new ExitException(Language::prefix('system_admin_modules_')->this_is_not_module_installer_file, 400);
 		}
-		Page::instance()->json(
-			Packages_manipulation::get_dependencies($new_meta)
-		);
+		return Packages_dependencies::get_dependencies($new_meta);
 	}
 	/**
 	 * @param array  $meta
@@ -139,6 +136,8 @@ trait modules {
 	/**
 	 * @param string $module
 	 *
+	 * @return array
+	 *
 	 * @throws ExitException
 	 */
 	protected static function get_module_databases ($module) {
@@ -146,12 +145,12 @@ trait modules {
 		if (!isset($Config->components['modules'][$module]['db'])) {
 			throw new ExitException(404);
 		}
-		Page::instance()->json(
-			$Config->components['modules'][$module]['db']
-		);
+		return $Config->components['modules'][$module]['db'];
 	}
 	/**
 	 * @param string $module
+	 *
+	 * @return array
 	 *
 	 * @throws ExitException
 	 */
@@ -160,9 +159,7 @@ trait modules {
 		if (!isset($Config->components['modules'][$module]['storage'])) {
 			throw new ExitException(404);
 		}
-		Page::instance()->json(
-			$Config->components['modules'][$module]['storage']
-		);
+		return $Config->components['modules'][$module]['storage'];
 	}
 	protected static function get_modules_list () {
 		$Config       = Config::instance();
@@ -191,8 +188,7 @@ trait modules {
 			}
 			$modules_list[] = $module;
 		}
-		unset($module_name, $module_data, $module);
-		Page::instance()->json($modules_list);
+		return $modules_list;
 	}
 	/**
 	 * @param array  $module
@@ -213,10 +209,11 @@ trait modules {
 			$module[$dir ?: $feature] = [];
 		}
 	}
+	/**
+	 * @return string
+	 */
 	protected static function get_default_module () {
-		Page::instance()->json(
-			Config::instance()->core['default_module']
-		);
+		return Config::instance()->core['default_module'];
 	}
 	/**
 	 * @param \cs\Request $Request
@@ -224,60 +221,61 @@ trait modules {
 	 * @throws ExitException
 	 */
 	static function admin_modules_put ($Request) {
-		$route_path = $Request->route_path;
-		if (isset($route_path[3])) {
-			switch ($route_path[3]) {
+		if ($Request->route_path(3)) {
+			$module = $Request->route_path[2];
+			switch ($Request->route_path[3]) {
 				/**
 				 * Set mapping of named module's databases to indexes of system databases
 				 */
 				case 'db':
-					static::set_module_databases($route_path[2]);
+					static::set_module_databases($Request, $module);
 					break;
 				/**
 				 * Set mapping of named module's storages to indexes of system storages
 				 */
 				case 'storage':
-					static::set_module_storages($route_path[2]);
+					static::set_module_storages($Request, $module);
 					break;
 				default:
 					throw new ExitException(400);
 			}
-		} elseif (isset($route_path[2]) && $route_path[2] == 'default') {
-			if (!isset($_POST['module'])) {
-				throw new ExitException(400);
-			}
+		} elseif ($Request->route_path(2) == 'default') {
 			/**
 			 * Set current default module
 			 */
-			static::set_default_module($_POST['module']);
+			static::set_default_module($Request->data('module'));
 		} else {
 			throw new ExitException(400);
 		}
 	}
 	/**
-	 * @param string $module
+	 * @param \cs\Request $Request
+	 * @param string      $module
 	 *
 	 * @throws ExitException
 	 */
-	protected static function set_module_databases ($module) {
-		$Config = Config::instance();
-		if (!isset($Config->components['modules'][$module]['db'], $_POST['db'])) {
+	protected static function set_module_databases ($Request, $module) {
+		$Config          = Config::instance();
+		$database_config = $Request->data('db');
+		if (!$database_config || !isset($Config->components['modules'][$module]['db'])) {
 			throw new ExitException(404);
 		}
-		$Config->components['modules'][$module]['db'] = _int($_POST['db']);
+		$Config->components['modules'][$module]['db'] = _int($database_config);
 		static::admin_modules_save();
 	}
 	/**
-	 * @param string $module
+	 * @param \cs\Request $Request
+	 * @param string      $module
 	 *
 	 * @throws ExitException
 	 */
-	protected static function set_module_storages ($module) {
-		$Config = Config::instance();
-		if (!isset($Config->components['modules'][$module]['storage'], $_POST['storage'])) {
+	protected static function set_module_storages ($Request, $module) {
+		$Config         = Config::instance();
+		$storage_config = $Request->data('storage');
+		if (!$storage_config || !isset($Config->components['modules'][$module]['storage'])) {
 			throw new ExitException(404);
 		}
-		$Config->components['modules'][$module]['storage'] = _int($_POST['storage']);
+		$Config->components['modules'][$module]['storage'] = _int($storage_config);
 		static::admin_modules_save();
 	}
 	/**
@@ -319,12 +317,8 @@ trait modules {
 	 * @throws ExitException
 	 */
 	static function admin_modules_enable ($Request) {
-		$route_path = $Request->route_path;
-		if (!isset($route_path[2])) {
-			throw new ExitException(400);
-		}
-		$module = $route_path[2];
 		$Config = Config::instance();
+		$module = $Request->route_path(2);
 		if (!$Config->module($module)->disabled()) {
 			throw new ExitException(400);
 		}
@@ -341,8 +335,7 @@ trait modules {
 		$Cache = System_cache::instance();
 		unset(
 			$Cache->functionality,
-			$Cache->languages,
-			$Cache->events_files_paths
+			$Cache->languages
 		);
 		clean_classes_cache();
 	}
@@ -361,12 +354,8 @@ trait modules {
 	 * @throws ExitException
 	 */
 	static function admin_modules_disable ($Request) {
-		$route_path = $Request->route_path;
-		if (!isset($route_path[2])) {
-			throw new ExitException(400);
-		}
-		$module = $route_path[2];
 		$Config = Config::instance();
+		$module = $Request->route_path(2);
 		if (
 			$module == Config::SYSTEM_MODULE ||
 			$Config->core['default_module'] == $module ||
@@ -374,6 +363,15 @@ trait modules {
 		) {
 			throw new ExitException(400);
 		}
+		static::admin_modules_disable_internal($Config, $module);
+	}
+	/**
+	 * @param Config $Config
+	 * @param string $module
+	 *
+	 * @throws ExitException
+	 */
+	protected static function admin_modules_disable_internal ($Config, $module) {
 		if (!Event::instance()->fire('admin/System/components/modules/disable/before', ['name' => $module])) {
 			throw new ExitException(500);
 		}
@@ -397,26 +395,23 @@ trait modules {
 	 * @throws ExitException
 	 */
 	static function admin_modules_install ($Request) {
-		$route_path = $Request->route_path;
-		if (!isset($route_path[2])) {
-			throw new ExitException(400);
-		}
-		$module  = $route_path[2];
-		$Config  = Config::instance();
-		$modules = &$Config->components['modules'];
+		$Config = Config::instance();
+		$module = $Request->route_path(2);
 		if (!$Config->module($module)->uninstalled()) {
 			throw new ExitException(400);
 		}
 		if (!Event::instance()->fire('admin/System/components/modules/install/before', ['name' => $module])) {
 			throw new ExitException(500);
 		}
-		$module_data = &$modules[$module];
-		if (isset($_POST['db'])) {
-			$module_data['db'] = $_POST['db'];
+		$module_data     = &$Config->components['modules'][$module];
+		$database_config = $Request->data('db');
+		if ($database_config) {
+			$module_data['db'] = _int($database_config);
 			Packages_manipulation::execute_sql_from_directory(MODULES."/$module/meta/install_db", $module_data['db']);
 		}
-		if (isset($_POST['storage'])) {
-			$module_data['storage'] = $_POST['storage'];
+		$storage_config = $Request->data('storage');
+		if ($storage_config) {
+			$module_data['storage'] = _int($storage_config);
 		}
 		$module_data['active'] = Config\Module_Properties::DISABLED;
 		static::admin_modules_save();
@@ -438,12 +433,8 @@ trait modules {
 	 * @throws ExitException
 	 */
 	static function admin_modules_uninstall ($Request) {
-		$route_path = $Request->route_path;
-		if (!isset($route_path[2])) {
-			throw new ExitException(400);
-		}
-		$module  = $route_path[2];
 		$Config  = Config::instance();
+		$module  = $Request->route_path(2);
 		$modules = &$Config->components['modules'];
 		/**
 		 * Do not allow to uninstall enabled module, it should be explicitly disabled first
@@ -487,7 +478,7 @@ trait modules {
 	 */
 	static function admin_modules_extract () {
 		$Config       = Config::instance();
-		$L            = new Prefix('system_admin_modules_');
+		$L            = Language::prefix('system_admin_modules_');
 		$tmp_location = TEMP.'/System/admin/'.Session::instance()->get_id().'.phar';
 		$tmp_dir      = "phar://$tmp_location";
 		if (
@@ -516,11 +507,7 @@ trait modules {
 	 * @throws ExitException
 	 */
 	static function admin_modules_update ($Request) {
-		$route_path = $Request->route_path;
-		if (!isset($route_path[2])) {
-			throw new ExitException(400);
-		}
-		$module = $route_path[2];
+		$module = $Request->route_path(2);
 		if (!Config::instance()->module($module)) {
 			throw new ExitException(404);
 		}
@@ -561,12 +548,12 @@ trait modules {
 	 */
 	protected static function update_module ($module, $existing_meta, $new_meta, $tmp_location, $Request) {
 		$Config     = Config::instance();
-		$L          = new Prefix('system_admin_modules_');
+		$L          = Language::prefix('system_admin_modules_');
 		$module_dir = MODULES."/$module";
 		$enabled    = $Config->module($module)->enabled();
 		// If module is currently enabled - disable it temporary
 		if ($enabled) {
-			static::admin_modules_disable($Request);
+			static::admin_modules_disable_internal($Config, $module);
 		}
 		if (!static::is_same_module($new_meta, $module)) {
 			throw new ExitException($L->this_is_not_module_installer_file, 400);
@@ -604,7 +591,7 @@ trait modules {
 	 */
 	protected static function update_system ($module, $existing_meta, $new_meta, $tmp_location) {
 		$Config     = Config::instance();
-		$L          = new Prefix('system_admin_modules_');
+		$L          = Language::prefix('system_admin_modules_');
 		$module_dir = MODULES."/$module";
 		/**
 		 * Temporary close site
@@ -644,16 +631,9 @@ trait modules {
 	 * @throws ExitException
 	 */
 	static function admin_modules_delete ($Request) {
-		$route_path = $Request->route_path;
-		if (!isset($route_path[2])) {
-			throw new ExitException(400);
-		}
-		$module = $route_path[2];
 		$Config = Config::instance();
-		if (
-			$module == Config::SYSTEM_MODULE ||
-			!$Config->module($module)->uninstalled()
-		) {
+		$module = $Request->route_path(2);
+		if (!$Config->module($module)->uninstalled()) {
 			throw new ExitException(400);
 		}
 		if (!rmdir_recursive(MODULES."/$module")) {

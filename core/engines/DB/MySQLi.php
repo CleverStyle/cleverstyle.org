@@ -56,8 +56,7 @@ class MySQLi extends _Abstract {
 				if ($host[0] == 'p') {
 					$host = "$host[0]:$host[1]";
 				} else {
-					$port = $host[1];
-					$host = $host[0];
+					list($host, $port) = $host;
 				}
 				break;
 			case 3:
@@ -75,15 +74,14 @@ class MySQLi extends _Abstract {
 		if (!$query) {
 			return false;
 		}
-		$result_mode = $this->async && defined('MYSQLI_ASYNC') ? MYSQLI_ASYNC : MYSQLI_STORE_RESULT;
-		$result      = @$this->instance->query($query, $result_mode);
+		$result = @$this->instance->query($query);
 		// In case of MySQL Client error - try to fix everything, but only once
 		if (
 			!$result &&
 			$this->instance->errno >= 2000 &&
 			$this->instance->ping()
 		) {
-			$result = @$this->instance->query($query, $result_mode);
+			$result = @$this->instance->query($query);
 		}
 		return $result;
 	}
@@ -103,6 +101,9 @@ class MySQLi extends _Abstract {
 		return $return;
 	}
 	/**
+	 * @deprecated
+	 * @todo remove after 4.x release
+	 *
 	 * @inheritdoc
 	 */
 	function n ($query_result) {
@@ -131,6 +132,9 @@ class MySQLi extends _Abstract {
 			return $result;
 		}
 		$result = $query_result->fetch_array($result_type);
+		if ($result === null) {
+			$result = false;
+		}
 		return $single_column && $result ? $result[0] : $result;
 	}
 	/**
@@ -155,6 +159,32 @@ class MySQLi extends _Abstract {
 			$query_result->free();
 		}
 		return true;
+	}
+	/**
+	 * @inheritdoc
+	 */
+	function columns ($table, $like = false) {
+		if (!$table) {
+			return false;
+		}
+		if ($like) {
+			$like    = $this->s($like);
+			$columns = $this->qfas("SHOW COLUMNS FROM `$table` LIKE $like") ?: [];
+		} else {
+			$columns = $this->qfas("SHOW COLUMNS FROM `$table`") ?: [];
+		}
+		return $columns;
+	}
+	/**
+	 * @inheritdoc
+	 */
+	function tables ($like = false) {
+		if ($like) {
+			$like = $this->s($like);
+			return $this->qfas("SHOW TABLES FROM `$this->database` LIKE $like") ?: [];
+		} else {
+			return $this->qfas("SHOW TABLES FROM `$this->database`") ?: [];
+		}
 	}
 	/**
 	 * @inheritdoc

@@ -7,26 +7,24 @@
  */
 namespace cs;
 use
-	cs\Request\Compatibility,
 	cs\Request\Cookie,
 	cs\Request\Data_and_files,
 	cs\Request\Query,
-	cs\Request\Route as Request_route,
+	cs\Request\Route,
 	cs\Request\Psr7,
 	cs\Request\Server;
 
 /**
  * @method static $this instance($check = false)
  */
-class Request implements \ArrayAccess, \Iterator {
+class Request {
 	use
 		Singleton,
-		Compatibility,
 		Cookie,
 		Data_and_files,
 		Query,
 		Psr7,
-		Request_route,
+		Route,
 		Server;
 	/**
 	 * Global request id, used by system
@@ -69,7 +67,6 @@ class Request implements \ArrayAccess, \Iterator {
 	 * @throws ExitException
 	 */
 	function init_from_globals () {
-		// Hack: we override `$_SERVER` with iterator object, so conversion from iterator to an array is needed
-		$this->init(iterator_to_array($_SERVER), $_GET, $_POST, $_FILES, 'php://input', $_COOKIE, MICROTIME);
+		$this->init($_SERVER, $_GET, $_POST, $_FILES, 'php://input', $_COOKIE, MICROTIME);
 	}
 }

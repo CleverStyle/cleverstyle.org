@@ -1,20 +1,10 @@
 /**
- * @package		CleverStyle CMS
- * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2016, Nazar Mokrynskyi
- * @license		MIT License, see license.txt
+ * @package   CleverStyle CMS
+ * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
+ * @copyright Copyright (c) 2011-2016, Nazar Mokrynskyi
+ * @license   MIT License, see license.txt
  */
 L = cs.Language('system_profile_')
-/**
- * Adds method for symbol replacing at specified position
- *
- * @param {int}		index
- * @param {string}	symbol
- *
- * @return {string}
- */
-String::replaceAt = (index, symbol) ->
-	this.substr(0, index) + symbol + this.substr(index + symbol.length)
 /**
  * Supports algorithms sha1, sha224, sha256, sha384, sha512
  *
@@ -45,12 +35,11 @@ cs.sign_in = (login, password) !->
 	password	= String(password)
 	jssha <-! require(['jssha'], _)
 	$.ajax(
-		url		: 'api/System/user/sign_in'
-		cache	: false
+		url		: 'api/System/profile'
 		data	:
 			login		: cs.hash(jssha, 'sha224', login)
 			password	: cs.hash(jssha, 'sha512', cs.hash(jssha, 'sha512', password) + cs.public_key)
-		type	: 'post'
+		type	: 'sign_in'
 		success	: !->
 			location.reload()
 	)
@@ -59,11 +48,8 @@ cs.sign_in = (login, password) !->
  */
 cs.sign_out = !->
 	$.ajax(
-		url		: 'api/System/user/sign_out'
-		cache	: false
-		data	:
-			sign_out: true
-		type	: 'post'
+		url		: 'api/System/profile'
+		type	: 'sign_out'
 		success	: !->
 			location.reload()
 	)
@@ -78,16 +64,14 @@ cs.registration = (email) !->
 		return
 	email	= String(email).toLowerCase()
 	$.ajax(
-		url		: 'api/System/user/registration'
-		cache	: false
-		data	:
+		url			: 'api/System/profile'
+		data		:
 			email: email
-		type	: 'post'
-		success	: (result) !->
-			if result == 'registration_confirmation'
-				cs.ui.simple_modal('<div>' + L.registration_confirmation + '</div>')
-			else if result == 'registration_success'
-				cs.ui.simple_modal('<div>' + L.registration_success + '</div>')
+		type		: 'registration'
+		success_201	: !->
+			cs.ui.simple_modal('<div>' + L.registration_success + '</div>')
+		success_202	: !->
+			cs.ui.simple_modal('<div>' + L.registration_confirmation + '</div>')
 	)
 /**
  * Password restoring
@@ -101,11 +85,10 @@ cs.restore_password = (email) !->
 	email	= String(email).toLowerCase()
 	jssha <-! require(['jssha'], _)
 	$.ajax(
-		url		: 'api/System/user/restore_password'
-		cache	: false,
+		url		: 'api/System/profile'
 		data	:
 			email: cs.hash(jssha, 'sha224', email)
-		type	: 'post'
+		type	: 'restore_password'
 		success	: (result) !->
 			if result == 'OK'
 				cs.ui.simple_modal('<div>' + L.restore_password_confirmation + '</div>')
@@ -138,23 +121,16 @@ cs.change_password = (current_password, new_password, success, error) !->
 	current_password	= cs.hash(jssha, 'sha512', cs.hash(jssha, 'sha512', String(current_password)) + cs.public_key)
 	new_password		= cs.hash(jssha, 'sha512', cs.hash(jssha, 'sha512', String(new_password)) + cs.public_key)
 	$.ajax(
-		url		: 'api/System/user/change_password'
-		cache	: false
+		url		: 'api/System/profile'
 		data	:
 			current_password	: current_password
 			new_password		: new_password
-		type	: 'post'
+		type	: 'change_password'
 		success	: (result) !->
-			if result == 'OK'
-				if success
-					success()
-				else
-					cs.ui.alert(L.password_changed_successfully)
+			if success
+				success()
 			else
-				if error
-					error()
-				else
-					cs.ui.alert(result)
+				cs.ui.alert(L.password_changed_successfully)
 		error	: error || $.ajaxSettings.error
 	)
 /**
@@ -197,41 +173,6 @@ cs.password_check = (password, min_length) ->
 			if matches.length > 1
 				++strength
 	strength
-/**
- * Bitwise XOR operation for 2 strings
- *
- * @param {string} string1
- * @param {string} string2
- *
- * @return {string}
- */
-cs.xor_string = (string1, string2) ->
-	len1	= string1.length
-	len2	= string2.length
-	if len2 > len1
-		[string1, string2, len1, len2]	= [string2, string1, len2, len1]
-	for j from 0 to len1
-		pos	= j % len2
-		string1	= string1.replaceAt(j, String.fromCharCode(string1.charCodeAt(j) ^ string2.charCodeAt(pos)))
-	string1
-/**
- * Prepare text to be used as value for html attribute value
- *
- * @param {string}|{string}[] string
- *
- * @return {string}|{string}[]
- */
-cs.prepare_attr_value = (string) ->
-	if string instanceof Array
-		for s in string.slice(0)
-			cs.prepare_attr_value(s)
-	else
-		String(string)
-			.replace(/&/g, '&amp;')
-			.replace(/'/g, '&apos;')
-			.replace(/"/g, '&quot;')
-			.replace(/</g, '&lt;')
-			.replace(/>/g, '&gt;')
 cs.{}ui
 	/**
 	 * Modal dialog
@@ -348,3 +289,11 @@ cs.{}ui
 					notify.timeout = option
 		document.documentElement.appendChild(notify)
 		notify
+	..ready = new Promise (resolve) !->
+		if document.readyState != 'complete'
+			callback	= !->
+				setTimeout(resolve)
+				document.removeEventListener('WebComponentsReady', callback)
+			document.addEventListener('WebComponentsReady', callback)
+		else
+			setTimeout(resolve)

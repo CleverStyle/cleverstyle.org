@@ -7,14 +7,19 @@
  */
 namespace cs\App;
 use
+	cs\Event,
 	cs\ExitException,
-	cs\Request,
-	cs\Response;
+	cs\Page,
+	cs\Response,
+	cs\App\Router\CLI,
+	cs\App\Router\Controller,
+	cs\App\Router\Files;
 
-/**
- * @property string[] $controller_path Path that will be used by controller to render page
- */
 trait Router {
+	use
+		CLI,
+		Controller,
+		Files;
 	/**
 	 * Path that will be used by controller to render page
 	 *
@@ -22,25 +27,69 @@ trait Router {
 	 */
 	protected $controller_path;
 	/**
+	 * @var string
+	 */
+	protected $working_directory;
+	protected function init_router () {
+		$this->controller_path   = ['index'];
+		$this->working_directory = '';
+	}
+	/**
 	 * Execute router
 	 *
 	 * Depending on module, files-based or controller-based router might be used
 	 *
+	 * @param \cs\Request $Request
+	 *
 	 * @throws ExitException
 	 */
-	protected function execute_router () {
-		$Request = Request::instance();
+	protected function execute_router ($Request) {
+		$this->working_directory = $this->get_working_directory($Request);
 		$this->check_and_normalize_route($Request);
+		if (!Event::instance()->fire('System/App/execute_router/before')) {
+			return;
+		}
+		/**
+		 * If module consists of index.html only
+		 */
+		if (file_exists("$this->working_directory/index.html")) {
+			ob_start();
+			_include("$this->working_directory/index.html", false, false);
+			Page::instance()->content(ob_get_clean());
+			return;
+		}
 		if (file_exists("$this->working_directory/Controller.php")) {
 			$this->controller_router($Request);
 		} else {
 			$this->files_router($Request);
 		}
+		Event::instance()->fire('System/App/execute_router/after');
+	}
+	/**
+	 * @param \cs\Request $Request
+	 *
+	 * @return string
+	 *
+	 * @throws ExitException
+	 */
+	protected function get_working_directory ($Request) {
+		$working_directory = MODULES."/$Request->current_module";
+		if ($Request->cli_path) {
+			$working_directory .= '/cli';
+		} elseif ($Request->admin_path) {
+			$working_directory .= '/admin';
+		} elseif ($Request->api_path) {
+			$working_directory .= '/api';
+		}
+		if (!is_dir($working_directory) && (!$Request->cli_path || $Request->method != 'CLI')) {
+			throw new ExitException(404);
+		}
+		return $working_directory;
 	}
 	/**
 	 * Normalize `cs\Request::$route_path` and fill `cs\App::$controller_path`
 	 *
-	 * @param Request $Request
+	 * @param \cs\Request $Request
 	 *
 	 * @throws ExitException
 	 */
@@ -60,7 +109,7 @@ trait Router {
 			/**
 			 * If path not specified - take first from structure
 			 */
-			$this->check_and_normalize_route_internal($path, $structure, $Request->api_path);
+			$this->check_and_normalize_route_internal($Request, $path, $structure, $Request->cli_path || $Request->api_path);
 			$Request->route_path[$nesting_level] = $path;
 			/**
 			 * Fill paths array intended for controller's usage
@@ -73,176 +122,57 @@ trait Router {
 		}
 	}
 	/**
-	 * @param string $path
-	 * @param array  $structure
-	 * @param bool   $api_path
+	 * @param \cs\Request $Request
+	 * @param string      $path
+	 * @param array       $structure
+	 * @param bool        $cli_or_api_path
 	 *
 	 * @throws ExitException
 	 */
-	protected function check_and_normalize_route_internal (&$path, $structure, $api_path) {
+	protected function check_and_normalize_route_internal ($Request, &$path, $structure, $cli_or_api_path) {
 		/**
 		 * If path not specified - take first from structure
 		 */
 		if (!$path) {
 			$path = isset($structure[0]) ? $structure[0] : array_keys($structure)[0];
 			/**
-			 * We need exact paths for API request (or `_` ending if available) and less strict mode for other cases that allows go deeper automatically
+			 * We need exact paths for CLI and API request (or `_` ending if available) and less strict mode for other cases that allows go deeper automatically
 			 */
-			if ($path !== '_' && $api_path) {
+			if ($path !== '_' && $cli_or_api_path) {
 				throw new ExitException(404);
 			}
 		} elseif (!isset($structure[$path]) && !in_array($path, $structure)) {
 			throw new ExitException(404);
 		}
-		/** @noinspection PhpUndefinedMethodInspection */
-		if (!$this->check_permission($path)) {
+		if (!$this->check_permission($Request, $path)) {
 			throw new ExitException(403);
 		}
-	}
-	/**
-	 * Include files necessary for module page rendering
-	 *
-	 * @param Request $Request
-	 *
-	 * @throws ExitException
-	 */
-	protected function files_router ($Request) {
-		foreach ($this->controller_path as $index => $path) {
-			/**
-			 * Starting from index 2 we need to maintain slash-separated string that includes all paths from index 1 and till current
-			 */
-			if ($index > 1) {
-				$path = implode('/', array_slice($this->controller_path, 1, $index));
-			}
-			$next_exists = isset($this->controller_path[$index + 1]);
-			$this->files_router_handler($Request, $this->working_directory, $path, !$next_exists);
-		}
-	}
-	/**
-	 * Include files that corresponds for specific paths in URL
-	 *
-	 * @param Request $Request
-	 * @param string  $dir
-	 * @param string  $basename
-	 * @param bool    $required
-	 *
-	 * @throws ExitException
-	 */
-	protected function files_router_handler ($Request, $dir, $basename, $required = true) {
-		$this->files_router_handler_internal($Request, $dir, $basename, $required);
-	}
-	/**
-	 * @param Request $Request
-	 * @param string  $dir
-	 * @param string  $basename
-	 * @param bool    $required
-	 *
-	 * @throws ExitException
-	 */
-	protected function files_router_handler_internal ($Request, $dir, $basename, $required) {
-		$included = _include("$dir/$basename.php", false, false) !== false;
-		if (!$Request->api_path) {
-			return;
-		}
-		$request_method = strtolower($Request->method);
-		$included       = _include("$dir/$basename.$request_method.php", false, false) !== false || $included;
-		if ($included || !$required) {
-			return;
-		}
-		$methods = get_files_list($dir, "/^$basename\\.[a-z]+\\.php$/");
-		$methods = _strtoupper(_substr($methods, strlen($basename) + 1, -4));
-		$this->handler_not_found($methods, $request_method);
 	}
 	/**
 	 * If HTTP method handler not found we generate either `501 Not Implemented` if other methods are supported or `404 Not Found` if handlers for others
 	 * methods also doesn't exist
 	 *
-	 * @param string[] $available_methods
-	 * @param string   $request_method
+	 * @param string[]    $available_methods
+	 * @param string      $request_method
+	 * @param \cs\Request $Request
 	 *
 	 * @throws ExitException
 	 */
-	protected function handler_not_found ($available_methods, $request_method) {
+	protected function handler_not_found ($available_methods, $request_method, $Request) {
 		if ($available_methods) {
-			Response::instance()->header('Allow', implode(', ', $available_methods));
-			if ($request_method !== 'options') {
-				throw new ExitException(501);
+			if ($Request->cli_path) {
+				$this->print_cli_structure($Request->path);
+				if ($request_method !== 'cli') {
+					throw new ExitException(501);
+				}
+			} else {
+				Response::instance()->header('Allow', implode(', ', $available_methods));
+				if ($request_method !== 'options') {
+					throw new ExitException(501);
+				}
 			}
 		} else {
 			throw new ExitException(404);
 		}
-	}
-	/**
-	 * Call methods necessary for module page rendering
-	 *
-	 * @param Request $Request
-	 *
-	 * @throws ExitException
-	 */
-	protected function controller_router ($Request) {
-		$suffix = '';
-		if ($Request->admin_path) {
-			$suffix = '\\admin';
-		} elseif ($Request->api_path) {
-			$suffix = '\\api';
-		}
-		$controller_class = "cs\\modules\\$Request->current_module$suffix\\Controller";
-		foreach ($this->controller_path as $index => $path) {
-			/**
-			 * Starting from index 2 we need to maintain underscore-separated string that includes all paths from index 1 and till current
-			 */
-			if ($index > 1) {
-				$path = implode('_', array_slice($this->controller_path, 1, $index));
-			}
-			$next_exists = isset($this->controller_path[$index + 1]);
-			$this->controller_router_handler($Request, $controller_class, $path, !$next_exists);
-		}
-	}
-	/**
-	 * Call methods that corresponds for specific paths in URL
-	 *
-	 * @param Request $Request
-	 * @param string  $controller_class
-	 * @param string  $method_name
-	 * @param bool    $required
-	 *
-	 * @throws ExitException
-	 */
-	protected function controller_router_handler ($Request, $controller_class, $method_name, $required = true) {
-		$method_name = str_replace('.', '_', $method_name);
-		$this->controller_router_handler_internal($Request, $controller_class, $method_name, $required);
-	}
-	/**
-	 * @param Request $Request
-	 * @param string  $controller_class
-	 * @param string  $method_name
-	 * @param bool    $required
-	 *
-	 * @throws ExitException
-	 */
-	protected function controller_router_handler_internal ($Request, $controller_class, $method_name, $required) {
-		$Response = Response::instance();
-		$included =
-			method_exists($controller_class, $method_name) &&
-			$controller_class::$method_name($Request, $Response) !== false;
-		if (!$Request->api_path) {
-			return;
-		}
-		$request_method = strtolower($Request->method);
-		$included       =
-			method_exists($controller_class, $method_name.'_'.$request_method) &&
-			$controller_class::{$method_name.'_'.$request_method}($Request, $Response) !== false ||
-			$included;
-		if ($included || !$required) {
-			return;
-		}
-		$methods = array_filter(
-			get_class_methods($controller_class),
-			function ($method) use ($method_name) {
-				return preg_match("/^{$method_name}_[a-z]+$/", $method);
-			}
-		);
-		$methods = _strtoupper(_substr($methods, strlen($method_name) + 1));
-		$this->handler_not_found($methods, $request_method);
 	}
 }

@@ -11,7 +11,6 @@ namespace cs\modules\System\api\Controller\admin;
 use
 	cs\Config,
 	cs\ExitException,
-	cs\Page,
 	cs\Permission,
 	cs\Text;
 
@@ -23,49 +22,49 @@ trait blocks {
 	 *
 	 * @param \cs\Request $Request
 	 *
+	 * @return array
+	 *
 	 * @throws ExitException
 	 */
 	static function admin_blocks_get ($Request) {
 		$Config = Config::instance();
-		$Page   = Page::instance();
 		$Text   = Text::instance();
 		$db_id  = $Config->module('System')->db('texts');
-		if (!isset($Request->route_ids[0])) {
+		$index  = $Request->route_ids(0);
+		if (!$index) {
 			$blocks = $Config->components['blocks'];
 			foreach ($blocks as &$block) {
 				$block['title']   = $Text->process($db_id, $block['title'], true);
 				$block['content'] = $block['content'] ? $Text->process($db_id, $block['content'], true) : '';
 			}
-			unset($block);
-			$Page->json(array_values($blocks) ?: []);
-			return;
+			return array_values($blocks) ?: [];
 		}
-		$block = static::get_block_by_index($Request->route_ids[0]);
+		$block = static::get_block_by_index($index);
 		if (!$block) {
 			throw new ExitException(404);
 		}
-		$Page->json(
-			[
-				'title'    => $Text->process($db_id, $block['title'], true),
-				'type'     => $block['type'],
-				'active'   => (int)$block['active'],
-				'template' => $block['template'],
-				'start'    => date('Y-m-d\TH:i', $block['start'] ?: TIME),
-				'expire'   => [
-					'date'  => date('Y-m-d\TH:i', $block['expire'] ?: TIME),
-					'state' => (int)($block['expire'] != 0)
-				],
-				'content'  => $Text->process($db_id, $block['content'], true)
-			]
-		);
+		return [
+			'title'    => $Text->process($db_id, $block['title'], true),
+			'type'     => $block['type'],
+			'active'   => (int)$block['active'],
+			'template' => $block['template'],
+			'start'    => date('Y-m-d\TH:i', $block['start'] ?: TIME),
+			'expire'   => [
+				'date'  => date('Y-m-d\TH:i', $block['expire'] ?: TIME),
+				'state' => (int)($block['expire'] != 0)
+			],
+			'content'  => $Text->process($db_id, $block['content'], true)
+		];
 	}
 	/**
 	 * Add new block
 	 *
+	 * @param \cs\Request $Request
+	 *
 	 * @throws ExitException
 	 */
-	static function admin_blocks_post () {
-		static::save_block_data($_POST);
+	static function admin_blocks_post ($Request) {
+		static::save_block_data($Request->data);
 	}
 	/**
 	 * Update block's data
@@ -75,10 +74,11 @@ trait blocks {
 	 * @throws ExitException
 	 */
 	static function admin_blocks_put ($Request) {
-		if (!$Request->route_ids[0]) {
+		$index = $Request->route_ids(0);
+		if (!$index) {
 			throw new ExitException(400);
 		}
-		static::save_block_data($_POST, $Request->route_ids[0]);
+		static::save_block_data($Request->data, $index);
 	}
 	/**
 	 * Delete block
@@ -88,29 +88,25 @@ trait blocks {
 	 * @throws ExitException
 	 */
 	static function admin_blocks_delete ($Request) {
-		if (!$Request->route_ids[0]) {
+		$index = $Request->route_ids(0);
+		if (!$index) {
 			throw new ExitException(400);
 		}
 		$Config     = Config::instance();
 		$db_id      = $Config->module('System')->db('texts');
 		$Permission = Permission::instance();
 		$Text       = Text::instance();
-		foreach ($Config->components['blocks'] as $i => &$block) {
-			if ($block['index'] == $Request->route_ids[0]) {
-				unset($Config->components['blocks'][$i]);
-				break;
-			}
-		}
-		/** @noinspection PhpUndefinedVariableInspection */
-		if ($block['index'] != $Request->route_ids[0]) {
+		$found      = static::get_block_by_index($index);
+		if ($found === false) {
 			throw new ExitException(404);
 		}
-		$block_permission = $Permission->get(null, 'Block', $block['index']);
+		unset($Config->components['blocks'][$found]);
+		$block_permission = $Permission->get(null, 'Block', $index);
 		if ($block_permission) {
 			$Permission->del($block_permission[0]['id']);
 		}
-		$Text->del($db_id, 'System/Config/blocks/title', $block['index']);
-		$Text->del($db_id, 'System/Config/blocks/content', $block['index']);
+		$Text->del($db_id, 'System/Config/blocks/title', $index);
+		$Text->del($db_id, 'System/Config/blocks/content', $index);
 		if (!$Config->save()) {
 			throw new ExitException(500);
 		}
@@ -119,26 +115,24 @@ trait blocks {
 	 * Get array of available block templates
 	 */
 	static function admin_blocks_templates () {
-		Page::instance()->json(
-			_mb_substr(get_files_list(TEMPLATES.'/blocks', '/^block\..*?\.(php|html)$/i', 'f'), 6)
-		);
+		return _mb_substr(get_files_list(TEMPLATES.'/blocks', '/^block\..*?\.(php|html)$/i', 'f'), 6);
 	}
 	/**
 	 * Get array of available block types
 	 */
 	static function admin_blocks_types () {
-		Page::instance()->json(
-			array_merge(['html', 'raw_html'], _mb_substr(get_files_list(BLOCKS, '/^block\..*?\.php$/i', 'f'), 6, -4))
-		);
+		return array_merge(['html', 'raw_html'], _mb_substr(get_files_list(BLOCKS, '/^block\..*?\.php$/i', 'f'), 6, -4));
 	}
 	/**
 	 * Update blocks order
 	 *
+	 * @param \cs\Request $Request
 	 *
 	 * @throws ExitException
 	 */
-	static function admin_blocks_update_order () {
-		if (!isset($_POST['order']) || !is_array($_POST['order'])) {
+	static function admin_blocks_update_order ($Request) {
+		$order = $Request->data('order');
+		if (!is_array($order)) {
 			throw new ExitException(400);
 		}
 		$Config           = Config::instance();
@@ -149,8 +143,8 @@ trait blocks {
 		);
 		$new_blocks_order = [];
 		$all_indexes      = [];
-		foreach ($_POST['order'] as $position => $indexes) {
-			foreach ($indexes as $order => $index) {
+		foreach ($order as $position => $indexes) {
+			foreach ($indexes as $index) {
 				$all_indexes[]      = $index;
 				$block              = $indexed_blocks[$index];
 				$block['position']  = $position;
@@ -216,12 +210,13 @@ trait blocks {
 	 *
 	 * @return array|false
 	 */
-	protected static function & get_block_by_index ($index) {
+	protected static function &get_block_by_index ($index) {
 		foreach (Config::instance()->components['blocks'] as &$block) {
 			if ($block['index'] == $index) {
 				return $block;
 			}
 		}
-		return false;
+		$false = false;
+		return $false;
 	}
 }

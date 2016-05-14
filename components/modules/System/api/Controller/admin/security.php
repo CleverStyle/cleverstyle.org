@@ -10,8 +10,7 @@
 namespace cs\modules\System\api\Controller\admin;
 use
 	cs\Config,
-	cs\ExitException,
-	cs\Page;
+	cs\ExitException;
 
 trait security {
 	/**
@@ -19,41 +18,39 @@ trait security {
 	 */
 	static function admin_security_get_settings () {
 		$Config = Config::instance();
-		Page::instance()->json(
-			[
-				'key_expire'        => $Config->core['key_expire'],
-				'gravatar_support'  => $Config->core['gravatar_support'],
-				'show_tooltips'     => $Config->core['show_tooltips'],
-				'simple_admin_mode' => $Config->core['simple_admin_mode'],
-				'applied'           => $Config->cancel_available()
-			]
-		);
+		return [
+			'key_expire'        => $Config->core['key_expire'],
+			'gravatar_support'  => $Config->core['gravatar_support'],
+			'simple_admin_mode' => $Config->core['simple_admin_mode'],
+			'applied'           => $Config->cancel_available()
+		];
 	}
 	/**
 	 * Apply security settings
 	 *
+	 * @param \cs\Request $Request
+	 *
 	 * @throws ExitException
 	 */
-	static function admin_security_apply_settings () {
-		static::admin_security_settings_common();
+	static function admin_security_apply_settings ($Request) {
+		static::admin_security_settings_common($Request);
 		if (!Config::instance()->apply()) {
 			throw new ExitException(500);
 		}
 	}
 	/**
+	 * @param \cs\Request $Request
+	 *
 	 * @throws ExitException
 	 */
-	protected static function admin_security_settings_common () {
-		if (!isset(
-			$_POST['key_expire'],
-			$_POST['gravatar_support']
-		)
-		) {
+	protected static function admin_security_settings_common ($Request) {
+		$data = $Request->data('key_expire', 'gravatar_support');
+		if (!$data) {
 			throw new ExitException(400);
 		}
 		$Config                           = Config::instance();
-		$Config->core['key_expire']       = (int)$_POST['key_expire'];
-		$Config->core['gravatar_support'] = (int)(bool)$_POST['gravatar_support'];
+		$Config->core['key_expire']       = (int)$data['key_expire'];
+		$Config->core['gravatar_support'] = (int)(bool)$data['gravatar_support'];
 	}
 	/**
 	 * @param string $value
@@ -70,10 +67,12 @@ trait security {
 	/**
 	 * Save security settings
 	 *
+	 * @param \cs\Request $Request
+	 *
 	 * @throws ExitException
 	 */
-	static function admin_security_save_settings () {
-		static::admin_security_settings_common();
+	static function admin_security_save_settings ($Request) {
+		static::admin_security_settings_common($Request);
 		if (!Config::instance()->save()) {
 			throw new ExitException(500);
 		}

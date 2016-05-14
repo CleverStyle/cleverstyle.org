@@ -89,7 +89,7 @@ class Key {
 		 * Cleaning old keys
 		 */
 		if ($id && ($id % $Config->core['inserts_limit']) == 0) {
-			$database->aq(
+			$database->q(
 				"DELETE FROM `[prefix]keys`
 				WHERE `expire` < $time"
 			);
@@ -115,19 +115,17 @@ class Key {
 		}
 		$time   = time();
 		$result = $database->qf(
-			[
-				"SELECT
-					`id`,
-					`data`
-				FROM `[prefix]keys`
-				WHERE
-					(
-						`key`	= '$key'
-					) AND
-					`expire` >= $time
-				ORDER BY `id` DESC
-				LIMIT 1"
-			]
+			"SELECT
+				`id`,
+				`data`
+			FROM `[prefix]keys`
+			WHERE
+				(
+					`key`	= '$key'
+				) AND
+				`expire` >= $time
+			ORDER BY `id` DESC
+			LIMIT 1"
 		);
 		$this->del($database, $key);
 		if (!$result || !is_array($result)) {

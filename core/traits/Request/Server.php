@@ -75,6 +75,10 @@ trait Server {
 	 */
 	public $headers;
 	/**
+	 * @var bool
+	 */
+	protected $cli;
+	/**
 	 * @param string[] $server Typically `$_SERVER`
 	 */
 	function init_server ($server = []) {
@@ -95,6 +99,7 @@ trait Server {
 	 * @param string[] $server
 	 */
 	protected function fill_server_properties ($server) {
+		$this->cli          = @$server['CLI'] === true;
 		$this->method       = strtoupper($server['REQUEST_METHOD']);
 		$this->host         = $this->host($server);
 		$this->scheme       = $this->secure ? 'https' : 'http';
@@ -104,7 +109,7 @@ trait Server {
 		$this->uri          = null_byte_filter(urldecode($server['REQUEST_URI'])) ?: '/';
 		$this->path         = explode('?', $this->uri, 2)[0];
 		$this->remote_addr  = $server['REMOTE_ADDR'];
-		$this->ip           = $this->ip($_SERVER);
+		$this->ip           = $this->ip($server);
 	}
 	/**
 	 * @param string[] $server
@@ -191,8 +196,9 @@ trait Server {
 	 * @return bool
 	 */
 	protected function secure ($server) {
-		return isset($server['HTTPS']) && $server['HTTPS'] ? $server['HTTPS'] !== 'off' : (
-			isset($server['HTTP_X_FORWARDED_PROTO']) && $server['HTTP_X_FORWARDED_PROTO'] === 'https'
+		return @$server['HTTPS'] ? $server['HTTPS'] !== 'off' : (
+			@$server['REQUEST_SCHEME'] === 'https' ||
+			@$server['HTTP_X_FORWARDED_PROTO'] === 'https'
 		);
 	}
 	/**
@@ -200,7 +206,7 @@ trait Server {
 	 *
 	 * @param string $name
 	 *
-	 * @return string Header content if exists or `false` otherwise
+	 * @return string Header content if exists or empty string otherwise
 	 */
 	function header ($name) {
 		return isset($this->headers[$name]) ? $this->headers[$name] : '';

@@ -8,7 +8,8 @@
 namespace cs;
 use
 	h,
-	PHPMailer;
+	PHPMailer,
+	phpmailerException;
 
 /**
  * @method static $this instance($check = false)
@@ -22,7 +23,7 @@ class Mail extends PHPMailer {
 		$Config = Config::instance();
 		if ($Config->core['smtp']) {
 			$this->isSMTP();
-			$this->Host       = $Config->core['smtp_host'];
+			$this->Host = $Config->core['smtp_host'];
 			/** @noinspection NestedTernaryOperatorInspection */
 			$this->Port       = $Config->core['smtp_port'] ?: ($Config->core['smtp_secure'] ? 465 : 25);
 			$this->SMTPSecure = $Config->core['smtp_secure'];
@@ -60,13 +61,17 @@ class Mail extends PHPMailer {
 			return false;
 		}
 		foreach ($this->normalize_email($email) as $e) {
-			call_user_func_array([$this, 'addAddress'], $e);
+			$this->addAddress(...$e);
 		}
 		foreach ($this->normalize_email($reply_to) as $r) {
-			call_user_func_array([$this, 'AddReplyTo'], $r);
+			$this->addReplyTo(...$r);
 		}
 		foreach ($this->normalize_attachment($attachments) as $a) {
-			call_user_func_array([$this, 'AddAttachment'], $a);
+			try {
+				$this->addAttachment(...$a);
+			} catch (phpmailerException $e) {
+				trigger_error($e->getMessage(), E_USER_WARNING);
+			}
 		}
 		$this->Subject = $subject;
 		$signature     = $this->make_signature($signature);
@@ -74,7 +79,12 @@ class Mail extends PHPMailer {
 		if ($body_text) {
 			$this->AltBody = $body_text.strip_tags($signature);
 		}
-		$result = $this->send();
+		try {
+			$result = $this->send();
+		} catch (phpmailerException $e) {
+			trigger_error($e->getMessage(), E_USER_WARNING);
+			$result = false;
+		}
 		$this->clearAddresses();
 		$this->clearAttachments();
 		$this->clearReplyTos();

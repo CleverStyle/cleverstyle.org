@@ -45,21 +45,17 @@ trait Management {
 	function search_users ($search_phrase) {
 		$search_phrase = trim($search_phrase, "%\n");
 		$found_users   = $this->db()->qfas(
-			[
-				"SELECT `id`
-				FROM `[prefix]users`
-				WHERE
-					(
-						`login`		LIKE '%s' OR
-						`username`	LIKE '%s' OR
-						`email`		LIKE '%s'
-					) AND
-					`status` != '%s'",
-				$search_phrase,
-				$search_phrase,
-				$search_phrase,
-				User::STATUS_NOT_ACTIVATED
-			]
+			"SELECT `id`
+			FROM `[prefix]users`
+			WHERE
+				(
+					`login`		LIKE '%1\$s' OR
+					`username`	LIKE '%1\$s' OR
+					`email`		LIKE '%1\$s'
+				) AND
+				`status` != '%2\$s'",
+			$search_phrase,
+			User::STATUS_NOT_ACTIVATED
 		);
 		if (!$found_users) {
 			return false;
@@ -84,10 +80,10 @@ trait Management {
 	 *                             <b>]</b>
 	 */
 	function registration ($email, $confirmation = true, $auto_sign_in = true) {
-		$email = mb_strtolower($email);
 		if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
 			return false;
 		}
+		$email = mb_strtolower($email);
 		$this->delete_unconfirmed_users();
 		if (!Event::instance()->fire(
 			'System/User/registration/before',
@@ -112,13 +108,11 @@ trait Management {
 			$login_hash = $email_hash;
 		}
 		if ($this->db_prime()->qf(
-			[
-				"SELECT `id`
-				FROM `[prefix]users`
-				WHERE `email_hash` = '%s'
-				LIMIT 1",
-				$email_hash
-			]
+			"SELECT `id`
+			FROM `[prefix]users`
+			WHERE `email_hash` = '%s'
+			LIMIT 1",
+			$email_hash
 		)
 		) {
 			return 'exists';
@@ -214,19 +208,17 @@ trait Management {
 		}
 		$this->delete_unconfirmed_users();
 		$data = $this->db_prime()->qf(
-			[
-				"SELECT
-					`id`,
-					`login_hash`,
-					`email`
-				FROM `[prefix]users`
-				WHERE
-					`reg_key`	= '%s' AND
-					`status`	= '%s'
-				LIMIT 1",
-				$reg_key,
-				User::STATUS_NOT_ACTIVATED
-			]
+			"SELECT
+				`id`,
+				`login_hash`,
+				`email`
+			FROM `[prefix]users`
+			WHERE
+				`reg_key`	= '%s' AND
+				`status`	= '%s'
+			LIMIT 1",
+			$reg_key,
+			User::STATUS_NOT_ACTIVATED
 		);
 		if (!$data) {
 			return false;
@@ -275,14 +267,12 @@ trait Management {
 	protected function delete_unconfirmed_users () {
 		$reg_date = time() - Config::instance()->core['registration_confirmation_time'] * 86400;    //1 day = 86400 seconds
 		$ids      = $this->db_prime()->qfas(
-			[
-				"SELECT `id`
-				FROM `[prefix]users`
-				WHERE
-					`status`	= '%s' AND
-					`reg_date`	< $reg_date",
-				User::STATUS_NOT_ACTIVATED
-			]
+			"SELECT `id`
+			FROM `[prefix]users`
+			WHERE
+				`status`	= '%s' AND
+				`reg_date`	< $reg_date",
+			User::STATUS_NOT_ACTIVATED
 		);
 		if ($ids) {
 			$this->del_user($ids);
@@ -372,16 +362,14 @@ trait Management {
 			return false;
 		}
 		$id = $this->db_prime()->qfs(
-			[
-				"SELECT `id`
-				FROM `[prefix]users`
-				WHERE
-					`reg_key`	= '%s' AND
-					`status`	= '%s'
-				LIMIT 1",
-				$key,
-				User::STATUS_ACTIVE
-			]
+			"SELECT `id`
+			FROM `[prefix]users`
+			WHERE
+				`reg_key`	= '%s' AND
+				`status`	= '%s'
+			LIMIT 1",
+			$key,
+			User::STATUS_ACTIVE
 		);
 		if (!$id) {
 			return false;
@@ -433,8 +421,7 @@ trait Management {
 		$login_hash = hash('sha224', $this->get('login', $user));
 		$this->db_prime()->q(
 			"DELETE FROM `[prefix]users`
-			WHERE `id` = $user
-			LIMIT 1"
+			WHERE `id` = $user"
 		);
 		unset(
 			$Cache->$login_hash,
@@ -446,79 +433,6 @@ trait Management {
 				'id' => $user
 			]
 		);
-	}
-	/**
-	 * Add bot
-	 *
-	 * @param string $name       Bot name
-	 * @param string $user_agent User Agent string or regular expression
-	 * @param string $ip         IP string or regular expression
-	 *
-	 * @return false|int Bot <b>id</b> in DB or <b>false</b> on failure
-	 */
-	function add_bot ($name, $user_agent, $ip) {
-		if ($this->db_prime()->q(
-			"INSERT INTO `[prefix]users`
-				(
-					`username`,
-					`login`,
-					`email`,
-					`status`
-				) VALUES (
-					'%s',
-					'%s',
-					'%s',
-					'%s'
-				)",
-			xap($name),
-			xap($user_agent),
-			xap($ip),
-			User::STATUS_ACTIVE
-		)
-		) {
-			$id = $this->db_prime()->id();
-			$this->set_groups([User::BOT_GROUP_ID], $id);
-			Event::instance()->fire(
-				'System/User/add_bot',
-				[
-					'id' => $id
-				]
-			);
-			return $id;
-		}
-		return false;
-	}
-	/**
-	 * Set bot
-	 *
-	 * @param int    $id         Bot id
-	 * @param string $name       Bot name
-	 * @param string $user_agent User Agent string or regular expression
-	 * @param string $ip         IP string or regular expression
-	 *
-	 * @return bool
-	 */
-	function set_bot ($id, $name, $user_agent, $ip) {
-		$result = $this->set(
-			[
-				'username' => $name,
-				'login'    => $user_agent,
-				'email'    => $ip
-			],
-			null,
-			$id
-		);
-		unset($this->cache->bots);
-		return $result;
-	}
-	/**
-	 * Delete specified bot or array of bots
-	 *
-	 * @param int|int[] $bot Bot id or array of bots ids
-	 */
-	function del_bot ($bot) {
-		$this->del_user($bot);
-		unset($this->cache->bots);
 	}
 	/**
 	 * Returns array of user id, that are associated as contacts

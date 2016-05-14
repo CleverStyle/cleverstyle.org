@@ -6,6 +6,9 @@
  * @license   MIT License, see license.txt
  */
 namespace cs\DB;
+use
+	Exception;
+
 abstract class _Abstract {
 	/**
 	 * Is connection established
@@ -63,11 +66,9 @@ abstract class _Abstract {
 	 */
 	protected $connecting_time;
 	/**
-	 * Asynchronous request
-	 *
 	 * @var bool
 	 */
-	protected $async = false;
+	protected $in_transaction = false;
 	/**
 	 * Connecting to the DB
 	 *
@@ -89,12 +90,12 @@ abstract class _Abstract {
 	 * @param string|string[] $query  SQL query string or array, may be a format string in accordance with the first parameter of sprintf() function
 	 * @param string|string[] $params May be array of arguments for formatting of <b>$query</b><br>
 	 *                                or string - in this case it will be first argument for formatting of <b>$query</b>
-	 * @param string          $_      if <b>$params</s> is string - this parameter will be second argument for formatting of <b>$query</b>.
+	 * @param string[]        $param  if <b>$params</b> is string - this parameter will be second argument for formatting of <b>$query</b>.
 	 *                                If you need more arguments - add them after this one, function will accept them.
 	 *
 	 * @return false|object|resource
 	 */
-	function q ($query, $params = [], $_ = null) {
+	function q ($query, $params = [], ...$param) {
 		$normalized = $this->prepare_and_normalize_arguments($query, func_get_args());
 		if (!$normalized) {
 			return false;
@@ -182,21 +183,15 @@ abstract class _Abstract {
 	 * Asynchronous SQL request into DB (if is not supported - ordinary request will me executed).
 	 * Result of execution can't be obtained, so, use it, for example, for deleting some non-critical data
 	 *
-	 * @abstract
+	 * @deprecated
+	 * @todo remove after 4.x release
 	 *
-	 * @param string|string[] $query          SQL query string, may be a format string in accordance with the first parameter of sprintf() function
-	 * @param string|string[] $params         May be array of arguments for formatting of <b>$query</b><br>
-	 *                                        or string - in this case it will be first argument for formatting of <b>$query</b>
-	 * @param string          $param          if <b>$params</s> is string - this parameter will be second argument for formatting of <b>$query</b>.
-	 *                                        If you need more arguments - add them after this one, function will accept them.
+	 * @param mixed $arguments
 	 *
 	 * @return false|object|resource
 	 */
-	function aq ($query, $params = [], $param = null) {
-		$this->async = true;
-		$result      = call_user_func_array([$this, 'q'], func_get_args());
-		$this->async = false;
-		return $result;
+	function aq (...$arguments) {
+		return $this->q(...$arguments);
 	}
 	/**
 	 * SQL request to DB
@@ -222,6 +217,9 @@ abstract class _Abstract {
 	 * Number
 	 *
 	 * Getting number of selected rows
+	 *
+	 * @deprecated
+	 * @todo remove after 4.x release
 	 *
 	 * @abstract
 	 *
@@ -250,6 +248,9 @@ abstract class _Abstract {
 	 *
 	 * Similar to ::f() method, with parameter <b>$array</b> = true
 	 *
+	 * @deprecated
+	 * @todo remove after 4.x release
+	 *
 	 * @param false|object|resource $query_result
 	 * @param bool                  $single_column If <b>true</b> function will return not array with one element, but directly its value
 	 * @param bool                  $indexed       If <b>false</b> - associative array will be returned
@@ -264,6 +265,9 @@ abstract class _Abstract {
 	 *
 	 * Similar to ::f() method, with parameter <b>$single_column</b> = true
 	 *
+	 * @deprecated
+	 * @todo remove after 4.x release
+	 *
 	 * @param false|object|resource $query_result
 	 * @param bool                  $array If <b>true</b> returns array of associative arrays of all fetched rows
 	 *
@@ -277,6 +281,9 @@ abstract class _Abstract {
 	 *
 	 * Combination of ::fa() and ::fs() methods
 	 *
+	 * @deprecated
+	 * @todo remove after 4.x release
+	 *
 	 * @param false|object|resource $query_result
 	 *
 	 * @return false|int[]|string[]
@@ -287,97 +294,90 @@ abstract class _Abstract {
 	/**
 	 * Query, Fetch
 	 *
-	 * Combination of ::q() and ::f() methods
+	 * Short for `::f(::q())`, arguments are exactly the same as in `::q()`
 	 *
-	 * @param array|string $query         SQL query string, or you can put all parameters, that ::q() function can accept in form of array
-	 * @param bool         $single_column If <b>true</b> function will return not array with one element, but directly its value
-	 * @param bool         $array         If <b>true</b> returns array of associative arrays of all fetched rows
-	 * @param bool         $indexed       If <b>false</b> - associative array will be returned
+	 * @param string[] $query
 	 *
-	 * @return array[]|false|int|int[]|string|string[]
+	 * @return array|false
 	 */
-	function qf ($query, $single_column = false, $array = false, $indexed = false) {
-		list($query, $params) = $this->q_prepare($query);
-		if (!$query) {
-			return false;
+	function qf (...$query) {
+		// TODO: simplify code below
+		$single_column = false;
+		$array         = false;
+		$indexed       = false;
+		if (count($query) > 1 && is_bool($query[1])) {
+			$single_column = $query[1];
+			if (isset($query[2])) {
+				$array = $query[2];
+			}
+			if (isset($query[3])) {
+				$indexed = $query[3];
+			}
+			$query = $query[0];
+		} elseif (count($query) == 1 && is_array($query[0])) {
+			$query = $query[0];
 		}
-		return $this->f($this->q($query, $params), $single_column, $array, $indexed);
+		return $this->f($this->q(...$query), $single_column, $array, $indexed);
 	}
 	/**
 	 * Query, Fetch, Array
 	 *
-	 * Combination of ::q() and ::fa() methods
+	 * Short for `::f(::q(), false, true, false)`, arguments are exactly the same as in `::q()`
 	 *
-	 * @param array|string $query         SQL query string, or you can put all parameters, that ::q() function can accept in form of array
-	 * @param bool         $single_column If <b>true</b> function will return not array with one element, but directly its value
-	 * @param bool         $indexed       If <b>false</b> - associative array will be returned
+	 * @param string[] $query
 	 *
 	 * @return array[]|false
 	 */
-	function qfa ($query, $single_column = false, $indexed = false) {
-		list($query, $params) = $this->q_prepare($query);
-		if (!$query) {
-			return false;
+	function qfa (...$query) {
+		// TODO: simplify code below
+		$single_column = false;
+		$indexed       = false;
+		if (count($query) > 1 && is_bool($query[1])) {
+			$single_column = $query[1];
+			if (isset($query[2])) {
+				$indexed = $query[2];
+			}
+			$query = $query[0];
+		} elseif (count($query) == 1 && is_array($query[0])) {
+			$query = $query[0];
 		}
-		return $this->fa($this->q($query, $params), $single_column, $indexed);
+		return $this->f($this->q(...$query), $single_column, true, $indexed);
 	}
 	/**
 	 * Query, Fetch, Single
 	 *
-	 * Combination of ::q() and ::fs() methods
+	 * Short for `::f(::q(), true, false, false)`, arguments are exactly the same as in `::q()`
 	 *
-	 * @param array|string $query SQL query string, or you can put all parameters, that ::q() function can accept in form of array
-	 * @param bool         $array If <b>true</b> returns array of associative arrays of all fetched rows
+	 * @param string[] $query
 	 *
-	 * @return false|int|int[]|string|string[]
+	 * @return false|int|string
 	 */
-	function qfs ($query, $array = false) {
-		list($query, $params) = $this->q_prepare($query);
-		if (!$query) {
-			return false;
+	function qfs (...$query) {
+		// TODO: simplify code below
+		$array = false;
+		if (count($query) == 2 && is_bool($query[1])) {
+			$array = $query[1];
+			$query = $query[0];
+		} elseif (count($query) == 1 && is_array($query[0])) {
+			$query = $query[0];
 		}
-		return $this->fs($this->q($query, $params), $array);
+		return $this->f($this->q(...$query), true, $array);
 	}
 	/**
 	 * Query, Fetch, Array, Single
 	 *
-	 * Combination of ::q() and ::fas() methods
+	 * Short for `::f(::q(), true, true, false)`, arguments are exactly the same as in `::q()`
 	 *
-	 * @param array|string $query SQL query string, or you can put all parameters, that ::q() function can accept in form of array
+	 * @param string[] $query
 	 *
 	 * @return false|int[]|string[]
 	 */
-	function qfas ($query) {
-		list($query, $params) = $this->q_prepare($query);
-		if (!$query) {
-			return false;
-		}
-		return $this->fas($this->q($query, $params));
-	}
-	/**
-	 * Query preparing for ::q*() methods
-	 *
-	 * @param array|string|string[] $query
-	 *
-	 * @return array|false [<b>$query</b>, <b>$params</b>]
-	 */
-	protected function q_prepare ($query) {
-		if (!$query) {
-			return false;
-		}
-		$params = [];
-		if (is_array($query)) {
-			if (count($query) == 2) {
-				$params = $query[1];
-			} elseif (count($query) > 2) {
-				$params = array_slice($query, 1);
-			}
+	function qfas (...$query) {
+		// TODO: simplify code below
+		if (count($query) == 1 && is_array($query[0])) {
 			$query = $query[0];
 		}
-		return [
-			$query,
-			$params
-		];
+		return $this->f($this->q(...$query), true, true);
 	}
 	/**
 	 * Method for simplified inserting of several rows
@@ -408,13 +408,7 @@ abstract class _Abstract {
 			$query = $query[0].'VALUES'.$query[1].$query[2];
 			return (bool)$this->q(
 				$query,
-				call_user_func_array(
-					'array_merge',
-					array_map(
-						'array_values',
-						_array($params)
-					)
-				)
+				array_merge(...array_map('array_values', _array($params)))
 			);
 		} else {
 			$result = true;
@@ -445,11 +439,52 @@ abstract class _Abstract {
 	 */
 	abstract function affected ();
 	/**
+	 * Execute transaction
+	 *
+	 * All queries done inside callback will be within single transaction, throwing any exception or returning boolean `false` from callback will cause
+	 * rollback. Nested transaction calls will be wrapped into single big outer transaction, so you might call it safely if needed.
+	 *
+	 * @param callable $callback This instance will be used as single argument
+	 *
+	 * @return bool
+	 *
+	 * @throws Exception Re-throws exception thrown inside callback
+	 */
+	function transaction ($callback) {
+		$start_transaction = !$this->in_transaction;
+		if ($start_transaction) {
+			$this->in_transaction = true;
+			if (!$this->q_internal('BEGIN')) {
+				return false;
+			}
+		}
+		try {
+			$result = $callback($this);
+		} catch (Exception $e) {
+			$this->transaction_rollback();
+			throw $e;
+		}
+		if ($result === false) {
+			$this->transaction_rollback();
+			return false;
+		} elseif ($start_transaction) {
+			$this->in_transaction = false;
+			return (bool)$this->q_internal('COMMIT');
+		}
+		return true;
+	}
+	protected function transaction_rollback () {
+		if ($this->in_transaction) {
+			$this->in_transaction = false;
+			$this->q_internal('ROLLBACK');
+		}
+	}
+	/**
 	 * Free result memory
 	 *
 	 * @abstract
 	 *
-	 * @param object|resource $query_result
+	 * @param false|object|resource $query_result
 	 */
 	abstract function free ($query_result);
 	/**
@@ -460,21 +495,7 @@ abstract class _Abstract {
 	 *
 	 * @return string[]
 	 */
-	function columns ($table, $like = false) {
-		if (!$table) {
-			return false;
-		}
-		if ($like) {
-			$like    = $this->s($like);
-			$columns = $this->qfa("SHOW COLUMNS FROM `$table` LIKE $like") ?: [];
-		} else {
-			$columns = $this->qfa("SHOW COLUMNS FROM `$table`") ?: [];
-		}
-		foreach ($columns as &$column) {
-			$column = $column['Field'];
-		}
-		return $columns;
-	}
+	abstract function columns ($table, $like = false);
 	/**
 	 * Get tables list
 	 *
@@ -482,14 +503,7 @@ abstract class _Abstract {
 	 *
 	 * @return string[]
 	 */
-	function tables ($like = false) {
-		if ($like) {
-			$like = $this->s($like);
-			return $this->qfas("SHOW TABLES FROM `$this->database` LIKE $like") ?: [];
-		} else {
-			return $this->qfas("SHOW TABLES FROM `$this->database`") ?: [];
-		}
-	}
+	abstract function tables ($like = false);
 	/**
 	 * Safe
 	 *

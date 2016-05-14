@@ -10,20 +10,22 @@
 namespace cs\modules\System\api\Controller\admin;
 use
 	cs\ExitException,
-	cs\Language\Prefix,
-	cs\Page,
+	cs\Language,
+	cs\Request,
 	cs\Session;
 
 trait upload {
 	/**
+	 * @return array
+	 *
 	 * @throws ExitException
 	 */
 	static function admin_upload_post () {
-		if (!isset($_FILES['file']['tmp_name'])) {
+		$file = Request::instance()->files('file');
+		if (!$file) {
 			throw new ExitException(400);
 		}
-		$L    = new Prefix('system_admin_');
-		$file = $_FILES['file'];
+		$L = Language::prefix('system_admin_');
 		switch ($file['error']) {
 			case UPLOAD_ERR_INI_SIZE:
 			case UPLOAD_ERR_FORM_SIZE:
@@ -32,12 +34,12 @@ trait upload {
 				throw new ExitException($L->temporary_folder_is_missing, 400);
 			case UPLOAD_ERR_CANT_WRITE:
 				throw new ExitException($L->cant_write_file_to_disk, 500);
-			case UPLOAD_ERR_PARTIAL:
-			case UPLOAD_ERR_NO_FILE:
-				throw new ExitException(400);
+		}
+		if ($file['error'] != UPLOAD_ERR_OK) {
+			throw new ExitException(400);
 		}
 		$target_directory = TEMP.'/System/admin';
-		if (!is_dir($target_directory) && !mkdir($target_directory, 0770, true)) {
+		if (!@mkdir($target_directory, 0770, true) && !is_dir($target_directory)) {
 			throw new ExitException(500);
 		}
 		$tmp_filename = Session::instance()->get_id().'.phar';
@@ -56,7 +58,7 @@ trait upload {
 				unlink($file);
 			}
 		);
-		if (!move_uploaded_file($file['tmp_name'], $tmp_location)) {
+		if (!copy($file['tmp_name'], $tmp_location)) {
 			throw new ExitException(500);
 		}
 		$tmp_dir = "phar://$tmp_location";
@@ -69,6 +71,6 @@ trait upload {
 			unlink($tmp_location);
 			throw new ExitException(400);
 		}
-		Page::instance()->json($meta);
+		return $meta;
 	}
 }

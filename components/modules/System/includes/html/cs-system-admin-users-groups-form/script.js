@@ -8,9 +8,6 @@
  * @license    MIT License, see license.txt
  */
 (function(){
-  var BOT_GROUP_ID, L;
-  BOT_GROUP_ID = 3;
-  L = cs.Language;
   Polymer({
     'is': 'cs-system-admin-users-groups-form',
     behaviors: [cs.Polymer.behaviors.Language('system_admin_users_')],
@@ -31,9 +28,6 @@
         other_groups = [];
         for (group in groups) {
           group = groups[group];
-          if (group.id == BOT_GROUP_ID) {
-            continue;
-          }
           if (user_groups_ids.indexOf(group.id) !== -1) {
             user_groups.push(group);
           } else {
@@ -63,6 +57,7 @@
       });
     },
     save: function(){
+      var this$ = this;
       $.ajax({
         url: "api/System/admin/users/" + this.user + "/groups",
         data: {
@@ -72,7 +67,7 @@
         },
         type: 'put',
         success: function(){
-          return cs.ui.notify(L.changes_saved, 'success', 5);
+          cs.ui.notify(this$.L.changes_saved, 'success', 5);
         }
       });
     }

@@ -7,13 +7,13 @@
  */
 namespace cs;
 use
-	cs\Response\Compatibility,
 	cs\Response\Psr7;
+use function
+	cli\out;
 
-class Response implements \ArrayAccess, \Iterator {
+class Response {
 	use
 		Singleton,
-		Compatibility,
 		Psr7;
 	/**
 	 * Protocol, for instance: `HTTP/1.0`, `HTTP/1.1` (default), HTTP/2.0
@@ -74,7 +74,7 @@ class Response implements \ArrayAccess, \Iterator {
 		return $this;
 	}
 	/**
-	 * Initialize with typical default settings (headers `Content-Type` and `Vary`, protocol taken from `cs\Request::$protocol`)
+	 * Initialize with typical default settings (headers `Content-Type`, `Vary` and `X-UA-Compatible`, protocol taken from `cs\Request::$protocol`)
 	 *
 	 * @return Response
 	 */
@@ -83,8 +83,9 @@ class Response implements \ArrayAccess, \Iterator {
 			'',
 			null,
 			[
-				'Content-Type' => 'text/html; charset=utf-8',
-				'Vary'         => 'Accept-Language,User-Agent,Cookie'
+				'Content-Type'    => 'text/html; charset=utf-8',
+				'Vary'            => 'Accept-Language,User-Agent,Cookie',
+				'X-UA-Compatible' => 'IE=edge' // TODO: I hope some day we'll get rid of this sh*t :(
 			],
 			200,
 			Request::instance()->protocol
@@ -177,7 +178,28 @@ class Response implements \ArrayAccess, \Iterator {
 	 * Provides default output for all the response data using `header()`, `http_response_code()` and `echo` or `php://output`
 	 */
 	function output_default () {
-		foreach ($this->headers as $header => $value) {
+		ob_implicit_flush(true);
+		if (Request::instance()->cli_path) {
+			$this->output_default_cli();
+		} else {
+			$this->output_default_web();
+		}
+	}
+	protected function output_default_cli () {
+		if ($this->code >= 400 && $this->code <= 510) {
+			out($this->body);
+			exit($this->code % 256);
+		}
+		if (is_resource($this->body_stream)) {
+			$position = ftell($this->body_stream);
+			stream_copy_to_stream($this->body_stream, STDIN);
+			fseek($this->body_stream, $position);
+		} else {
+			out($this->body);
+		}
+	}
+	protected function output_default_web () {
+		foreach ($this->headers ?: [] as $header => $value) {
 			foreach ($value as $v) {
 				header("$header: $v", false);
 			}

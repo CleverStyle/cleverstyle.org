@@ -42,14 +42,9 @@ Event::instance()
 			/**
 			 * Security check
 			 */
-			if (
-				$Request->header('x-requested-with') !== 'XMLHttpRequest' &&
-				(
-					!isset($_POST['session']) || $_POST['session'] != $Session->get_id()
-				)
-			) {
-				foreach (array_keys((array)$_POST) as $key) {
-					unset($_POST[$key], $_REQUEST[$key]);
+			if ($Request->header('x-requested-with') !== 'XMLHttpRequest' && !$Request->data('session') != $Session->get_id()) {
+				foreach (array_keys($Request->data) as $key) {
+					unset($Request->data[$key]);
 				}
 			}
 		}
@@ -95,10 +90,32 @@ Event::instance()
 		}
 	)
 	->on(
-		'System/Index/construct',
+		'admin/System/Menu',
 		function () {
-			if (Request::instance()->current_module == 'System') {
-				require __DIR__.'/events/admin.php';
+			$Config    = Config::instance();
+			$L         = Language::prefix('system_admin_');
+			$Menu      = Menu::instance();
+			$Request   = Request::instance();
+			$structure = $Config->core['simple_admin_mode'] ? file_get_json(__DIR__.'/admin/index_simple.json') : file_get_json(__DIR__.'/admin/index.json');
+			foreach ($structure as $section => $items) {
+				$Menu->add_section_item(
+					'System',
+					$L->$section,
+					[
+						'href'    => "admin/System/$section",
+						'primary' => $Request->route_path(0) == $section
+					]
+				);
+				foreach ($items as $item) {
+					$Menu->add_item(
+						'System',
+						$L->$item,
+						[
+							'href'    => "admin/System/$section/$item",
+							'primary' => $Request->route_path(0) == $section && $Request->route_path(1) == $item
+						]
+					);
+				}
 			}
 		}
 	);

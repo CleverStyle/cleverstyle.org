@@ -21,13 +21,13 @@ trait CRUD_helpers {
 	 *                                   Or [attribute => [value1, value2, value3]];<br>
 	 *                                   Or [attribute => [from => a, to => b]];<br>
 	 *                                   Or [attribute => [...]] in case of joined tables, where ... is any of three constructions mentioned above;<br>
-	 *                                   if `total_count => 1` element is present - total number of found rows will be returned instead of rows themselves
+	 *                                   if `total_count => true` element is present - total number of found rows will be returned instead of rows themselves
 	 * @param int     $page
 	 * @param int     $count
 	 * @param string  $order_by
 	 * @param bool    $asc
 	 *
-	 * @return array|false|int
+	 * @return false|int|int[]|string[] Array of `id` or number of elements
 	 */
 	protected function search ($search_parameters = [], $page = 1, $count = 100, $order_by = 'id', $asc = false) {
 		if (!isset($this->data_model[$order_by])) {
@@ -62,36 +62,34 @@ trait CRUD_helpers {
 	 * @param string   $order_by
 	 * @param bool     $asc
 	 *
-	 * @return false|int|\int[]|string|\string[]
+	 * @return false|int|int[]|string[]
 	 */
 	private function search_do ($table_alias, $total_count, $where, $where_params, $joins, $join_params, $page, $count, $order_by, $asc) {
 		$first_column = array_keys($this->data_model)[0];
 		$where        = $where ? 'WHERE '.implode(' AND ', $where) : '';
 		if ($total_count) {
-			return $this->db()->qfs(
-				[
-					"SELECT COUNT(`$table_alias`.`$first_column`)
-					FROM `$this->table` AS `$table_alias`
-					$where",
-					array_merge($join_params, $where_params)
-				]
-			);
-		}
-		$where_params[] = ($page - 1) * $count;
-		$where_params[] = $count;
-		$order_by       = $this->search_order_by($table_alias, $order_by, $joins, $join_index);
-		$asc            = $asc ? 'ASC' : 'DESC';
-		return $this->db()->qfas(
-			[
-				"SELECT `$table_alias`.`$first_column`
+			return (int)$this->db()->qfs(
+				"SELECT COUNT(`$table_alias`.`$first_column`)
 				FROM `$this->table` AS `$table_alias`
 				$joins
-				$where
-				ORDER BY $order_by $asc
-				LIMIT %d, %d",
+				$where",
 				array_merge($join_params, $where_params)
-			]
+			);
+		}
+		$where_params[] = $count;
+		$where_params[] = ($page - 1) * $count;
+		$order_by       = $this->search_order_by($table_alias, $order_by, $joins, $join_index);
+		$asc            = $asc ? 'ASC' : 'DESC';
+		$return         = $this->db()->qfas(
+			"SELECT `$table_alias`.`$first_column`
+			FROM `$this->table` AS `$table_alias`
+			$joins
+			$where
+			ORDER BY $order_by $asc
+			LIMIT %d OFFSET %d",
+			array_merge($join_params, $where_params)
 		);
+		return $this->read_field_post_processing($return, array_values($this->data_model)[0]);
 	}
 	/**
 	 * @param string   $table_alias
@@ -108,7 +106,6 @@ trait CRUD_helpers {
 			if (is_array_indexed($details)) {
 				$where_tmp = [];
 				foreach ($details as $d) {
-					/** @noinspection DisconnectedForeachInstructionInspection */
 					$where_tmp[]    = "`$table_alias`.`$key` = '%s'";
 					$where_params[] = $d;
 				}
@@ -126,35 +123,42 @@ trait CRUD_helpers {
 		}
 	}
 	/**
-	 * @param string $table_alias
-	 * @param string $table
-	 * @param array  $details
-	 * @param string $joins
-	 * @param array  $join_params
-	 * @param int    $join_index
+	 * @param string           $table_alias
+	 * @param string           $table
+	 * @param array|int|string $details
+	 * @param string           $joins
+	 * @param array            $join_params
+	 * @param int              $join_index
 	 */
 	private function search_conditions_join_table ($table_alias, $table, $details, &$joins, &$join_params, &$join_index) {
 		$data_model        = $this->data_model[$table];
 		$first_column      = array_keys($this->data_model)[0];
 		$first_column_join = array_keys($data_model['data_model'])[0];
-		$join_params[]     = $table;
 		if (is_scalar($details)) {
 			$details = [
 				array_keys($data_model['data_model'])[1] => $details
 			];
 		}
+		/**
+		 * @var array $details
+		 */
 		++$join_index;
 		$joins .=
 			"INNER JOIN `{$this->table}_$table` AS `j$join_index`
 			ON
-				`$table_alias`.`$first_column`	= `j$join_index`.`$first_column_join`";
+				`$table_alias`.`$first_column` = `j$join_index`.`$first_column_join`";
+		$language_field = isset($data_model['language_field']) ? $data_model['language_field'] : false;
 		foreach ($details as $field => $value) {
+			if ($language_field === $field) {
+				continue;
+			}
 			$where_tmp = [];
 			$this->search_conditions("j$join_index", $field, $value, $where_tmp, $join_params);
 			$joins .= " AND ".implode(" AND ", $where_tmp);
 		}
-		if (isset($data_model['language_field'])) {
-			$clang = Language::instance()->clang;
+		if ($language_field) {
+			/** @noinspection OffsetOperationsInspection */
+			$clang = isset($details[$language_field]) ? $details[$language_field] : Language::instance()->clang;
 			$joins .=
 				" AND
 				(

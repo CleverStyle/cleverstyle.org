@@ -9,7 +9,6 @@
 L				= cs.Language('system_admin_groups_')
 ADMIN_GROUP_ID	= 1
 USER_GROUP_ID	= 2
-BOT_GROUP_ID	= 3
 Polymer(
 	'is'		: 'cs-system-admin-groups-list'
 	behaviors	: [
@@ -22,7 +21,7 @@ Polymer(
 	reload : !->
 		$.getJSON('api/System/admin/groups', (groups) !~>
 			groups.forEach (group) !->
-				group.allow_to_delete	= group.id !~= ADMIN_GROUP_ID && group.id !~= USER_GROUP_ID && group.id !~= BOT_GROUP_ID
+				group.allow_to_delete	= group.id !~= ADMIN_GROUP_ID && group.id !~= USER_GROUP_ID
 			@set('groups', groups)
 		)
 	add_group : !->
@@ -34,7 +33,7 @@ Polymer(
 		group	= e.model.group
 		$(cs.ui.simple_modal("""
 			<h3>#{L.editing_group(group.title)}</h3>
-			<cs-system-admin-groups-form group_id="#{group.id}" group_title="#{cs.prepare_attr_value(group.title)}" description="#{cs.prepare_attr_value(group.description)}"/>
+			<cs-system-admin-groups-form group_id="#{group.id}"/>
 		""")).on('close', @~reload)
 	delete_group : (e) !->
 		group	= e.model.group

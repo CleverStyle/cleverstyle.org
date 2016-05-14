@@ -21,7 +21,13 @@ use
  *
  *  System/App/render/before
  *
+ *  System/App/execute_router/before
+ *
+ *  System/App/execute_router/after
+ *
  *  System/App/render/after
+ *
+ * @property string[] $controller_path Path that will be used by controller to render page
  *
  * @method static $this instance($check = false)
  */
@@ -30,13 +36,8 @@ class App {
 		Singleton,
 		Router;
 	const INIT_STATE_METHOD = 'init';
-	/**
-	 * @var string
-	 */
-	protected $working_directory;
 	protected function init () {
-		$this->working_directory = '';
-		$this->controller_path   = ['index'];
+		$this->init_router();
 	}
 	/**
 	 * Executes plugins processing, blocks and module page generation
@@ -50,19 +51,9 @@ class App {
 			throw new ExitException(400);
 		}
 		$this->handle_closed_site(!$Config->core['site_mode'], $Request);
-		$this->working_directory = MODULES."/$Request->current_module";
-		if ($Request->admin_path) {
-			$this->working_directory .= '/admin';
-		} elseif ($Request->api_path) {
-			$this->working_directory .= '/api';
-		}
-		if (!is_dir($this->working_directory)) {
-			throw new ExitException(404);
-		}
-		if (!$this->check_permission('index')) {
+		if (!$this->check_permission($Request, 'index')) {
 			throw new ExitException(403);
 		}
-		Event::instance()->fire('System/Index/construct');
 		Event::instance()->fire('System/App/construct');
 		/**
 		 * Plugins processing
@@ -70,19 +61,8 @@ class App {
 		foreach ($Config->components['plugins'] as $plugin) {
 			_include(PLUGINS."/$plugin/index.php", false, false);
 		}
-		_include("$this->working_directory/prepare.php", false, false);
-		Event::instance()->fire('System/Index/load/before');
 		Event::instance()->fire('System/App/render/before');
-		/**
-		 * Title only for non-API calls
-		 */
-		$Request->api_path || $this->render_title();
-		$this->render_content();
-		/**
-		 * Blocks only for non-API calls
-		 */
-		$Request->api_path || $this->render_blocks();
-		Event::instance()->fire('System/Index/load/after');
+		$this->render($Request);
 		Event::instance()->fire('System/App/render/after');
 		Page::instance()->render();
 	}
@@ -132,12 +112,15 @@ class App {
 	/**
 	 * Check whether user allowed to access to specified label
 	 *
-	 * @param string $label
+	 * @param Request $Request
+	 * @param string  $label
 	 *
 	 * @return bool
 	 */
-	protected function check_permission ($label) {
-		$Request          = Request::instance();
+	protected function check_permission ($Request, $label) {
+		if ($Request->cli_path) {
+			return true;
+		}
 		$permission_group = $Request->current_module;
 		if ($Request->admin_path) {
 			$permission_group = "admin/$permission_group";
@@ -147,46 +130,44 @@ class App {
 		return User::instance()->get_permission($permission_group, $label);
 	}
 	/**
-	 * Render page title
-	 */
-	protected function render_title () {
-		$Page    = Page::instance();
-		$Request = Request::instance();
-		/**
-		 * Add generic Home or Module name title
-		 */
-		if (!$Request->api_path) {
-			$L = Language::instance();
-			if ($Request->admin_path) {
-				$Page->title($L->system_admin_administration);
-			}
-			$Page->title(
-				$L->{$Request->home_page ? 'system_home' : $Request->current_module}
-			);
-		}
-	}
-	/**
-	 * Render page content (without blocks, just module content)
+	 * @param Request $Request
 	 *
 	 * @throws ExitException
 	 */
-	protected function render_content () {
-		$Page = Page::instance();
-		/**
-		 * If module consists of index.html only
-		 */
-		if (file_exists("$this->working_directory/index.html")) {
-			ob_start();
-			_include("$this->working_directory/index.html", false, false);
-			$Page->content(ob_get_clean());
-			return;
+	protected function render ($Request) {
+		if ($Request->cli_path || $Request->api_path) {
+			$this->execute_router($Request);
+		} else {
+			$Page = Page::instance();
+			$this->render_title($Request, $Page);
+			$this->execute_router($Request);
+			$this->render_blocks($Page);
 		}
-		$this->execute_router();
+	}
+	/**
+	 * Render page title
+	 *
+	 * @param Request $Request
+	 * @param Page    $Page
+	 */
+	protected function render_title ($Request, $Page) {
+		/**
+		 * Add generic Home or Module name title
+		 */
+		$L = Language::instance();
+		if ($Request->admin_path) {
+			$Page->title($L->system_admin_administration);
+		}
+		$Page->title(
+			$L->{$Request->home_page ? 'system_home' : $Request->current_module}
+		);
 	}
 	/**
 	 * Blocks rendering
+	 *
+	 * @param Page $Page
 	 */
-	protected function render_blocks () {
+	protected function render_blocks ($Page) {
 		$blocks = Config::instance()->components['blocks'];
 		/**
 		 * It is frequent that there is no blocks - so, no need to to anything here
@@ -194,7 +175,6 @@ class App {
 		if (!$blocks) {
 			return;
 		}
-		$Page         = Page::instance();
 		$blocks_array = [
 			'top'    => '',
 			'left'   => '',

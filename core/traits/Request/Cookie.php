@@ -39,9 +39,9 @@ trait Cookie {
 	 *
 	 * @param string $name
 	 *
-	 * @return false|string Cookie content if exists or `false` otherwise
+	 * @return null|string Cookie content if exists or `null` otherwise
 	 */
 	function cookie ($name) {
-		return isset($this->cookie[$name]) ? $this->cookie[$name] : false;
+		return @$this->cookie[$name];
 	}
 }

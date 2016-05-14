@@ -10,8 +10,7 @@
 namespace cs\modules\System\api\Controller\admin;
 use
 	cs\Config,
-	cs\ExitException,
-	cs\Page;
+	cs\ExitException;
 
 trait site_info {
 	/**
@@ -19,48 +18,47 @@ trait site_info {
 	 */
 	static function admin_site_info_get_settings () {
 		$Config = Config::instance();
-		Page::instance()->json(
-			[
-				'site_name'         => get_core_ml_text('name'),
-				'url'               => implode("\n", $Config->core['url']),
-				'cookie_domain'     => implode("\n", $Config->core['cookie_domain']),
-				'cookie_prefix'     => $Config->core['cookie_prefix'],
-				'timezone'          => $Config->core['timezone'],
-				'admin_email'       => $Config->core['admin_email'],
-				'show_tooltips'     => $Config->core['show_tooltips'],
-				'simple_admin_mode' => $Config->core['simple_admin_mode'],
-				'applied'           => $Config->cancel_available()
-			]
-		);
+		return [
+			'site_name'         => get_core_ml_text('name'),
+			'url'               => implode("\n", $Config->core['url']),
+			'cookie_domain'     => implode("\n", $Config->core['cookie_domain']),
+			'cookie_prefix'     => $Config->core['cookie_prefix'],
+			'timezone'          => $Config->core['timezone'],
+			'admin_email'       => $Config->core['admin_email'],
+			'simple_admin_mode' => $Config->core['simple_admin_mode'],
+			'applied'           => $Config->cancel_available()
+		];
 	}
 	/**
 	 * Apply site info settings
 	 *
+	 * @param \cs\Request $Request
+	 *
 	 * @throws ExitException
 	 */
-	static function admin_site_info_apply_settings () {
-		static::admin_site_info_settings_common();
+	static function admin_site_info_apply_settings ($Request) {
+		static::admin_site_info_settings_common($Request);
 		if (!Config::instance()->apply()) {
 			throw new ExitException(500);
 		}
 	}
 	/**
+	 * @param \cs\Request $Request
+	 *
 	 * @throws ExitException
 	 */
-	protected static function admin_site_info_settings_common () {
-		if (
-			!isset($_POST['site_name'], $_POST['url'], $_POST['cookie_domain'], $_POST['cookie_prefix'], $_POST['timezone'], $_POST['admin_email']) ||
-			!in_array($_POST['timezone'], get_timezones_list(), true)
-		) {
+	protected static function admin_site_info_settings_common ($Request) {
+		$data = $Request->data('site_name', 'url', 'cookie_domain', 'cookie_prefix', 'timezone', 'admin_email');
+		if (!$data || !in_array($data['timezone'], get_timezones_list(), true)) {
 			throw new ExitException(400);
 		}
 		$Config                        = Config::instance();
-		$Config->core['name']          = set_core_ml_text('name', xap($_POST['site_name']));
-		$Config->core['url']           = static::admin_site_info_settings_common_multiline($_POST['url']);
-		$Config->core['cookie_domain'] = static::admin_site_info_settings_common_multiline($_POST['cookie_domain']);
-		$Config->core['cookie_prefix'] = xap($_POST['cookie_prefix']);
-		$Config->core['timezone']      = $_POST['timezone'];
-		$Config->core['admin_email']   = xap($_POST['admin_email'], true);
+		$Config->core['name']          = set_core_ml_text('name', xap($data['site_name']));
+		$Config->core['url']           = static::admin_site_info_settings_common_multiline($data['url']);
+		$Config->core['cookie_domain'] = static::admin_site_info_settings_common_multiline($data['cookie_domain']);
+		$Config->core['cookie_prefix'] = xap($data['cookie_prefix']);
+		$Config->core['timezone']      = $data['timezone'];
+		$Config->core['admin_email']   = xap($data['admin_email'], true);
 	}
 	/**
 	 * @param string $value
@@ -77,10 +75,12 @@ trait site_info {
 	/**
 	 * Save site info settings
 	 *
+	 * @param \cs\Request $Request
+	 *
 	 * @throws ExitException
 	 */
-	static function admin_site_info_save_settings () {
-		static::admin_site_info_settings_common();
+	static function admin_site_info_save_settings ($Request) {
+		static::admin_site_info_settings_common($Request);
 		if (!Config::instance()->save()) {
 			throw new ExitException(500);
 		}

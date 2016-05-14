@@ -74,7 +74,7 @@ trait Data_model_processing {
 				$model              = explode(':', $model[1], 2);
 				$type               = $model[0];
 			}
-			$argument = self::crud_argument_preparation(
+			$argument = $this->crud_argument_preparation(
 				$type,
 				isset($model[1]) ? $model[1] : null,
 				$argument
@@ -236,14 +236,13 @@ trait Data_model_processing {
 					return !is_array($data) && preg_match('/^(http[s]?:)?\/\/.+$/Uims', $data);
 				}
 			),
-			$data ? call_user_func_array(
-				'array_merge',
-				array_map(
-					function ($data) {
-						return is_array($data) ? $this->find_urls($data) : [];
-					},
-					array_values($data)
-				)
+			$data ? array_merge(
+				... array_map(
+						function ($data) {
+							return is_array($data) ? $this->find_urls($data) : [];
+						},
+						array_values($data)
+					)
 			) : []
 		);
 	}

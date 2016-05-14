@@ -10,61 +10,95 @@
  * otherwise system workability may be broken
  */
 use
-	cs\App,
 	cs\Cache,
 	cs\Config,
 	cs\Language,
-	cs\Language\Prefix,
 	cs\Page,
-	cs\Response,
 	cs\Text;
+
 /**
  * Auto Loading of classes
  */
-spl_autoload_register(function ($class) {
-	static $cache;
-	if (!isset($cache)) {
-		$cache = file_exists(CACHE.'/classes/autoload') ? file_get_json(CACHE.'/classes/autoload') : [];
-	}
-	if (isset($cache[$class])) {
-		return require_once $cache[$class];
-	}
-	$prepared_class_name = ltrim($class, '\\');
-	if (strpos($prepared_class_name, 'cs\\') === 0) {
-		$prepared_class_name = substr($prepared_class_name, 3);
-	}
-	$prepared_class_name = explode('\\', $prepared_class_name);
-	$namespace           = count($prepared_class_name) > 1 ? implode('/', array_slice($prepared_class_name, 0, -1)) : '';
-	$class_name          = array_pop($prepared_class_name);
-	/**
-	 * Try to load classes from different places. If not found in one place - try in another.
-	 */
-	if (
-		_require_once($file = DIR."/core/classes/$namespace/$class_name.php", false) ||    //Core classes
-		_require_once($file = DIR."/core/thirdparty/$namespace/$class_name.php", false) || //Third party classes
-		_require_once($file = DIR."/core/traits/$namespace/$class_name.php", false) ||     //Core traits
-		_require_once($file = ENGINES."/$namespace/$class_name.php", false) ||             //Core engines
-		_require_once($file = MODULES."/../$namespace/$class_name.php", false) ||          //Classes in modules
-		_require_once($file = PLUGINS."/../$namespace/$class_name.php", false)             //Classes in plugins
-	) {
-		$cache[$class] = realpath($file);
+spl_autoload_register(
+	function ($class) {
+		static $cache, $aliases;
+		if (!isset($cache)) {
+			$cache   = file_exists(CACHE.'/classes/autoload') ? file_get_json(CACHE.'/classes/autoload') : [];
+			$aliases = file_exists(CACHE.'/classes/aliases') ? file_get_json(CACHE.'/classes/aliases') : [];
+		}
+		if (isset($aliases[$class])) {
+			spl_autoload_call($aliases[$class]);
+			return class_exists($aliases[$class]) || class_alias($aliases[$class], $class);
+		}
+		if (isset($cache[$class])) {
+			return $cache[$class] ? require_once $cache[$class] : false;
+		}
+		$prepared_class_name = ltrim($class, '\\');
+		if (strpos($prepared_class_name, 'cs\\') === 0) {
+			$prepared_class_name = substr($prepared_class_name, 3);
+		}
+		$prepared_class_name = explode('\\', $prepared_class_name);
+		$namespace           = count($prepared_class_name) > 1 ? implode('/', array_slice($prepared_class_name, 0, -1)) : '';
+		$class_name          = array_pop($prepared_class_name);
+		$cache[$class]       = false;
 		/** @noinspection MkdirRaceConditionInspection */
 		@mkdir(CACHE.'/classes', 0770, true);
-		file_put_json(CACHE.'/classes/autoload', $cache);
-		return true;
-	}
-	return false;
-}, true, true);
+		/**
+		 * Try to load classes from different places. If not found in one place - try in another.
+		 */
+		if (
+			_require_once($file = DIR."/core/classes/$namespace/$class_name.php", false) ||    //Core classes
+			_require_once($file = DIR."/core/thirdparty/$namespace/$class_name.php", false) || //Third party classes
+			_require_once($file = DIR."/core/traits/$namespace/$class_name.php", false) ||     //Core traits
+			_require_once($file = ENGINES."/$namespace/$class_name.php", false) ||             //Core engines
+			_require_once($file = MODULES."/../$namespace/$class_name.php", false) ||          //Classes in modules
+			_require_once($file = PLUGINS."/../$namespace/$class_name.php", false)             //Classes in plugins
+		) {
+			$cache[$class] = realpath($file);
+			file_put_json(CACHE.'/classes/autoload', $cache);
+			return (bool)$cache[$class];
+		}
+		// Processing components aliases
+		if (strpos($namespace, 'modules') === 0 || strpos($namespace, 'plugins') === 0) {
+			$Config      = Config::instance();
+			$directories = [];
+			foreach ($Config->components['modules'] ?: [] as $module_name => $module_data) {
+				if ($module_data['active'] == Config\Module_Properties::UNINSTALLED) {
+					continue;
+				}
+				$directories[] = MODULES."/$module_name";
+			}
+			foreach ($Config->components['plugins'] ?: [] as $plugin_name) {
+				$directories[] = PLUGINS."/$plugin_name";
+			}
+			$class_exploded = explode('\\', $class);
+			foreach ($directories as $directory) {
+				if (file_exists("$directory/meta.json")) {
+					$meta = file_get_json("$directory/meta.json") + ['provide' => []];
+					if ($class_exploded[2] != $meta['package'] && in_array($class_exploded[2], (array)$meta['provide'])) {
+						$class_exploded[2] = $meta['package'];
+						$alias             = implode('\\', $class_exploded);
+						$aliases[$class]   = $alias;
+						file_put_json(CACHE.'/classes/aliases', $aliases);
+						spl_autoload_call($alias);
+						return class_exists($alias) || class_alias($alias, $class);
+					}
+				}
+			}
+		}
+		return false;
+	},
+	true,
+	true
+);
+
 /**
  * Clean cache of classes autoload and customization
  */
 function clean_classes_cache () {
-	if (file_exists(CACHE.'/classes/autoload')) {
-		unlink(CACHE.'/classes/autoload');
-	}
-	if (file_exists(CACHE.'/classes/modified')) {
-		unlink(CACHE.'/classes/modified');
-	}
+	@unlink(CACHE.'/classes/autoload');
+	@unlink(CACHE.'/classes/aliases');
+	@unlink(CACHE.'/classes/modified');
 }
 
 /**
@@ -92,72 +126,31 @@ function modified_classes ($updated_modified_classes = null) {
 }
 
 /**
- * Correct termination
- *
- * @deprecated
- * @todo Remove in 4.x
- */
-function shutdown_function () {
-	App::instance()->execute();
-}
-/**
- * Enable of errors processing
- * @todo Remove in 4.x
- */
-function errors_on () {
-	error_reporting(defined('DEBUG') && DEBUG ? E_ALL : E_ERROR | E_WARNING | E_PARSE);
-}
-/**
- * Disabling of errors processing
- * @todo Remove in 4.x
- */
-function errors_off () {
-	error_reporting(0);
-}
-/**
- * Enabling of page interface
- *
- * @deprecated Use `cs\Page::$interface` property instead
- * @todo       Remove in 4.x
- */
-function interface_on () {
-	Page::instance()->interface	= true;
-}
-/**
- * Disabling of page interface
- *
- * @deprecated Use `cs\Page::$interface` property instead
- * @todo       Remove in 4.x
- */
-function interface_off () {
-	Page::instance()->interface	= false;
-}
-/**
  * Easy getting of translations
  *
- * @param string $item
- * @param mixed  $arguments There can be any necessary number of arguments here
- * @param mixed  $_
+ * @param string  $item
+ * @param mixed[] $arguments There can be any necessary number of arguments here
  *
  * @return string
  */
-function __ ($item, $arguments = null, $_ = null) {
+function __ ($item, ...$arguments) {
 	$L = Language::instance();
 	if (func_num_args() > 1) {
-		return $L->format($item, array_slice(func_get_args(), 1));
+		return $L->format($item, ...$arguments);
 	} else {
 		return $L->$item;
 	}
 }
+
 /**
  * Get file url by it's destination in file system
  *
- * @param string		$source
+ * @param string $source
  *
  * @return false|string
  */
 function url_by_source ($source) {
-	$Config	= Config::instance(true);
+	$Config = Config::instance(true);
 	if (!$Config) {
 		return false;
 	}
@@ -167,15 +160,16 @@ function url_by_source ($source) {
 	}
 	return false;
 }
+
 /**
  * Get file destination in file system by it's url
  *
- * @param string		$url
+ * @param string $url
  *
  * @return false|string
  */
 function source_by_url ($url) {
-	$Config	= Config::instance(true);
+	$Config = Config::instance(true);
 	if (!$Config) {
 		return false;
 	}
@@ -184,13 +178,14 @@ function source_by_url ($url) {
 	}
 	return false;
 }
+
 /**
  * Public cache cleaning
  *
  * @return bool
  */
 function clean_pcache () {
-	$ok = true;
+	$ok   = true;
 	$list = get_files_list(PUBLIC_CACHE, false, 'fd', true, true, 'name|desc');
 	foreach ($list as $item) {
 		if (is_writable($item)) {
@@ -199,13 +194,13 @@ function clean_pcache () {
 			$ok = false;
 		}
 	}
-	unset($list, $item);
 	return $ok;
 }
+
 /**
  * Formatting of time in seconds to human-readable form
  *
- * @param int		$time	Time in seconds
+ * @param int $time Time in seconds
  *
  * @return string
  */
@@ -213,8 +208,8 @@ function format_time ($time) {
 	if (!is_numeric($time)) {
 		return $time;
 	}
-	$L		= Language::instance();
-	$res	= [];
+	$L   = Language::instance();
+	$res = [];
 	if ($time >= 31536000) {
 		$time_x = round($time / 31536000);
 		$time -= $time_x * 31536000;
@@ -225,12 +220,12 @@ function format_time ($time) {
 		$time -= $time_x * 2592000;
 		$res[] = $L->time($time_x, 'M');
 	}
-	if($time >= 86400) {
+	if ($time >= 86400) {
 		$time_x = round($time / 86400);
 		$time -= $time_x * 86400;
 		$res[] = $L->time($time_x, 'd');
 	}
-	if($time >= 3600) {
+	if ($time >= 3600) {
 		$time_x = round($time / 3600);
 		$time -= $time_x * 3600;
 		$res[] = $L->time($time_x, 'h');
@@ -245,11 +240,12 @@ function format_time ($time) {
 	}
 	return implode(' ', $res);
 }
+
 /**
  * Formatting of data size in bytes to human-readable form
  *
- * @param int		$size
- * @param bool|int	$round
+ * @param int      $size
+ * @param bool|int $round
  *
  * @return float|string
  */
@@ -257,7 +253,7 @@ function format_filesize ($size, $round = false) {
 	if (!is_numeric($size)) {
 		return $size;
 	}
-	$L    = new Prefix('system_filesize_');
+	$L    = Language::prefix('system_filesize_');
 	$unit = '';
 	if ($size >= 1099511627776) {
 		$size /= 1099511627776;
@@ -276,45 +272,29 @@ function format_filesize ($size, $round = false) {
 	}
 	return $round ? round($size, $round).$unit : $size.$unit;
 }
+
 /**
  * Get list of timezones
  *
  * @return array
  */
 function get_timezones_list () {
-	if (
-		!class_exists('\\cs\\Cache', false) ||
-		!($Cache = Cache::instance(true)) ||
-		($timezones = $Cache->timezones) === false
-	) {
-		$tzs = timezone_identifiers_list();
-		$timezones_ = $timezones = [];
-		foreach ($tzs as $tz) {
-			$offset		= (new DateTimeZone($tz))->getOffset(new DateTime);
-			$offset_	=	($offset < 0 ? '-' : '+').
-							str_pad(floor(abs($offset / 3600)), 2, 0, STR_PAD_LEFT).':'.
-							str_pad(abs(($offset % 3600) / 60), 2, 0, STR_PAD_LEFT);
-			$timezones_[(39600 + $offset).$tz] = [
-				'key'	=> strtr($tz, '_', ' ')." ($offset_)",
-				'value'	=> $tz
-			];
-		}
-		unset($tzs, $tz, $offset);
-		ksort($timezones_, SORT_NATURAL);
-		/**
-		 * @var array $offset
-		 */
-		foreach ($timezones_ as $tz) {
-			$timezones[$tz['key']] = $tz['value'];
-		}
-		unset($timezones_, $tz);
-		/** @noinspection NotOptimalIfConditionsInspection */
-		if (isset($Cache) && $Cache) {
-			$Cache->timezones = $timezones;
-		}
+	$timezones = [];
+	foreach (timezone_identifiers_list() as $timezone) {
+		$offset          = (new DateTimeZone($timezone))->getOffset(new DateTime);
+		$key             = (39600 + $offset).$timezone;
+		$sign            = ($offset < 0 ? '-' : '+');
+		$hours           = str_pad(floor(abs($offset / 3600)), 2, 0, STR_PAD_LEFT);
+		$minutes         = str_pad(abs(($offset % 3600) / 60), 2, 0, STR_PAD_LEFT);
+		$timezones[$key] = [
+			'key'   => str_replace('_', ' ', $timezone)." ($sign$hours:$minutes)",
+			'value' => $timezone
+		];
 	}
-	return $timezones;
+	ksort($timezones, SORT_NATURAL);
+	return array_column($timezones, 'value', 'key');
 }
+
 /**
  * Get multilingual value from $Config->core array
  *
@@ -323,7 +303,7 @@ function get_timezones_list () {
  * @return false|string
  */
 function get_core_ml_text ($item) {
-	$Config	= Config::instance(true);
+	$Config = Config::instance(true);
 	if (!$Config) {
 		return false;
 	}
@@ -344,21 +324,6 @@ function set_core_ml_text ($item, $value) {
 		return false;
 	}
 	return Text::instance()->set($Config->module('System')->db('texts'), 'System/Config/core', $item, $value);
-}
-
-/**
- * Sends header with string representation of http status code, for example "404 Not Found" for corresponding server protocol
- *
- * @deprecated Use `cs\Response::$code` instead
- * @todo       Remove in 4.x
- *
- * @param int $code Status code
- *
- * @return null|string String representation of status code code
- */
-function status_code ($code) {
-	Response::instance()->code = $code;
-	return status_code_string($code);
 }
 
 /**
@@ -436,276 +401,159 @@ function pages ($page, $total, $url, $head_links = false) {
 	if ($total == 1) {
 		return false;
 	}
-	$Page   = Page::instance();
-	$output = [];
-	if (is_callable($url)) {
-		$url_func = $url;
-	} else {
-		$original_url = $url;
-		$url_func     = function ($page) use ($original_url) {
-			return sprintf($original_url, $page);
-		};
-	}
-	$base_url          = Config::instance()->base_url();
-	$url               = function ($page) use ($url_func, $base_url) {
-		$url = $url_func($page);
-		if (is_string($url) && strpos($url, 'http') !== 0) {
-			$url = ltrim($url, '/');
-			$url = "$base_url/$url";
+	$Page             = Page::instance();
+	$original_url     = $url;
+	$base_url         = Config::instance()->base_url();
+	$url              = function ($page) use ($original_url, $base_url) {
+		$href = is_callable($original_url) ? $original_url($page) : sprintf($original_url, $page);
+		if (is_string($href) && strpos($href, 'http') !== 0) {
+			$href = ltrim($href, '/');
+			$href = "$base_url/$href";
 		}
-		return $url;
+		return $href;
 	};
-	$render_head_links = function ($i) use ($Page, $page, $url) {
-		$href = is_callable($url) ? $url($i) : sprintf($url, $i);
-		switch ($i) {
-			case $page - 1:
-				$rel = 'prev';
-				break;
-			case $page + 1:
-				$rel = 'next';
-				break;
-			case $page:
-				$Page->canonical_url($href);
-			/**
-			 * This is not a mistake, break is not needed here
-			 */
-			default:
-				return;
-		}
-		$Page->link(
-			[
-				'href' => $href,
-				'rel'  => $rel
-			]
-		);
-	};
-	$render_page_item  = function ($i) use ($page, $url, $head_links, $render_head_links) {
+	$output           = [];
+	$render_page_item = function ($i) use ($Page, $page, $url, $head_links, &$output) {
+		$href = $url($i);
 		if ($head_links) {
-			$render_head_links($i);
+			switch ($i) {
+				case $page - 1:
+					$Page->link(['href' => $href, 'rel' => 'prev']);
+					break;
+				case $page + 1:
+					$Page->link(['href' => $href, 'rel' => 'next']);
+					break;
+				case $page:
+					$Page->canonical_url($href);
+					break;
+			}
 		}
-		return [
+		$output[] = [
 			$i,
 			[
-				'href'    => $i == $page ? false : $url($i),
+				'href'    => $i == $page ? false : $href,
 				'is'      => 'cs-link-button',
 				'primary' => $i == $page
 			]
 		];
 	};
 	if ($total <= 11) {
-		for ($i = 1; $i <= $total; ++$i) {
-			$output[] = $render_page_item($i);
-		}
+		array_map($render_page_item, range(1, $total));
 	} else {
 		if ($page <= 6) {
-			for ($i = 1; $i <= 7; ++$i) {
-				$output[] = $render_page_item($i);
-			}
+			array_map($render_page_item, range(1, 7));
 			$output[] = [
 				'...',
 				[
-					'is' => 'cs-link-button',
-					'disabled'
+					'disabled' => true
 				]
 			];
-			for ($i = $total - 2; $i <= $total; ++$i) {
-				$output[] = $render_page_item($i);
-			}
+			array_map($render_page_item, range($total - 2, $total));
 		} elseif ($page >= $total - 5) {
-			for ($i = 1; $i <= 3; ++$i) {
-				$output[] = $render_page_item($i);
-			}
+			array_map($render_page_item, range(1, 3));
 			$output[] = [
 				'...',
 				[
-					'is' => 'cs-link-button',
-					'disabled'
+					'disabled' => true
 				]
 			];
-			for ($i = $total - 6; $i <= $total; ++$i) {
-				$output[] = $render_page_item($i);
-			}
+			array_map($render_page_item, range($total - 6, $total));
 		} else {
-			for ($i = 1; $i <= 2; ++$i) {
-				$output[] = $render_page_item($i);
-			}
+			array_map($render_page_item, range(1, 2));
 			$output[] = [
 				'...',
 				[
-					'is' => 'cs-link-button',
-					'disabled'
+					'disabled' => true
 				]
 			];
-			for ($i = $page - 2; $i <= $page + 2; ++$i) {
-				$output[] = $render_page_item($i);
-			}
+			array_map($render_page_item, range($page - 2, $page + 2));
 			$output[] = [
 				'...',
 				[
-					'is' => 'cs-link-button',
-					'disabled'
+					'disabled' => true
 				]
 			];
-			for ($i = $total - 1; $i <= $total; ++$i) {
-				$output[] = $render_page_item($i);
-			}
+			array_map($render_page_item, range($total - 1, $total));
 		}
 	}
-	return h::a($output);
+	return h::{'a[is=cs-link-button]'}($output);
 }
 
 /**
  * Pages navigation based on buttons (for search forms, etc.)
  *
- * @param int					$page		Current page
- * @param int					$total		Total pages number
- * @param bool|callable|string	$url		Adds <i>formaction</i> parameter to every button<br>
- * 											if <b>false</b> - only form parameter <i>page</i> will we added<br>
- * 											if string - it will be formatted with sprintf with one parameter - page number<br>
- * 											if callable - one parameter will be given, callable should return url string
+ * @param int                  $page  Current page
+ * @param int                  $total Total pages number
+ * @param bool|callable|string $url   Adds <i>formaction</i> parameter to every button<br>
+ *                                    if <b>false</b> - only form parameter <i>page</i> will we added<br>
+ *                                    if string - it will be formatted with sprintf with one parameter - page number<br>
+ *                                    if callable - one parameter will be given, callable should return url string
  *
- * @return false|string						<b>false</b> if single page, otherwise string, set of navigation buttons
+ * @return false|string                        <b>false</b> if single page, otherwise string, set of navigation buttons
  */
 function pages_buttons ($page, $total, $url = false) {
 	if ($total == 1) {
 		return false;
 	}
-	$output	= [];
 	if (!is_callable($url)) {
-		$original_url	= $url;
-		$url			= function ($page) use ($original_url) {
+		$original_url = $url;
+		$url          = function ($page) use ($original_url) {
 			return sprintf($original_url, $page);
 		};
 	}
+	$output           = [];
+	$render_page_item = function ($i) use ($page, $url, &$output) {
+		$output[] = [
+			$i,
+			[
+				'formaction' => $i == $page || $url === false ? false : $url($i),
+				'value'      => $i == $page ? false : $i,
+				'type'       => $i == $page ? 'button' : 'submit',
+				'primary'    => $i == $page
+			]
+		];
+	};
 	if ($total <= 11) {
-		for ($i = 1; $i <= $total; ++$i) {
-			$output[]	= [
-				$i,
-				[
-					'is'			=> 'cs-button',
-					'formaction'	=> $i == $page || $url === false ? false : $url($i),
-					'value'			=> $i,
-					'type'			=> $i == $page ? 'button' : 'submit',
-					'primary'		=> $i == $page
-				]
-			];
-		}
+		array_map($render_page_item, range(1, $total));
 	} else {
 		if ($page <= 6) {
-			for ($i = 1; $i <= 7; ++$i) {
-				$output[]	= [
-					$i,
-					[
-						'is'			=> 'cs-button',
-						'formaction'	=> $i == $page || $url === false ? false : $url($i),
-						'value'			=> $i == $page ? false : $i,
-						'type'			=> $i == $page ? 'button' : 'submit',
-						'primary'		=> $i == $page
-					]
-				];
-			}
-			$output[]	= [
+			array_map($render_page_item, range(1, 7));
+			$output[] = [
 				'...',
 				[
-					'is'			=> 'cs-button',
-					'type'			=> 'button',
+					'type' => 'button',
 					'disabled'
 				]
 			];
-			for ($i = $total - 2; $i <= $total; ++$i) {
-				$output[]	= [
-					$i,
-					[
-						'is'			=> 'cs-button',
-						'formaction'	=> is_callable($url) ? $url($i) : sprintf($url, $i),
-						'value'			=> $i,
-						'type'			=> 'submit'
-					]
-				];
-			}
+			array_map($render_page_item, range($total - 2, $total));
 		} elseif ($page >= $total - 5) {
-			for ($i = 1; $i <= 3; ++$i) {
-				$output[]	= [
-					$i,
-					[
-						'is'			=> 'cs-button',
-						'formaction'	=> is_callable($url) ? $url($i) : sprintf($url, $i),
-						'value'			=> $i,
-						'type'			=> 'submit'
-					]
-				];
-			}
-			$output[]	= [
+			array_map($render_page_item, range(1, 3));
+			$output[] = [
 				'...',
 				[
-					'is'			=> 'cs-button',
-					'type'			=> 'button',
+					'type' => 'button',
 					'disabled'
 				]
 			];
-			for ($i = $total - 6; $i <= $total; ++$i) {
-				$output[]	= [
-					$i,
-					[
-						'is'			=> 'cs-button',
-						'formaction'	=> $i == $page || $url === false ? false : $url($i),
-						'value'			=> $i == $page ? false : $i,
-						'type'			=> $i == $page ? 'button' : 'submit',
-						'primary'		=> $i == $page
-					]
-				];
-			}
+			array_map($render_page_item, range($total - 6, $total));
 		} else {
-			for ($i = 1; $i <= 2; ++$i) {
-				$output[]	= [
-					$i,
-					[
-						'is'			=> 'cs-button',
-						'formaction'	=> is_callable($url) ? $url($i) : sprintf($url, $i),
-						'value'			=> $i,
-						'type'			=> 'submit'
-					]
-				];
-			}
-			$output[]	= [
+			array_map($render_page_item, range(1, 2));
+			$output[] = [
 				'...',
 				[
-					'is'			=> 'cs-button',
-					'type'			=> 'button',
+					'type' => 'button',
 					'disabled'
 				]
 			];
-			for ($i = $page - 2; $i <= $page + 2; ++$i) {
-				$output[]	= [
-					$i,
-					[
-						'is'			=> 'cs-button',
-						'formaction'	=> $i == $page || $url === false ? false : $url($i),
-						'value'			=> $i == $page ? false : $i,
-						'type'			=> $i == $page ? 'button' : 'submit',
-						'primary'		=> $i == $page
-					]
-				];
-			}
-			$output[]	= [
+			array_map($render_page_item, range($page - 2, $page + 2));
+			$output[] = [
 				'...',
 				[
-					'is'			=> 'cs-button',
-					'type'			=> 'button',
+					'type' => 'button',
 					'disabled'
 				]
 			];
-			for ($i = $total - 1; $i <= $total; ++$i) {
-				$output[]	= [
-					$i,
-					[
-						'is'			=> 'cs-button',
-						'formaction'	=> is_callable($url) ? $url($i) : sprintf($url, $i),
-						'value'			=> $i,
-						'type'			=> 'submit'
-					]
-				];
-			}
+			array_map($render_page_item, range($total - 1, $total));
 		}
 	}
 	return h::{'button[is=cs-button][name=page]'}($output);
@@ -752,20 +600,8 @@ function functionality ($functionality) {
 					$functionality[] = (array)$meta['provide'];
 				}
 			}
-			return call_user_func_array('array_merge', $functionality);
+			return array_merge(...$functionality);
 		}
 	);
 	return in_array($functionality, $all);
-}
-
-/**
- * Returns system version
- *
- * @deprecated
- * @todo Remove in 4.x
- *
- * @return string
- */
-function system_version () {
-	return file_get_json(MODULES.'/System/meta.json')['version'];
 }

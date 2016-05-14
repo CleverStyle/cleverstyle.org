@@ -23,21 +23,29 @@ trait Query {
 	/**
 	 * Get query parameter by name
 	 *
-	 * @param string|string[] $name
+	 * @param string[]|string[][] $name
 	 *
-	 * @return false|mixed|mixed[] Query parameter content if exists or `false` otherwise
+	 * @return mixed|mixed[]|null Query parameter (or associative array of Query parameters) if exists or `null` otherwise (in case if `$name` is an array
+	 *                             even one missing key will cause the whole thing to fail)
 	 */
-	function query ($name) {
+	function query (...$name) {
+		if (count($name) === 1) {
+			$name = $name[0];
+		}
+		/**
+		 * @var string|string[] $name
+		 */
 		if (is_array($name)) {
+			$result = [];
 			foreach ($name as &$n) {
-				if (!isset($this->query[$n])) {
-					return false;
+				if (!array_key_exists($n, $this->query)) {
+					return null;
 				}
-				$n = $this->query[$n];
+				$result[$n] = $this->query[$n];
 			}
-			return $name;
+			return $result;
 		}
 		/** @noinspection OffsetOperationsInspection */
-		return isset($this->query[$name]) ? $this->query[$name] : false;
+		return @$this->query[$name];
 	}
 }

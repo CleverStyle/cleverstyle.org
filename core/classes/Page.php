@@ -10,8 +10,28 @@ use
 	h,
 	cs\Page\Includes,
 	cs\Page\Meta;
+use function
+	cli\err;
 
 /**
+ * Provides next events:
+ *  System/Page/includes_dependencies_and_map
+ *  [
+ *    'dependencies' => &$dependencies,
+ *    'includes_map' => &$includes_map
+ *  ]
+ *
+ *  System/Page/rebuild_cache
+ *  [
+ *    'key' => &$key //Reference to the key, that will be appended to all css and js files, can be changed to reflect JavaScript and CSS changes
+ *  ]
+ *
+ *  System/Page/requirejs
+ *  [
+ *    'paths'                 => &$paths,                // The same as `paths` in requirejs.config()
+ *    'directories_to_browse' => &$directories_to_browse // Location of AMD modules (typically bower_components and node_modules directories, absolute paths)
+ *  ]
+ *
  * @method static $this instance($check = false)
  */
 class Page {
@@ -166,8 +186,6 @@ class Page {
 	/**
 	 * Initialization: setting of title and theme according to system configuration
 	 *
-	 * @todo Probably, make public and add resetting here in order to avoid complete object recreation
-	 *
 	 * @return Page
 	 */
 	protected function init_config () {
@@ -226,9 +244,8 @@ class Page {
 		if (Request::instance()->admin_path) {
 			$this->theme = 'CleverStyle';
 		}
-		$theme_dir = THEMES."/$this->theme";
-		_include("$theme_dir/prepare.php", false, false);
 		ob_start();
+		$theme_dir = THEMES."/$this->theme";
 		_include("$theme_dir/index.php", false, false) || _include("$theme_dir/index.html");
 		$this->Html = ob_get_clean();
 	}
@@ -513,51 +530,64 @@ class Page {
 	 * @param bool                 $json        Force JSON return format
 	 */
 	function error ($custom_text = null, $json = false) {
-		$Request    = Request::instance();
-		$Response   = Response::instance();
-		$error_code = $Response->code;
+		$Request  = Request::instance();
+		$Response = Response::instance();
+		$code     = $Response->code;
 		/**
 		 * Hack for 403 after sign out in administration
 		 */
-		if ($error_code == 403 && !$Request->api_path && $Request->cookie('sign_out')) {
+		if ($code == 403 && !$Request->api_path && $Request->cookie('sign_out')) {
 			$Response->redirect('/');
-			$this->Content = '';
 			return;
 		}
-		$status_text       = status_code_string($error_code);
-		$error_description = $status_text;
-		if (is_array($custom_text)) {
-			list($status_text, $error_description) = $custom_text;
-		} elseif ($custom_text) {
-			$error_description = $custom_text;
-		}
+		list($title, $description) = $this->error_title_description($code, $custom_text);
 		if ($json || $Request->api_path) {
 			$this->json(
 				[
-					'error'             => $error_code,
-					'error_description' => $error_description
+					'error'             => $code,
+					'error_description' => $description
 				]
 			);
+		} elseif ($Request->cli_path) {
+			$content = $title != $description ? "$title\n$description" : $description;
+			err("%r$content%n");
 		} else {
-			ob_start();
-			if (
-				!_include(THEMES."/$this->theme/error.html", false, false) &&
-				!_include(THEMES."/$this->theme/error.php", false, false)
-			) {
-				echo
-					"<!doctype html>\n".
-					h::title($status_text).
-					$error_description;
-			}
-			$this->Content = ob_get_clean();
+			$this->Content = $this->error_page($title, $description);
 		}
 		$Response->body = $this->Content;
 	}
 	/**
-	 * @deprecated Use `cs\Page::render()` instead
+	 * @param int                  $code
+	 * @param null|string|string[] $custom_text
+	 *
+	 * @return string[]
 	 */
-	function __finish () {
-		$this->render();
+	protected function error_title_description ($code, $custom_text) {
+		$title       = status_code_string($code);
+		$description = $custom_text ?: $title;
+		if (is_array($custom_text)) {
+			list($title, $description) = $custom_text;
+		}
+		return [$title, $description];
+	}
+	/**
+	 * @param string $title
+	 * @param string $description
+	 *
+	 * @return string
+	 */
+	protected function error_page ($title, $description) {
+		ob_start();
+		if (
+			!_include(THEMES."/$this->theme/error.html", false, false) &&
+			!_include(THEMES."/$this->theme/error.php", false, false)
+		) {
+			echo
+				"<!doctype html>\n".
+				h::title($title).
+				$description;
+		}
+		return ob_get_clean();
 	}
 	/**
 	 * Provides next events:
@@ -580,17 +610,16 @@ class Page {
 			return;
 		}
 		/**
-		 * For AJAX and API requests only content without page template
+		 * For CLI, API and generally JSON responses only content without page template
 		 */
-		$api_path = Request::instance()->api_path;
-		if ($api_path || !$this->interface) {
+		$Request = Request::instance();
+		if ($Request->cli_path || $Request->api_path || !$this->interface) {
 			/**
 			 * Processing of replacing in content
 			 */
 			/** @noinspection NestedTernaryOperatorInspection */
-			$Response->body = $this->process_replacing($this->Content ?: ($api_path ? 'null' : ''));
+			$Response->body = $this->process_replacing($this->Content ?: ($Request->api_path ? 'null' : ''));
 		} else {
-			Event::instance()->fire('System/Page/display/before');
 			Event::instance()->fire('System/Page/render/before');
 			/**
 			 * Processing of template, substituting of content, preparing for the output
@@ -600,7 +629,6 @@ class Page {
 			 * Processing of replacing in content
 			 */
 			$this->Html = $this->process_replacing($this->Html);
-			Event::instance()->fire('System/Page/display/after');
 			Event::instance()->fire('System/Page/render/after');
 			$Response->body = rtrim($this->Html);
 		}

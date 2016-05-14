@@ -3,7 +3,6 @@
 		"about_server"   : [],
 		"blocks"         : [],
 		"databases"      : [],
-		"databases_test" : [],
 		"groups"         : [
 			"_",
 			"permissions"
@@ -37,12 +36,5 @@
 		"contacts"
 	],
 	"profiles"  : [],
-	"timezones" : [],
-	"user"      : [
-		"sign_in",
-		"sign_out",
-		"registration",
-		"change_password",
-		"restore_password"
-	]
+	"timezones" : []
 }

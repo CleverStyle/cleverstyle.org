@@ -20,12 +20,11 @@
  */
 namespace cs;
 use
-	cs\Cache\Prefix,
 	cs\Permission\Any;
 
 /**
  * Class for groups manipulating
- * 
+ *
  * @method static $this instance($check = false)
  */
 class Group {
@@ -40,7 +39,7 @@ class Group {
 	];
 	protected $table      = '[prefix]groups';
 	/**
-	 * @var Prefix
+	 * @var Cache\Prefix
 	 */
 	protected $cache;
 	/**
@@ -52,7 +51,7 @@ class Group {
 		return Config::instance()->module('System')->db('users');
 	}
 	protected function construct () {
-		$this->cache = new Prefix('groups');
+		$this->cache = Cache::prefix('groups');
 	}
 	/**
 	 * Get group data
@@ -82,16 +81,13 @@ class Group {
 	/**
 	 * Get array of all groups
 	 *
-	 * @return array
+	 * @return int[]
 	 */
 	function get_all () {
 		return $this->cache->get(
 			'all',
 			function () {
-				return $this->db()->qfas(
-					"SELECT `id`
-					FROM `$this->table`"
-				);
+				return $this->search([], 1, PHP_INT_MAX, 'id', true);
 			}
 		);
 	}
@@ -104,12 +100,7 @@ class Group {
 	 * @return false|int
 	 */
 	function add ($title, $description) {
-		$id = $this->create(
-			[
-				$title,
-				$description
-			]
-		);
+		$id = $this->create($title, $description);
 		if ($id) {
 			unset($this->cache->all);
 			Event::instance()->fire(
@@ -132,13 +123,7 @@ class Group {
 	 */
 	function set ($id, $title, $description) {
 		$id     = (int)$id;
-		$result = $this->update(
-			[
-				$id,
-				$title,
-				$description
-			]
-		);
+		$result = $this->update($id, $title, $description);
 		if ($result) {
 			$Cache = $this->cache;
 			unset(
@@ -163,7 +148,7 @@ class Group {
 			return (bool)array_product($id);
 		}
 		$id = (int)$id;
-		if (in_array($id, [User::ADMIN_GROUP_ID, User::USER_GROUP_ID, User::BOT_GROUP_ID])) {
+		if (in_array($id, [User::ADMIN_GROUP_ID, User::USER_GROUP_ID])) {
 			return false;
 		}
 		Event::instance()->fire(
