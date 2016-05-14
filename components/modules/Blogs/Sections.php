@@ -8,16 +8,17 @@
  */
 namespace cs\modules\Blogs;
 use
-	cs\Cache\Prefix,
+	cs\Cache\Prefix as Cache_prefix,
 	cs\Config,
 	cs\Language,
+	cs\Language\Prefix as Language_prefix,
 	cs\Text,
 	cs\User,
 	cs\DB\Accessor,
 	cs\Singleton;
 
 /**
- * @method static Sections instance($check = false)
+ * @method static $this instance($check = false)
  */
 class Sections {
 	use
@@ -25,12 +26,12 @@ class Sections {
 		Singleton;
 
 	/**
-	 * @var Prefix
+	 * @var Cache_prefix
 	 */
 	protected $cache;
 
 	protected function construct () {
-		$this->cache = new Prefix('Blogs');
+		$this->cache = new Cache_prefix('Blogs');
 	}
 	/**
 	 * Returns database index
@@ -92,7 +93,8 @@ class Sections {
 				$this->get($parent)
 			);
 		} else {
-			$structure['title'] = Language::instance()->root_section;
+			$L                  = new Language_prefix('blogs_');
+			$structure['title'] = $L->root_section;
 			$structure['posts'] = $this->db()->qfs(
 				[
 					"SELECT COUNT(`s`.`id`)

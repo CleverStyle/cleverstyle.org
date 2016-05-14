@@ -7,12 +7,16 @@
  * @license   MIT License, see license.txt
  */
 namespace cs;
+use
+	cs\Language\Prefix,
+	cs\Request;
+
 Event::instance()
 	->on(
 		'System/Route/routing_replace',
 		function ($data) {
 			$rc = explode('/', $data['rc']);
-			$L  = Language::instance();
+			$L  = new Prefix('blogs_');
 			if ($rc[0] != 'Blogs' && $rc[0] != path($L->Blogs)) {
 				return;
 			}
@@ -66,7 +70,7 @@ Event::instance()
 					break;
 				case $module_data->enabled():
 					require __DIR__.'/events/enabled.php';
-					if (current_module() == 'Blogs') {
+					if (Request::instance()->current_module == 'Blogs') {
 						require __DIR__.'/events/enabled/admin.php';
 					}
 				case $module_data->installed():

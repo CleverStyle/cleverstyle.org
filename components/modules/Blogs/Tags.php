@@ -17,7 +17,7 @@ use
  *
  * Provides methods for working with tags for faster development
  *
- * @method static Tags instance($check = false)
+ * @method static $this instance($check = false)
  */
 class Tags {
 	use

@@ -14,7 +14,8 @@ use
 	cs\ExitException,
 	cs\Page\Meta,
 	cs\Page,
-	cs\Route,
+	cs\Request,
+	cs\Response,
 	cs\User;
 
 if (!Event::instance()->fire('Blogs/post')) {
@@ -35,7 +36,7 @@ Event::instance()->fire(
  * @var \cs\modules\Comments\Comments $Comments
  */
 $Posts   = Posts::instance();
-$rc      = Route::instance()->route;
+$rc      = Request::instance()->route;
 $post_id = (int)mb_substr($rc[1], mb_strrpos($rc[1], ':') + 1);
 if (!$post_id) {
 	throw new ExitException(404);
@@ -50,8 +51,7 @@ if (
 	throw new ExitException(404);
 }
 if ($post['path'] != mb_substr($rc[1], 0, mb_strrpos($rc[1], ':'))) {
-	status_code(303);
-	_header("Location: $post[url]");
+	Response::instance()->redirect($post['url'], 303);
 	return;
 }
 $Page->title($post['title']);

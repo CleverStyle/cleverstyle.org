@@ -7,12 +7,15 @@
  * @license   MIT License, see license.txt
  */
 namespace cs;
+use
+	cs\Language\Prefix;
+
 Event::instance()->on(
 	'admin/System/Menu',
 	function () {
-		$L     = Language::instance();
+		$L     = new Prefix('blogs_');
 		$Menu  = Menu::instance();
-		$route = Route::instance()->path;
+		$route = Request::instance()->route_path;
 		$Menu->add_item(
 			'Blogs',
 			$L->browse_sections,

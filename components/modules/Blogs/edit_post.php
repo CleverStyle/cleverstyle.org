@@ -12,9 +12,10 @@ use
 	cs\Config,
 	cs\Event,
 	cs\ExitException,
-	cs\Language,
+	cs\Language\Prefix,
 	cs\Page,
-	cs\Route,
+	cs\Request,
+	cs\Response,
 	cs\User;
 
 if (!Event::instance()->fire('Blogs/edit_post')) {
@@ -24,16 +25,16 @@ if (!Event::instance()->fire('Blogs/edit_post')) {
 $Posts       = Posts::instance();
 $Config      = Config::instance();
 $module_data = $Config->module('Blogs');
-$L           = Language::instance();
+$L           = new Prefix('blogs_');
 $Page        = Page::instance();
-$Route       = Route::instance();
+$Request     = Request::instance();
 $User        = User::instance();
 if ($module_data->new_posts_only_from_admins && !$User->admin()) {
 	throw new ExitException(403);
 }
 if (
-	!isset($Route->route[1]) ||
-	!($post = $Posts->get($Route->route[1]))
+	!isset($Request->route[1]) ||
+	!($post = $Posts->get($Request->route[1]))
 ) {
 	throw new ExitException(404);
 }
@@ -76,8 +77,8 @@ if (isset($_POST['title'], $_POST['sections'], $_POST['content'], $_POST['tags']
 			}
 			if ($save) {
 				if ($Posts->set($post['id'], $_POST['title'], null, $_POST['content'], $_POST['sections'], _trim(explode(',', $_POST['tags'])), $draft)) {
-					interface_off();
-					_header('Location: '.$Config->base_url()."/$module/$post[path]:$post[id]");
+					$Page->interface = false;
+					Response::instance()->redirect($Config->base_url()."/$module/$post[path]:$post[id]");
 					return;
 				} else {
 					$Page->warning($L->post_saving_error);
@@ -86,8 +87,8 @@ if (isset($_POST['title'], $_POST['sections'], $_POST['content'], $_POST['tags']
 			break;
 		case 'delete':
 			if ($Posts->del($post['id'])) {
-				interface_off();
-				_header('Location: '.$Config->base_url()."/$module");
+				$Page->interface = false;
+				Response::instance()->redirect($Config->base_url()."/$module");
 				return;
 			} else {
 				$Page->warning($L->post_deleting_error);
@@ -97,7 +98,7 @@ if (isset($_POST['title'], $_POST['sections'], $_POST['content'], $_POST['tags']
 }
 $disabled     = [];
 $max_sections = $module_data->max_sections;
-$content      = uniqid('post_content');
+$content      = uniqid('post_content', true);
 $Page->replace($content, isset($_POST['content']) ? $_POST['content'] : $post['content']);
 $sections = get_sections_select_post($disabled);
 if (count($sections['in']) > 1) {

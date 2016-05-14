@@ -11,12 +11,14 @@ use
 	h,
 	cs\Config,
 	cs\ExitException,
-	cs\Language,
+	cs\Language\Prefix,
 	cs\Page,
+	cs\Request,
+	cs\Response,
 	cs\User;
 
 $Config   = Config::instance();
-$L        = Language::instance();
+$L        = new Prefix('blogs_');
 $Page     = Page::instance();
 $User     = User::instance();
 $title    = [
@@ -49,8 +51,8 @@ if (isset($_GET['section'])) {
 $title[]  = $L->latest_posts;
 $title    = implode($Config->core['title_delimiter'], $title);
 $base_url = $Config->base_url();
-_header('Content-Type: application/atom+xml');
-interface_off();
+Response::instance()->header('content-type', 'application/atom+xml');
+$Page->interface = false;
 
 function get_favicon_path ($theme) {
 	$theme_favicon = "$theme/img/favicon";
@@ -62,20 +64,18 @@ function get_favicon_path ($theme) {
 	return 'favicon.ico';
 }
 
-/**
- * @var \cs\_SERVER $_SERVER
- */
+$url = $Config->core_url().Request::instance()->uri;
 $Page->content(
 	"<?xml version=\"1.0\" encoding=\"utf-8\"?>\n".
 	h::feed(
 		h::title($title).
-		h::id($Config->core_url().$_SERVER->request_uri).
+		h::id($url).
 		str_replace(
 			'>',
 			'/>',
 			h::link(
 				[
-					'href' => $Config->core_url().$_SERVER->request_uri,
+					'href' => $url,
 					'rel'  => 'self'
 				]
 			)
