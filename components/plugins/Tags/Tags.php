@@ -3,12 +3,13 @@
  * @package   Tags
  * @category  plugins
  * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright Copyright (c) 2015, Nazar Mokrynskyi
+ * @copyright Copyright (c) 2015-2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
  */
 namespace cs\plugins\Tags;
 use
 	cs\DB\Accessor;
+
 /**
  * Tags trait
  *
@@ -39,15 +40,13 @@ trait Tags {
 			$id,
 			function () use ($id) {
 				return $this->db()->qf(
-					[
-						"SELECT
-							`id`,
-							`text`
-						FROM `$this->table`
-						WHERE `id` = '%s'
-						LIMIT 1",
-						$id
-					]
+					"SELECT
+						`id`,
+						`text`
+					FROM `$this->table`
+					WHERE `id` = '%s'
+					LIMIT 1",
+					$id
 				);
 			}
 		);
@@ -67,13 +66,11 @@ trait Tags {
 			return array_map([$this, 'get_by_text'], $text);
 		}
 		return $this->db()->qfs(
-			[
-				"SELECT `id`
-				FROM  `$this->table`
-				WHERE `text` = '%s'
-				LIMIT 1",
-				trim(xap($text))
-			]
+			"SELECT `id`
+			FROM  `$this->table`
+			WHERE `text` = '%s'
+			LIMIT 1",
+			trim(xap($text))
 		);
 	}
 	/**
