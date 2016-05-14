@@ -2,13 +2,10 @@
  * @package		CleverStyle CMS
  * @subpackage	CleverStyle theme
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2015, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2016, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
-@import "common_config";
 
-//Text color
-$base-color : #444;
 //Body background
 $body-bg : #666;
 //Main background
@@ -17,22 +14,9 @@ $base-bg : #fff;
 $left-column : 15%;
 $right-column : 15%;
 
-html {
-	font       : {
-		family : $base-font-family;
-		size   : $base-font-size;
-	}
-}
-
 //Whole body
 body {
 	background-color : $body-bg;
-	color            : $base-color;
-	font       : {
-		family : $base-font-family;
-		size   : $base-font-size;
-	}
-	margin           : 0;
 	padding          : 0;
 	width            : 100%;
 }
@@ -54,6 +38,7 @@ body {
 
 //Left and right blocks
 #left_blocks {
+	box-sizing     : border-box;
 	float          : left;
 	padding        : 0 5px;
 	vertical-align : top;
@@ -70,6 +55,7 @@ body {
 //Top, bottom blocks
 #top_blocks,
 #bottom_blocks {
+	box-sizing   : border-box;
 	margin-left  : $left-column;
 	margin-right : $right-column;
 }
@@ -86,6 +72,7 @@ body {
 		background    : rgba($base-bg, .95);
 		border-radius : 5px;
 		box-shadow    : 0 0 0 11px rgba($base-bg, .25), 0 0 0 10px rgba(#000, .15);
+		box-sizing    : border-box;
 		float         : left;
 		padding       : 10px;
 		height        : 100%;

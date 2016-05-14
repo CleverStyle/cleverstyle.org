@@ -1,0 +1,58 @@
+/**
+ * @package   CleverStyle Widgets
+ * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
+ * @copyright Copyright (c) 2015-2016, Nazar Mokrynskyi
+ * @license   MIT License, see license.txt
+ */
+:host {
+	display        : inline-block;
+	vertical-align : middle;
+
+	@apply (--cs-no-selection);
+	@apply (--cs-global);
+	@apply (--cs-nav-button-group);
+}
+
+#content {
+	display : flex;
+	display : -ms-flexbox;
+	display : -webkit-flex;
+
+	@apply (--cs-nav-button-group-content);
+}
+
+:host([vertical]) #content {
+	flex-direction         : column;
+	-ms-flex-direction     : column;
+	-webkit-flex-direction : column;
+
+	@apply (--cs-nav-button-group-content-vertical);
+}
+
+::content > :not(template) {
+	& {
+		@apply (--cs-nav-button-group-button);
+	}
+
+	&[first] {
+		@apply (--cs-nav-button-group-button);
+	}
+
+	&[last] {
+		@apply (--cs-nav-button-group-button);
+	}
+}
+
+:host([vertical]) ::content > :not(template) {
+	& {
+		@apply (--cs-nav-button-group-button-vertical);
+	}
+
+	&[first] {
+		@apply (--cs-nav-button-group-button-vertical);
+	}
+
+	&[last] {
+		@apply (--cs-nav-button-group-button-vertical);
+	}
+}

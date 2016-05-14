@@ -1,9 +1,9 @@
 <?php
 /**
- * @package		ClevereStyle CMS
+ * @package		CleverStyle CMS
  * @subpackage	CleverStyle theme
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2013-2015, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2013-2016, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs;

@@ -1,35 +1,47 @@
 {
-	"user"     : [
+	"admin"     : {
+		"about_server"   : [],
+		"blocks"         : [],
+		"databases"      : [],
+		"databases_test" : [],
+		"groups"         : [
+			"_",
+			"permissions"
+		],
+		"languages"      : [],
+		"mail"           : [],
+		"modules"        : [],
+		"optimization"   : [],
+		"permissions"    : [
+			"_",
+			"for_item"
+		],
+		"plugins"        : [],
+		"security"       : [],
+		"site_info"      : [],
+		"storages"       : [],
+		"system"         : [],
+		"themes"         : [],
+		"upload"         : [],
+		"users"          : [
+			"_",
+			"general",
+			"groups",
+			"permissions"
+		]
+	},
+	"languages" : [],
+	"profile"   : [
+		"_",
+		"contacts"
+	],
+	"profiles"  : [],
+	"timezones" : [],
+	"user"      : [
 		"sign_in",
 		"sign_out",
 		"registration",
 		"change_password",
 		"restore_password"
-	],
-	"admin"    : {
-		"blocks"             : [],
-		"cache"              : [],
-		"databases_test"     : [],
-		"email_sending_test" : [],
-		"languages"          : [],
-		"groups"             : [
-			"_",
-			"permissions"
-		],
-		"permissions"        : [
-			"_",
-			"for_item"
-		],
-		"storages_test"      : [],
-		"timezones"          : [],
-		"users"              : [
-			"_",
-			"permissions"
-		]
-	},
-	"profile"  : [
-		"profile",
-		"contacts"
-	],
-	"profiles" : []
+	]
 }

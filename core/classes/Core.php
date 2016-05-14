@@ -2,7 +2,7 @@
 /**
  * @package   CleverStyle CMS
  * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright Copyright (c) 2011-2015, Nazar Mokrynskyi
+ * @copyright Copyright (c) 2011-2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
  */
 namespace cs;
@@ -88,44 +88,40 @@ AddEncoding gzip .html
 		/**
 		 * @var _SERVER $_SERVER
 		 */
+		if (!$_SERVER->content_type) {
+			return;
+		}
 		/**
 		 * Support for JSON requests, filling $_POST array for request method different than POST
 		 */
-		if (!isset($_SERVER->content_type)) {
-			return;
-		}
 		if (preg_match('#^application/([^+\s]+\+)?json#', $_SERVER->content_type)) {
-			foreach (_json_decode(@file_get_contents('php://input')) ?: [] as $i => $v) {
-				$_POST[$i]    = $v;
-				$_REQUEST[$i] = $v;
-			}
+			$_POST = _json_decode(@file_get_contents('php://input')) ?: [];
 		} elseif (
 			strtolower($_SERVER->request_method) !== 'post' &&
 			strpos($_SERVER->content_type, 'application/x-www-form-urlencoded') === 0
 		) {
-			@parse_str(file_get_contents('php://input'), $POST);
-			foreach ($POST as $i => $v) {
-				$_POST[$i]    = $v;
-				$_REQUEST[$i] = $v;
-			}
+			@parse_str(file_get_contents('php://input'), $_POST);
 		}
+		$_REQUEST = $_POST + $_REQUEST;
 	}
 	/**
 	 * Load main.json config file and return array of it contents
 	 *
 	 * @return array
+	 *
+	 * @throws ExitException
 	 */
 	protected function load_config () {
 		if (!file_exists(DIR.'/config/main.json')) {
-			error_code(500);
-			Page::instance()->error(
+			throw new ExitException(
 				h::p('Config file not found, is system installed properly?').
 				h::a(
 					'How to install CleverStyle CMS',
 					[
 						'href' => 'https://github.com/nazar-pc/CleverStyle-CMS/wiki/Installation'
 					]
-				)
+				),
+				500
 			);
 		}
 		return file_get_json_nocomments(DIR.'/config/main.json');

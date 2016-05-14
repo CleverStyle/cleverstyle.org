@@ -2,7 +2,7 @@
 /**
  * @package   CleverStyle CMS
  * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright Copyright (c) 2014-2015, Nazar Mokrynskyi
+ * @copyright Copyright (c) 2014-2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
  */
 namespace cs\Page;
@@ -75,34 +75,24 @@ trait Includes {
 			return $this;
 		}
 		if (is_array($add)) {
-			foreach ($add as $script) {
-				if ($script) {
-					$this->html_internal($script, $mode, $core);
-				}
-			}
-			return $this;
-		}
-		if ($core) {
-			if ($mode == 'file') {
-				$this->core_html[0][] = h::link(
-					[
-						'href' => $add,
-						'rel'  => 'import'
-					]
-				);
-			} elseif ($mode == 'code') {
-				$this->core_html[1][] = "$add\n";
+			foreach (array_filter($add) as $script) {
+				$this->html_internal($script, $mode, $core);
 			}
 		} else {
+			if ($core) {
+				$html = &$this->core_html;
+			} else {
+				$html = &$this->html;
+			}
 			if ($mode == 'file') {
-				$this->html[0][] = h::link(
+				$html[0][] = h::link(
 					[
 						'href' => $add,
 						'rel'  => 'import'
 					]
 				);
 			} elseif ($mode == 'code') {
-				$this->html[1][] = "$add\n";
+				$html[1][] = "$add\n";
 			}
 		}
 		return $this;
@@ -130,38 +120,23 @@ trait Includes {
 			return $this;
 		}
 		if (is_array($add)) {
-			foreach ($add as $script) {
-				if ($script) {
-					$this->js_internal($script, $mode, $core);
-				}
-			}
-			return $this;
-		}
-		if ($core) {
-			if ($mode == 'file') {
-				$this->core_js[0][] =
-					h::script(
-						[
-							'src'   => $add,
-							'level' => false
-						]
-					).
-					"\n";
-			} elseif ($mode == 'code') {
-				$this->core_js[1][] = "$add\n";
+			foreach (array_filter($add) as $script) {
+				$this->js_internal($script, $mode, $core);
 			}
 		} else {
+			if ($core) {
+				$js = &$this->core_js;
+			} else {
+				$js = &$this->js;
+			}
 			if ($mode == 'file') {
-				$this->js[0][] =
-					h::script(
-						[
-							'src'   => $add,
-							'level' => false
-						]
-					).
-					"\n";
+				$js[0][] = h::script(
+					[
+						'src' => $add
+					]
+				);
 			} elseif ($mode == 'code') {
-				$this->js[1][] = "$add\n";
+				$js[1][] = "$add\n";
 			}
 		}
 		return $this;
@@ -189,28 +164,17 @@ trait Includes {
 			return $this;
 		}
 		if (is_array($add)) {
-			foreach ($add as $style) {
-				if ($style) {
-					$this->css_internal($style, $mode, $core);
-				}
-			}
-			return $this;
-		}
-		if ($core) {
-			if ($mode == 'file') {
-				$this->core_css[0][] = h::link(
-					[
-						'href'           => $add,
-						'rel'            => 'stylesheet',
-						'shim-shadowdom' => true
-					]
-				);
-			} elseif ($mode == 'code') {
-				$this->core_css[1][] = "$add\n";
+			foreach (array_filter($add) as $style) {
+				$this->css_internal($style, $mode, $core);
 			}
 		} else {
+			if ($core) {
+				$css = &$this->core_css;
+			} else {
+				$css = &$this->css;
+			}
 			if ($mode == 'file') {
-				$this->css[0][] = h::link(
+				$css[0][] = h::link(
 					[
 						'href'           => $add,
 						'rel'            => 'stylesheet',
@@ -218,7 +182,7 @@ trait Includes {
 					]
 				);
 			} elseif ($mode == 'code') {
-				$this->css[1][] = "$add\n";
+				$css[1][] = "$add\n";
 			}
 		}
 		return $this;
@@ -248,19 +212,18 @@ trait Includes {
 			[
 				'target' => $target,
 				'class'  => 'cs-config',
-				'type'   => 'application/json',
-				'level'  => 0
+				'type'   => 'application/json'
 			]
 		);
 		if ($core) {
-			$this->core_config .= "$config\n";
+			$this->core_config .= $config;
 		} else {
-			$this->config .= "$config\n";
+			$this->config .= $config;
 		}
 		return $this;
 	}
 	/**
-	 * Getting of CSS and JavaScript includes
+	 * Getting of HTML, JS and CSS includes
 	 *
 	 * @return \cs\Page
 	 */
@@ -273,47 +236,16 @@ trait Includes {
 		 * Base name for cache files
 		 */
 		$this->pcache_basename = "_{$this->theme}_".Language::instance()->clang;
-		$Index                 = Index::instance();
-		$Route                 = Route::instance();
-		$User                  = User::instance();
-		$current_module        = current_module();
 		/**
-		 * Some JS code required by system
+		 * Some JS configs required by system
 		 */
-		/**
-		 * @var \cs\_SERVER $_SERVER
-		 */
-		$this->config_internal(
-			[
-				'base_url'              => $Config->base_url(),
-				'current_base_url'      => $Config->base_url().'/'.($Index->in_admin() ? 'admin/' : '').$current_module,
-				'public_key'            => Core::instance()->public_key,
-				'module'                => $current_module,
-				'in_admin'              => (int)$Index->in_admin(),
-				'is_admin'              => (int)$User->admin(),
-				'is_user'               => (int)$User->user(),
-				'is_guest'              => (int)$User->guest(),
-				'password_min_length'   => (int)$Config->core['password_min_length'],
-				'password_min_strength' => (int)$Config->core['password_min_strength'],
-				'debug'                 => (int)DEBUG,
-				'cookie_prefix'         => $Config->core['cookie_prefix'],
-				'cookie_domain'         => $Config->core['cookie_domain'][$Route->mirror_index],
-				'cookie_path'           => $Config->core['cookie_path'][$Route->mirror_index],
-				'protocol'              => $_SERVER->protocol,
-				'route'                 => $Route->route,
-				'route_path'            => $Route->path,
-				'route_ids'             => $Route->ids
-			],
-			'cs',
-			true
-		);
-		if ($User->guest()) {
-			$this->config_internal(get_core_ml_text('rules'), 'cs.rules_text', true);
-		}
+		$this->add_system_configs();
+		// TODO: I hope some day we'll get rid of this sh*t :(
+		$this->ie_edge();
 		/**
 		 * If CSS and JavaScript compression enabled
 		 */
-		if ($Config->core['cache_compress_js_css'] && !admin_path()) {
+		if ($Config->core['cache_compress_js_css'] && !(admin_path() && isset($_GET['debug']))) {
 			$includes = $this->get_includes_for_page_with_compression();
 		} else {
 			/**
@@ -332,57 +264,75 @@ trait Includes {
 		return $this;
 	}
 	/**
+	 * Add JS polyfills for IE/Edge
+	 */
+	protected function ie_edge () {
+		/**
+		 * @var \cs\_SERVER $_SERVER
+		 */
+		if (preg_match('/Trident|Edge/', $_SERVER->user_agent)) {
+			$this->js_internal(
+				get_files_list(DIR."/includes/js/microsoft_sh*t", "/.*\\.js$/i", 'f', "includes/js/microsoft_sh*t", true),
+				'file',
+				true
+			);
+		}
+	}
+	protected function add_system_configs () {
+		$Config         = Config::instance();
+		$Route          = Route::instance();
+		$User           = User::instance();
+		$current_module = current_module();
+		$this->config_internal(
+			[
+				'base_url'              => $Config->base_url(),
+				'current_base_url'      => $Config->base_url().'/'.(admin_path() ? 'admin/' : '').$current_module,
+				'public_key'            => Core::instance()->public_key,
+				'module'                => $current_module,
+				'in_admin'              => (int)admin_path(),
+				'is_admin'              => (int)$User->admin(),
+				'is_user'               => (int)$User->user(),
+				'is_guest'              => (int)$User->guest(),
+				'password_min_length'   => (int)$Config->core['password_min_length'],
+				'password_min_strength' => (int)$Config->core['password_min_strength'],
+				'debug'                 => (int)DEBUG,
+				'route'                 => $Route->route,
+				'route_path'            => $Route->path,
+				'route_ids'             => $Route->ids
+			],
+			'cs',
+			true
+		);
+		if ($User->guest()) {
+			$this->config_internal(get_core_ml_text('rules'), 'cs.rules_text', true);
+		}
+		if ($User->admin()) {
+			$this->config_internal((int)$Config->core['simple_admin_mode'], 'cs.simple_admin_mode', true);
+		}
+	}
+	/**
 	 * @return array[]
 	 */
 	protected function get_includes_for_page_with_compression () {
 		/**
-		 * Current cache checking
+		 * Rebuild cache if necessary
 		 */
 		if (!file_exists(PUBLIC_CACHE."/$this->pcache_basename.json")) {
 			$this->rebuild_cache();
 		}
-		$data         = file_get_json(PUBLIC_CACHE."/$this->pcache_basename.json");
-		$structure    = $data['structure'];
-		$dependencies = $data['dependencies'];
-		unset($data);
-		$current_module = current_module();
-		/**
-		 * Current URL based on controller path (it better represents how page was rendered)
-		 */
-		$current_url = Index::instance()->controller_path;
-		$current_url = array_slice($current_url, 1);
-		$current_url = (admin_path() ? 'admin+' : '')."$current_module+".implode('+', $current_url);
-		/**
-		 * Narrow the dependencies to current module only
-		 */
-		$dependencies          = isset($dependencies[$current_module]) ? $dependencies[$current_module] : [];
-		$system_includes       = [
+		list($dependencies, $structure) = file_get_json(PUBLIC_CACHE."/$this->pcache_basename.json");
+		$system_includes = [
 			'css'  => ["storage/pcache/$this->pcache_basename.css?{$structure['']['css']}"],
 			'js'   => ["storage/pcache/$this->pcache_basename.js?{$structure['']['js']}"],
 			'html' => ["storage/pcache/$this->pcache_basename.html?{$structure['']['html']}"]
 		];
-		$includes              = [
-			'css'  => [],
-			'js'   => [],
-			'html' => []
-		];
-		$dependencies_includes = $includes;
+		list($includes, $dependencies_includes, $dependencies, $current_url) = $this->get_includes_prepare($dependencies, '+');
 		foreach ($structure as $filename_prefix => $hashes) {
-			$prefix_module = explode('+', $filename_prefix);
-			/** @noinspection NestedTernaryOperatorInspection */
-			$prefix_module = $prefix_module[0] != 'admin' ? $prefix_module[0] : (@$prefix_module[1] ?: '');
-			$is_dependency = false;
-			if (
-				(
-					$filename_prefix &&
-					mb_strpos($current_url, $filename_prefix) === 0
-				) ||
-				(
-					$dependencies &&
-					in_array($prefix_module, $dependencies) &&
-					$is_dependency = true
-				)
-			) {
+			if (!$filename_prefix) {
+				continue;
+			}
+			$is_dependency = $this->get_includes_is_dependency($dependencies, $filename_prefix, '+');
+			if ($is_dependency || mb_strpos($current_url, $filename_prefix) === 0) {
 				foreach ($hashes as $extension => $hash) {
 					if ($is_dependency) {
 						$dependencies_includes[$extension][] = "storage/pcache/$filename_prefix$this->pcache_basename.$extension?$hash";
@@ -390,11 +340,8 @@ trait Includes {
 						$includes[$extension][] = "storage/pcache/$filename_prefix$this->pcache_basename.$extension?$hash";
 					}
 				}
-				unset($extension, $hash);
 			}
-			unset($prefix_module, $is_dependency);
 		}
-		unset($dependencies, $structure, $filename_prefix, $hashes);
 		return array_merge_recursive($system_includes, $dependencies_includes, $includes);
 	}
 	/**
@@ -403,56 +350,90 @@ trait Includes {
 	 * @return array[]
 	 */
 	protected function get_includes_for_page_without_compression ($Config) {
+		// To determine all dependencies and stuff we need `$Config` object to be already created
 		if ($Config) {
 			list($dependencies, $includes_map) = $this->includes_dependencies_and_map(admin_path());
-			/**
-			 * Add system includes
-			 */
-			$includes              = [
-				'css'  => [],
-				'js'   => [],
-				'html' => []
-			];
-			$dependencies_includes = $includes;
-			$current_module        = current_module();
-			/**
-			 * Current URL based on controller path (it better represents how page was rendered)
-			 */
-			$current_url = array_slice(Index::instance()->controller_path, 1);
-			$current_url = (admin_path() ? 'admin/' : '')."$current_module/".implode('/', $current_url);
-			/**
-			 * Narrow the dependencies to current module only
-			 */
-			$dependencies = isset($dependencies[$current_module]) ? $dependencies[$current_module] : [];
+			$system_includes = $includes_map[''];
+			list($includes, $dependencies_includes, $dependencies, $current_url) = $this->get_includes_prepare($dependencies, '/');
 			foreach ($includes_map as $url => $local_includes) {
 				if (!$url) {
 					continue;
 				}
-				$prefix_module = explode('+', $url);
-				/** @noinspection NestedTernaryOperatorInspection */
-				$prefix_module = $prefix_module[0] != 'admin' ? $prefix_module[0] : (@$prefix_module[1] ?: '');
-				$is_dependency = false;
-				if (
-					mb_strpos($current_url, $url) === 0 ||
-					(
-						$dependencies &&
-						in_array($prefix_module, $dependencies) &&
-						$is_dependency = true
-					)
-				) {
-					if ($is_dependency) {
-						$dependencies_includes = array_merge_recursive($dependencies_includes, $local_includes);
-					} else {
-						$includes = array_merge_recursive($includes, $local_includes);
-					}
+				$is_dependency = $this->get_includes_is_dependency($dependencies, $url, '/');
+				if ($is_dependency) {
+					$dependencies_includes = array_merge_recursive($dependencies_includes, $local_includes);
+				} elseif (mb_strpos($current_url, $url) === 0) {
+					$includes = array_merge_recursive($includes, $local_includes);
 				}
 			}
-			unset($current_url, $dependencies, $url, $local_includes, $prefix_module, $is_dependency);
-			$includes = array_merge_recursive($includes_map[''], $dependencies_includes, $includes);
-			unset($dependencies_includes);
+			$includes = array_merge_recursive($system_includes, $dependencies_includes, $includes);
 			$includes = _substr($includes, strlen(DIR.'/'));
 		} else {
 			$includes = $this->get_includes_list();
+		}
+		return $this->add_versions_hash($includes);
+	}
+	/**
+	 * @param array  $dependencies
+	 * @param string $separator `+` or `/`
+	 *
+	 * @return array
+	 */
+	protected function get_includes_prepare ($dependencies, $separator) {
+		$includes              = [
+			'css'  => [],
+			'js'   => [],
+			'html' => []
+		];
+		$dependencies_includes = $includes;
+		$current_module        = current_module();
+		/**
+		 * Current URL based on controller path (it better represents how page was rendered)
+		 */
+		$current_url = array_slice(Index::instance()->controller_path, 1);
+		$current_url = (admin_path() ? "admin$separator" : '')."$current_module$separator".implode($separator, $current_url);
+		/**
+		 * Narrow the dependencies to current module only
+		 */
+		$dependencies = isset($dependencies[$current_module]) ? $dependencies[$current_module] : [];
+		return [$includes, $dependencies_includes, $dependencies, $current_url];
+	}
+	/**
+	 * @param array  $dependencies
+	 * @param string $url
+	 * @param string $separator `+` or `/`
+	 *
+	 * @return bool
+	 */
+	protected function get_includes_is_dependency ($dependencies, $url, $separator) {
+		$url_exploded = explode($separator, $url);
+		/** @noinspection NestedTernaryOperatorInspection */
+		$url_module = $url_exploded[0] != 'admin' ? $url_exploded[0] : (@$url_exploded[1] ?: '');
+		return
+			$url_module !== Config::SYSTEM_MODULE &&
+			in_array($url_module, $dependencies) &&
+			(
+				admin_path() || admin_path() == ($url_exploded[0] == 'admin')
+			);
+	}
+	protected function add_versions_hash ($includes) {
+		$content = '';
+		foreach (get_files_list(MODULES, false, 'd') as $module) {
+			if (file_exists(MODULES."/$module/meta.json")) {
+				$content .= file_get_contents(MODULES."/$module/meta.json");
+			}
+		}
+		foreach (get_files_list(PLUGINS, false, 'd') as $plugin) {
+			if (file_exists(PLUGINS."/$plugin/meta.json")) {
+				$content .= file_get_contents(PLUGINS."/$plugin/meta.json");
+			}
+		}
+		$hash = substr(md5($content), 0, 5);
+		foreach ($includes as &$files) {
+			foreach ($files as &$file) {
+				$file .= "?$hash";
+			}
+			unset($file);
 		}
 		return $includes;
 	}
@@ -482,7 +463,7 @@ trait Includes {
 		$this->$js_html_insert_to .= $js_html;
 	}
 	/**
-	 * Getting of JavaScript and CSS files list to be included
+	 * Getting of HTML, JS and CSS files list to be included
 	 *
 	 * @param bool $absolute If <i>true</i> - absolute paths to files will be returned
 	 * @param bool $with_disabled
@@ -512,9 +493,9 @@ trait Includes {
 		$Config = Config::instance();
 		foreach ($Config->components['modules'] as $module_name => $module_data) {
 			if (
-				$module_data['active'] == -1 ||
+				$module_data['active'] == Config\Module_Properties::UNINSTALLED ||
 				(
-					$module_data['active'] == 0 &&
+					$module_data['active'] == Config\Module_Properties::DISABLED &&
 					!$with_disabled
 				)
 			) {
@@ -540,7 +521,7 @@ trait Includes {
 		return $includes;
 	}
 	/**
-	 * Rebuilding of JavaScript and CSS cache
+	 * Rebuilding of HTML, JS and CSS cache
 	 *
 	 * @return \cs\Page
 	 */
@@ -548,23 +529,93 @@ trait Includes {
 		list($dependencies, $includes_map) = $this->includes_dependencies_and_map();
 		$structure = [];
 		foreach ($includes_map as $filename_prefix => $includes) {
+			// We replace `/` by `+` to make it suitable for filename
 			$filename_prefix             = str_replace('/', '+', $filename_prefix);
 			$structure[$filename_prefix] = $this->create_cached_includes_files($filename_prefix, $includes);
 		}
 		unset($includes_map, $filename_prefix, $includes);
 		file_put_json(
 			PUBLIC_CACHE."/$this->pcache_basename.json",
-			[
-				'dependencies' => $dependencies,
-				'structure'    => $structure
-			]
+			[$dependencies, $structure]
 		);
 		unset($structure);
 		Event::instance()->fire('System/Page/rebuild_cache');
 		return $this;
 	}
 	/**
-	 * Get dependencies of components between each other (only that contains some styles and scripts) and mapping styles and scripts to URL paths
+	 * Creates cached version of given HTML, JS and CSS files.
+	 * Resulting file name consists of <b>$filename_prefix</b> and <b>$this->pcache_basename</b>
+	 *
+	 * @param string $filename_prefix
+	 * @param array  $includes Array of paths to files, may have keys: <b>css</b> and/or <b>js</b> and/or <b>html</b>
+	 *
+	 * @return array
+	 */
+	protected function create_cached_includes_files ($filename_prefix, $includes) {
+		$cache_hash = [];
+		/** @noinspection AlterInForeachInspection */
+		foreach ($includes as $extension => $files) {
+			$content = $this->create_cached_includes_files_process_files(
+				$extension,
+				$filename_prefix,
+				$files
+			);
+			file_put_contents(PUBLIC_CACHE."/$filename_prefix$this->pcache_basename.$extension", gzencode($content, 9), LOCK_EX | FILE_BINARY);
+			$cache_hash[$extension] = substr(md5($content), 0, 5);
+		}
+		return $cache_hash;
+	}
+	protected function create_cached_includes_files_process_files ($extension, $filename_prefix, $files) {
+		$content = '';
+		switch ($extension) {
+			/**
+			 * Insert external elements into resulting css file.
+			 * It is needed, because those files will not be copied into new destination of resulting css file.
+			 */
+			case 'css':
+				$callback = function ($content, $file) {
+					return
+						$content.
+						Includes_processing::css(
+							file_get_contents($file),
+							$file
+						);
+				};
+				break;
+			/**
+			 * Combine css and js files for Web Component into resulting files in order to optimize loading process
+			 */
+			case 'html':
+				/**
+				 * For CSP-compatible HTML files we need to know destination to put there additional JS/CSS files
+				 */
+				$destination = Config::instance()->core['vulcanization'] ? false : PUBLIC_CACHE;
+				$callback    = function ($content, $file) use ($filename_prefix, $destination) {
+					return
+						$content.
+						Includes_processing::html(
+							file_get_contents($file),
+							$file,
+							"$filename_prefix$this->pcache_basename-".basename($file).'+'.substr(md5($file), 0, 5),
+							$destination
+						);
+				};
+				break;
+			case 'js':
+				$callback = function ($content, $file) {
+					return
+						$content.
+						Includes_processing::js(file_get_contents($file));
+				};
+				if ($filename_prefix == '') {
+					$content = 'window.cs={Language:'._json_encode(Language::instance()).'};';
+				}
+		}
+		/** @noinspection PhpUndefinedVariableInspection */
+		return array_reduce(array_filter($files, 'file_exists'), $callback, $content);
+	}
+	/**
+	 * Get dependencies of components between each other (only that contains some HTML, JS and CSS files) and mapping HTML, JS and CSS files to URL paths
 	 *
 	 * @param bool $with_disabled
 	 *
@@ -589,9 +640,9 @@ trait Includes {
 		$Config = Config::instance();
 		foreach ($Config->components['modules'] as $module_name => $module_data) {
 			if (
-				$module_data['active'] == -1 ||
+				$module_data['active'] == Config\Module_Properties::UNINSTALLED ||
 				(
-					$module_data['active'] == 0 &&
+					$module_data['active'] == Config\Module_Properties::DISABLED &&
 					!$with_disabled
 				)
 			) {
@@ -644,18 +695,7 @@ trait Includes {
 			]
 		);
 		$dependencies = $this->normalize_dependencies($dependencies, $functionalities);
-		/**
-		 * Clean dependencies without files
-		 */
-		foreach ($dependencies as &$depends_on) {
-			foreach ($depends_on as $index => &$dependency) {
-				if (!isset($includes_map[$dependency])) {
-					unset($depends_on[$index]);
-				}
-			}
-			unset($dependency);
-		}
-		unset($depends_on, $index);
+		$includes_map = $this->clean_includes_arrays_without_files($dependencies, $includes_map);
 		$dependencies = array_map('array_values', $dependencies);
 		$dependencies = array_filter($dependencies);
 		return [$dependencies, $includes_map];
@@ -804,53 +844,22 @@ trait Includes {
 		return array_map('array_unique', $dependencies);
 	}
 	/**
-	 * Creates cached version of given js and css files.<br>
-	 * Resulting file name consists of <b>$filename_prefix</b> and <b>$this->pcache_basename</b>
+	 * Includes array is composed from dependencies and sometimes dependencies doesn't have any files, so we'll clean that
 	 *
-	 * @param string $filename_prefix
-	 * @param array  $includes Array of paths to files, may have keys: <b>css</b> and/or <b>js</b> and/or <b>html</b>
+	 * @param array $dependencies
+	 * @param array $includes_map
 	 *
 	 * @return array
 	 */
-	protected function create_cached_includes_files ($filename_prefix, $includes) {
-		$cache_hash  = [];
-		$destination = Config::instance()->core['vulcanization'] ? false : PUBLIC_CACHE;
-		/** @noinspection AlterInForeachInspection */
-		foreach ($includes as $extension => &$files) {
-			$files_content = '';
-			foreach ($files as $file) {
-				if (!file_exists($file)) {
-					continue;
-				}
-				/**
-				 * Insert external elements into resulting css file.
-				 * It is needed, because those files will not be copied into new destination of resulting css file.
-				 */
-				if ($extension == 'css') {
-					$files_content .= Includes_processing::css(
-						file_get_contents($file),
-						$file
-					);
-					/**
-					 * Combine css and js files for Web Component into resulting files in order to optimize loading process
-					 */
-				} elseif ($extension == 'html') {
-					$files_content .= Includes_processing::html(
-						file_get_contents($file),
-						$file,
-						"$filename_prefix$this->pcache_basename-".basename($file).'+'.substr(md5($file), 0, 5),
-						$destination
-					);
-				} else {
-					$files_content .= file_get_contents($file).";\n";
+	protected function clean_includes_arrays_without_files ($dependencies, $includes_map) {
+		foreach ($dependencies as &$depends_on) {
+			foreach ($depends_on as $index => &$dependency) {
+				if (!isset($includes_map[$dependency])) {
+					unset($depends_on[$index]);
 				}
 			}
-			if ($filename_prefix == '' && $extension == 'js') {
-				$files_content = "window.cs={};cs.Language="._json_encode(Language::instance()).";$files_content";
-			}
-			file_put_contents(PUBLIC_CACHE."/$filename_prefix$this->pcache_basename.$extension", gzencode($files_content, 9), LOCK_EX | FILE_BINARY);
-			$cache_hash[$extension] = substr(md5($files_content), 0, 5);
+			unset($dependency);
 		}
-		return $cache_hash;
+		return $includes_map;
 	}
 }

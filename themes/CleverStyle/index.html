@@ -1,13 +1,14 @@
 <?php
 /**
- * @package		ClevereStyle CMS
+ * @package		CleverStyle CMS
  * @subpackage	CleverStyle theme
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2014-2015, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2014-2016, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace cs\themes\CleverStyle;
 use
+	cs\Language,
 	cs\Menu,
 	cs\User,
 	h;
@@ -17,27 +18,28 @@ if (!function_exists(__NAMESPACE__.'\\level')) {
 		return trim(h::level($in, $level))."\n";
 	}
 }
-$main_menu	= h::{'ul.uk-navbar-nav[level=0] li[level=0]'}(
-	get_main_menu()
+$main_menu	= h::nav(
+	implode('', get_main_menu())
 );
 $submenu	= admin_path() ? Menu::instance()->get_menu() : '';
-$avatar		= User::instance()->avatar();
-$body_class	= admin_path() ? ' class="cs-admin-page"' : '';
+$User		= User::instance();
+$avatar		= $User->avatar();
+$username	= $User->guest() ? Language::instance()->guest : $User->username();
+$login		= $User->login;
 ?><!doctype html>
 <!--pre_Html--><!--head-->
 <body unresolved>
 <!--pre_Body-->
-	<header class="uk-navbar uk-navbar-attached">
-		<div class="uk-navbar-content uk-navbar-flip">
-			<img alt="" src="<?=$avatar?>">
-			<?=level(get_header_info(), 3)?>
+	<header>
+		<div>
+			<a href="/" class="cs-text-lead"><?=get_core_ml_text('name')?></a>
+			<?=level($main_menu, 3)?>
+			<cs-cleverstyle-header-user-block avatar="<?=$avatar?>" username="<?=h::prepare_attr_value($username)?>" login="<?=h::prepare_attr_value($login)?>"></cs-cleverstyle-header-user-block>
 		</div>
-		<a href="/" class="uk-navbar-brand"><?=get_core_ml_text('name')?></a>
-		<?=level($main_menu, 2)?>
 		<hr>
 		<?=level($submenu, 2)?>
 	</header>
-	<div id="body"<?=$body_class?>>
+	<div id="body">
 		<aside id="left_blocks">
 <!--left_blocks-->
 		</aside>

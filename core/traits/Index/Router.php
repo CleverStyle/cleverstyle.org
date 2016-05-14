@@ -2,10 +2,13 @@
 /**
  * @package   CleverStyle CMS
  * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright Copyright (c) 2015, Nazar Mokrynskyi
+ * @copyright Copyright (c) 2015-2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
  */
 namespace cs\Index;
+use
+	cs\ExitException;
+
 /**
  * @property bool     $module          Name of current module
  * @property bool     $in_api          Whether current page is api
@@ -21,16 +24,21 @@ trait Router {
 	 * Execute router
 	 *
 	 * Depending on module, files-based or controller-based router might be used
+	 *
+	 * @throws ExitException
 	 */
 	protected function execute_router () {
 		$this->check_and_normalize_route();
-		if (!error_code()) {
-			$router = file_exists("$this->working_directory/Controller.php") ? 'controller_router' : 'files_router';
-			$this->$router();
+		if (file_exists("$this->working_directory/Controller.php")) {
+			$this->controller_router();
+		} else {
+			$this->files_router();
 		}
 	}
 	/**
 	 * Normalize route path and fill `cs\Index::$route_path` and `cs\Index::$route_ids` properties
+	 *
+	 * @throws ExitException
 	 */
 	protected function check_and_normalize_route () {
 		if (!file_exists("$this->working_directory/index.json")) {
@@ -48,11 +56,7 @@ trait Router {
 			/**
 			 * If path not specified - take first from structure
 			 */
-			$code = $this->check_and_normalize_route_internal($path, $structure);
-			if ($code !== 200) {
-				error_code($code);
-				return;
-			}
+			$this->check_and_normalize_route_internal($path, $structure);
 			$this->path[$nesting_level] = $path;
 			/**
 			 * Fill paths array intended for controller's usage
@@ -68,7 +72,7 @@ trait Router {
 	 * @param string $path
 	 * @param array  $structure
 	 *
-	 * @return int HTTP status code
+	 * @throws ExitException
 	 */
 	protected function check_and_normalize_route_internal (&$path, $structure) {
 		/**
@@ -80,18 +84,20 @@ trait Router {
 			 * We need exact paths for API request (or `_` ending if available) and less strict mode for other cases that allows go deeper automatically
 			 */
 			if ($path !== '_' && api_path()) {
-				return 404;
+				throw new ExitException(404);
 			}
 		} elseif (!isset($structure[$path]) && !in_array($path, $structure)) {
-			return 404;
+			throw new ExitException(404);
 		}
+		/** @noinspection PhpUndefinedMethodInspection */
 		if (!$this->check_permission($path)) {
-			return 403;
+			throw new ExitException(403);
 		}
-		return 200;
 	}
 	/**
 	 * Include files necessary for module page rendering
+	 *
+	 * @throws ExitException
 	 */
 	protected function files_router () {
 		foreach ($this->controller_path as $index => $path) {
@@ -102,9 +108,7 @@ trait Router {
 				$path = implode('/', array_slice($this->controller_path, 1, $index));
 			}
 			$next_exists = isset($this->controller_path[$index + 1]);
-			if (!$this->files_router_handler($this->working_directory, $path, !$next_exists)) {
-				return;
-			}
+			$this->files_router_handler($this->working_directory, $path, !$next_exists);
 		}
 	}
 	/**
@@ -114,12 +118,18 @@ trait Router {
 	 * @param string $basename
 	 * @param bool   $required
 	 *
-	 * @return bool
+	 * @throws ExitException
 	 */
 	protected function files_router_handler ($dir, $basename, $required = true) {
 		$this->files_router_handler_internal($dir, $basename, $required);
-		return !error_code();
 	}
+	/**
+	 * @param string $dir
+	 * @param string $basename
+	 * @param bool   $required
+	 *
+	 * @throws ExitException
+	 */
 	protected function files_router_handler_internal ($dir, $basename, $required) {
 		$included = _include("$dir/$basename.php", false, false) !== false;
 		if (!api_path()) {
@@ -138,26 +148,30 @@ trait Router {
 	 * methods also doesn't exist
 	 *
 	 * @param string[] $available_methods
+	 *
+	 * @throws ExitException
 	 */
 	protected function handler_not_found ($available_methods) {
 		if ($available_methods) {
 			$available_methods = implode(', ', $available_methods);
 			_header("Allow: $available_methods");
 			if ($this->request_method !== 'options') {
-				error_code(501);
+				throw new ExitException(501);
 			}
 		} else {
-			error_code(404);
+			throw new ExitException(404);
 		}
 	}
 	/**
 	 * Call methods necessary for module page rendering
+	 *
+	 * @throws ExitException
 	 */
 	protected function controller_router () {
 		$suffix = '';
-		if ($this->in_admin) {
+		if (admin_path()) {
 			$suffix = '\\admin';
-		} elseif ($this->in_api) {
+		} elseif (api_path()) {
 			$suffix = '\\api';
 		}
 		$controller_class = "cs\\modules\\$this->module$suffix\\Controller";
@@ -169,9 +183,7 @@ trait Router {
 				$path = implode('_', array_slice($this->controller_path, 1, $index));
 			}
 			$next_exists = isset($this->controller_path[$index + 1]);
-			if (!$this->controller_router_handler($controller_class, $path, !$next_exists)) {
-				return;
-			}
+			$this->controller_router_handler($controller_class, $path, !$next_exists);
 		}
 	}
 	/**
@@ -181,17 +193,18 @@ trait Router {
 	 * @param string $method_name
 	 * @param bool   $required
 	 *
-	 * @return bool
+	 * @throws ExitException
 	 */
 	protected function controller_router_handler ($controller_class, $method_name, $required = true) {
 		$method_name = str_replace('.', '_', $method_name);
 		$this->controller_router_handler_internal($controller_class, $method_name, $required);
-		return !error_code();
 	}
 	/**
 	 * @param string $controller_class
 	 * @param string $method_name
 	 * @param bool   $required
+	 *
+	 * @throws ExitException
 	 */
 	protected function controller_router_handler_internal ($controller_class, $method_name, $required) {
 		$included =

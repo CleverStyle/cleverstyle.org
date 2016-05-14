@@ -2,7 +2,7 @@
 /**
  * @package   CleverStyle CMS
  * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright Copyright (c) 2011-2015, Nazar Mokrynskyi
+ * @copyright Copyright (c) 2011-2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
  */
 /**
@@ -326,20 +326,20 @@ function get_core_ml_text ($item) {
 	return Text::instance()->process($Config->module('System')->db('texts'), $Config->core[$item], true);
 }
 
-if (!function_exists('code_header')) {
-	/**
-	 * Sends header with string representation of http status code, for example "404 Not Found" for corresponding server protocol
-	 *
-	 * @deprecated
-	 * @todo remove in future versions
-	 *
-	 * @param int $code Status code
-	 *
-	 * @return null|string String representation of status code code
-	 */
-	function code_header ($code) {
-		return status_code($code);
+/**
+ * Set multilingual value from $Config->core array
+ *
+ * @param string $item
+ * @param string $value
+ *
+ * @return false|string
+ */
+function set_core_ml_text ($item, $value) {
+	$Config = Config::instance(true);
+	if (!$Config) {
+		return false;
 	}
+	return Text::instance()->set($Config->module('System')->db('texts'), 'System/Config/core', $Config->core[$item], $value);
 }
 
 /**
@@ -483,8 +483,9 @@ function pages ($page, $total, $url, $head_links = false) {
 		return [
 			$i,
 			[
-				'href'  => $i == $page ? false : $url($i),
-				'class' => $i == $page ? 'uk-button uk-button-primary uk-frozen' : 'uk-button'
+				'href'    => $i == $page ? false : $url($i),
+				'is'      => 'cs-link-button',
+				'primary' => $i == $page
 			]
 		];
 	};
@@ -493,27 +494,29 @@ function pages ($page, $total, $url, $head_links = false) {
 			$output[] = $render_page_item($i);
 		}
 	} else {
-		if ($page <= 5) {
+		if ($page <= 6) {
 			for ($i = 1; $i <= 7; ++$i) {
 				$output[] = $render_page_item($i);
 			}
 			$output[] = [
 				'...',
 				[
-					'class' => 'uk-button uk-frozen'
+					'is' => 'cs-link-button',
+					'disabled'
 				]
 			];
 			for ($i = $total - 2; $i <= $total; ++$i) {
 				$output[] = $render_page_item($i);
 			}
-		} elseif ($page >= $total - 4) {
+		} elseif ($page >= $total - 5) {
 			for ($i = 1; $i <= 3; ++$i) {
 				$output[] = $render_page_item($i);
 			}
 			$output[] = [
 				'...',
 				[
-					'class' => 'uk-button uk-frozen'
+					'is' => 'cs-link-button',
+					'disabled'
 				]
 			];
 			for ($i = $total - 6; $i <= $total; ++$i) {
@@ -526,16 +529,18 @@ function pages ($page, $total, $url, $head_links = false) {
 			$output[] = [
 				'...',
 				[
-					'class' => 'uk-button uk-frozen'
+					'is' => 'cs-link-button',
+					'disabled'
 				]
 			];
-			for ($i = $page - 1; $i <= $page + 3; ++$i) {
+			for ($i = $page - 2; $i <= $page + 2; ++$i) {
 				$output[] = $render_page_item($i);
 			}
 			$output[] = [
 				'...',
 				[
-					'class' => 'uk-button uk-frozen'
+					'is' => 'cs-link-button',
+					'disabled'
 				]
 			];
 			for ($i = $total - 1; $i <= $total; ++$i) {
@@ -574,29 +579,32 @@ function pages_buttons ($page, $total, $url = false) {
 			$output[]	= [
 				$i,
 				[
+					'is'			=> 'cs-button',
 					'formaction'	=> $i == $page || $url === false ? false : $url($i),
 					'value'			=> $i,
 					'type'			=> $i == $page ? 'button' : 'submit',
-					'class'			=> $i == $page ? 'uk-button-primary uk-frozen' : false
+					'primary'		=> $i == $page
 				]
 			];
 		}
 	} else {
-		if ($page <= 5) {
+		if ($page <= 6) {
 			for ($i = 1; $i <= 7; ++$i) {
 				$output[]	= [
 					$i,
 					[
+						'is'			=> 'cs-button',
 						'formaction'	=> $i == $page || $url === false ? false : $url($i),
 						'value'			=> $i == $page ? false : $i,
 						'type'			=> $i == $page ? 'button' : 'submit',
-						'class'			=> $i == $page ? 'uk-button-primary uk-frozen' : false
+						'primary'		=> $i == $page
 					]
 				];
 			}
 			$output[]	= [
 				'...',
 				[
+					'is'			=> 'cs-button',
 					'type'			=> 'button',
 					'disabled'
 				]
@@ -605,17 +613,19 @@ function pages_buttons ($page, $total, $url = false) {
 				$output[]	= [
 					$i,
 					[
+						'is'			=> 'cs-button',
 						'formaction'	=> is_callable($url) ? $url($i) : sprintf($url, $i),
 						'value'			=> $i,
 						'type'			=> 'submit'
 					]
 				];
 			}
-		} elseif ($page >= $total - 4) {
+		} elseif ($page >= $total - 5) {
 			for ($i = 1; $i <= 3; ++$i) {
 				$output[]	= [
 					$i,
 					[
+						'is'			=> 'cs-button',
 						'formaction'	=> is_callable($url) ? $url($i) : sprintf($url, $i),
 						'value'			=> $i,
 						'type'			=> 'submit'
@@ -625,6 +635,7 @@ function pages_buttons ($page, $total, $url = false) {
 			$output[]	= [
 				'...',
 				[
+					'is'			=> 'cs-button',
 					'type'			=> 'button',
 					'disabled'
 				]
@@ -633,10 +644,11 @@ function pages_buttons ($page, $total, $url = false) {
 				$output[]	= [
 					$i,
 					[
+						'is'			=> 'cs-button',
 						'formaction'	=> $i == $page || $url === false ? false : $url($i),
 						'value'			=> $i == $page ? false : $i,
 						'type'			=> $i == $page ? 'button' : 'submit',
-						'class'			=> $i == $page ? 'uk-button-primary uk-frozen' : false
+						'primary'		=> $i == $page
 					]
 				];
 			}
@@ -645,6 +657,7 @@ function pages_buttons ($page, $total, $url = false) {
 				$output[]	= [
 					$i,
 					[
+						'is'			=> 'cs-button',
 						'formaction'	=> is_callable($url) ? $url($i) : sprintf($url, $i),
 						'value'			=> $i,
 						'type'			=> 'submit'
@@ -654,24 +667,27 @@ function pages_buttons ($page, $total, $url = false) {
 			$output[]	= [
 				'...',
 				[
+					'is'			=> 'cs-button',
 					'type'			=> 'button',
 					'disabled'
 				]
 			];
-			for ($i = $page - 1; $i <= $page + 3; ++$i) {
+			for ($i = $page - 2; $i <= $page + 2; ++$i) {
 				$output[]	= [
 					$i,
 					[
+						'is'			=> 'cs-button',
 						'formaction'	=> $i == $page || $url === false ? false : $url($i),
 						'value'			=> $i == $page ? false : $i,
 						'type'			=> $i == $page ? 'button' : 'submit',
-						'class'			=> $i == $page ? 'uk-button-primary uk-frozen' : false
+						'primary'		=> $i == $page
 					]
 				];
 			}
 			$output[]	= [
 				'...',
 				[
+					'is'			=> 'cs-button',
 					'type'			=> 'button',
 					'disabled'
 				]
@@ -680,6 +696,7 @@ function pages_buttons ($page, $total, $url = false) {
 				$output[]	= [
 					$i,
 					[
+						'is'			=> 'cs-button',
 						'formaction'	=> is_callable($url) ? $url($i) : sprintf($url, $i),
 						'value'			=> $i,
 						'type'			=> 'submit'
@@ -688,7 +705,7 @@ function pages_buttons ($page, $total, $url = false) {
 			}
 		}
 	}
-	return h::{'button.uk-button[name=page]'}($output);
+	return h::{'button[is=cs-button][name=page]'}($output);
 }
 
 /**
@@ -707,12 +724,13 @@ function functionality ($functionality) {
 		return $result;
 	}
 	$all = Cache::instance()->get(
-		"functionality",
+		'functionality',
 		function () {
 			$functionality = [];
-			$components    = Config::instance()->components;
-			foreach ($components['modules'] as $module => $module_data) {
-				if ($module_data['active'] != 1 || !file_exists(MODULES."/$module/meta.json")) {
+			$Config        = Config::instance();
+			$components    = $Config->components;
+			foreach (array_keys($components['modules']) as $module) {
+				if (!$Config->module($module)->enabled() || !file_exists(MODULES."/$module/meta.json")) {
 					continue;
 				}
 				$functionality[] = [$module];
@@ -736,6 +754,7 @@ function functionality ($functionality) {
 	);
 	return in_array($functionality, $all);
 }
+
 /**
  * Returns system version
  *

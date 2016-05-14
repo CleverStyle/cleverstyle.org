@@ -2,7 +2,7 @@
 /**
  * @package		CleverStyle CMS
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2015, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2016, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 namespace	cs;
@@ -12,9 +12,6 @@ use
 	cs\Page\Meta;
 
 /**
- * Provides next events:
- *  System/Page/pre_display
- *
  * @method static Page instance($check = false)
  */
 class Page {
@@ -322,7 +319,7 @@ class Page {
 	function atom ($href, $title = 'Atom Feed') {
 		return $this->link([
 			'href'	=> $href,
-			'title'	=> h::prepare_attr_value($title),
+			'title'	=> $title,
 			'rel'	=> 'alternate',
 			'type'	=> 'application/atom+xml'
 		]);
@@ -338,7 +335,7 @@ class Page {
 	function rss ($href, $title = 'RSS Feed') {
 		return $this->link([
 			'href'	=> $href,
-			'title'	=> h::prepare_attr_value($title),
+			'title'	=> $title,
 			'rel'	=> 'alternate',
 			'type'	=> 'application/rss+xml'
 		]);
@@ -382,7 +379,7 @@ class Page {
 	 * @return Page
 	 */
 	function success ($success_text) {
-		return $this->top_message($success_text, 'success uk-lead');
+		return $this->top_message($success_text, 'success');
 	}
 	/**
 	 * Display notice message
@@ -392,7 +389,7 @@ class Page {
 	 * @return Page
 	 */
 	function notice ($notice_text) {
-		return $this->top_message($notice_text, 'warning uk-lead');
+		return $this->top_message($notice_text, 'warning');
 	}
 	/**
 	 * Display warning message
@@ -402,7 +399,7 @@ class Page {
 	 * @return Page
 	 */
 	function warning ($warning_text) {
-		return $this->top_message($warning_text, 'danger');
+		return $this->top_message($warning_text, 'error');
 	}
 	/**
 	 * Generic method for 3 methods above
@@ -416,7 +413,7 @@ class Page {
 		$this->Top .= h::div(
 			$message,
 			[
-				'class'	=> "cs-center uk-alert uk-alert-$class_ending"
+				'class'	=> "cs-text-center cs-block-$class_ending cs-text-$class_ending"
 			]
 		);
 		return $this;
@@ -424,33 +421,29 @@ class Page {
 	/**
 	 * Error pages processing
 	 *
-	 * @param null|string|string[] $custom_text       Custom error text instead of text like "404 Not Found",
-	 *                                                or array with two elements: [error, error_description]
-	 * @param bool                 $json              Force JSON return format
+	 * @param null|string|string[] $custom_text Custom error text instead of text like "404 Not Found" or array with two elements: [error, error_description]
+	 * @param bool                 $json        Force JSON return format
+	 * @param int                  $error_code  HTTP status code
 	 *
-	 * @throws \ExitException
+	 * @throws ExitException
 	 */
-	function error ($custom_text = null, $json = false) {
+	function error ($custom_text = null, $json = false, $error_code = 500) {
 		if ($this->error_showed) {
 			return;
 		}
 		$this->error_showed	= true;
-		$error = error_code();
-		if (!$error) {
-			error_code($error = 500);
-		}
 		/**
 		 * Hack for 403 after sign out in administration
 		 */
-		if ($error == 403 && !api_path() && _getcookie('sign_out')) {
+		if ($error_code == 403 && !api_path() && _getcookie('sign_out')) {
 			_header('Location: /', true, 302);
 			$this->Content	= '';
-			throw new \ExitException;
+			throw new ExitException;
 		}
 		interface_off();
-		$error_description	= status_code($error);
+		$error_description	= status_code($error_code);
 		if (is_array($custom_text)) {
-			list($error, $error_description)	= $custom_text;
+			list($error_code, $error_description)	= $custom_text;
 		} elseif ($custom_text) {
 			$error_description	= $custom_text;
 		}
@@ -460,7 +453,7 @@ class Page {
 				interface_off();
 			}
 			$this->json([
-				'error'				=> $error,
+				'error'				=> $error_code,
 				'error_description'	=> $error_description
 			]);
 		} else {
@@ -470,15 +463,20 @@ class Page {
 				!_include(THEMES."/$this->theme/error.php", false, false)
 			) {
 				echo "<!doctype html>\n".
-					h::title($error_description).
-					($error_description ?: $error);
+					h::title($error_code).
+					($error_description ?: $error_code);
 			}
 			$this->Content	= ob_get_clean();
 		}
 		$this->__finish();
-		throw new \ExitException;
+		throw new ExitException;
 	}
 	/**
+	 * Provides next events:
+	 *  System/Page/display/before
+	 *
+	 *  System/Page/display/after
+	 *
 	 * Page generation
 	 */
 	function __finish () {
@@ -499,7 +497,7 @@ class Page {
 			 */
 			echo $this->process_replacing($this->Content ?: ($api ? 'null' : ''));
 		} else {
-			Event::instance()->fire('System/Page/pre_display');
+			Event::instance()->fire('System/Page/display/before');
 			/**
 			 * Processing of template, substituting of content, preparing for the output
 			 */
@@ -508,7 +506,7 @@ class Page {
 			 * Processing of replacing in content
 			 */
 			$this->Html = $this->process_replacing($this->Html);
-			Event::instance()->fire('System/Page/display');
+			Event::instance()->fire('System/Page/display/after');
 			echo rtrim($this->Html);
 		}
 	}

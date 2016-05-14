@@ -4,24 +4,223 @@
  * @subpackage System module
  * @category   modules
  * @author     Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright  Copyright (c) 2015, Nazar Mokrynskyi
+ * @copyright  Copyright (c) 2015-2016, Nazar Mokrynskyi
  * @license    MIT License, see license.txt
  */
 namespace cs\modules\System\api\Controller\admin;
 use
 	cs\Config,
+	cs\ExitException,
 	cs\Page,
+	cs\Permission,
 	cs\Text;
 trait blocks {
-	static function admin_blocks_get () {
+	/**
+	 * Get array of blocks data or data of specific block if id specified
+	 *
+	 * If block id specified - extended form of data will be returned
+	 *
+	 * @param int[] $route_ids
+	 *
+	 * @throws ExitException
+	 */
+	static function admin_blocks_get ($route_ids) {
 		$Config = Config::instance();
+		$Page   = Page::instance();
 		$Text   = Text::instance();
 		$db_id  = $Config->module('System')->db('texts');
-		$blocks = $Config->components['blocks'];
-		foreach ($blocks as &$block) {
-			$block['title']   = $Text->process($db_id, $block['title'], true);
-			$block['content'] = $block['content'] ? $Text->process($db_id, $block['content'], true) : '';
+		if (!isset($route_ids[0])) {
+			$blocks = $Config->components['blocks'];
+			foreach ($blocks as &$block) {
+				$block['title']   = $Text->process($db_id, $block['title'], true);
+				$block['content'] = $block['content'] ? $Text->process($db_id, $block['content'], true) : '';
+			}
+			unset($block);
+			$Page->json(array_values($blocks) ?: []);
+			return;
 		}
-		Page::instance()->json($blocks ?: []);
+		$block = static::get_block_by_index($route_ids[0]);
+		if (!$block) {
+			throw new ExitException(404);
+		}
+		$Page->json(
+			[
+				'title'    => $Text->process($db_id, $block['title'], true),
+				'type'     => $block['type'],
+				'active'   => (int)$block['active'],
+				'template' => $block['template'],
+				'start'    => date('Y-m-d\TH:i', $block['start'] ?: TIME),
+				'expire'   => [
+					'date'  => date('Y-m-d\TH:i', $block['expire'] ?: TIME),
+					'state' => (int)($block['expire'] != 0)
+				],
+				'content'  => $Text->process($db_id, $block['content'], true)
+			]
+		);
+	}
+	/**
+	 * Add new block
+	 *
+	 * @throws ExitException
+	 */
+	static function admin_blocks_post () {
+		static::save_block_data($_POST);
+	}
+	/**
+	 * Update block's data
+	 *
+	 * @param int[] $route_ids
+	 *
+	 * @throws ExitException
+	 */
+	static function admin_blocks_put ($route_ids) {
+		if (!$route_ids[0]) {
+			throw new ExitException(400);
+		}
+		static::save_block_data($_POST, $route_ids[0]);
+	}
+	/**
+	 * Delete block
+	 *
+	 * @param int[] $route_ids
+	 *
+	 * @throws ExitException
+	 */
+	static function admin_blocks_delete ($route_ids) {
+		if (!$route_ids[0]) {
+			throw new ExitException(400);
+		}
+		$Config     = Config::instance();
+		$db_id      = $Config->module('System')->db('texts');
+		$Permission = Permission::instance();
+		$Text       = Text::instance();
+		foreach ($Config->components['blocks'] as $i => &$block) {
+			if ($block['index'] == $route_ids[0]) {
+				unset($Config->components['blocks'][$i]);
+				break;
+			}
+		}
+		/** @noinspection PhpUndefinedVariableInspection */
+		if ($block['index'] != $route_ids[0]) {
+			throw new ExitException(404);
+		}
+		$block_permission = $Permission->get(null, 'Block', $block['index']);
+		if ($block_permission) {
+			$Permission->del($block_permission[0]['id']);
+		}
+		$Text->del($db_id, 'System/Config/blocks/title', $block['index']);
+		$Text->del($db_id, 'System/Config/blocks/content', $block['index']);
+		if (!$Config->save()) {
+			throw new ExitException(500);
+		}
+	}
+	/**
+	 * Get array of available block templates
+	 */
+	static function admin_blocks_templates () {
+		Page::instance()->json(
+			_mb_substr(get_files_list(TEMPLATES.'/blocks', '/^block\..*?\.(php|html)$/i', 'f'), 6)
+		);
+	}
+	/**
+	 * Get array of available block types
+	 */
+	static function admin_blocks_types () {
+		Page::instance()->json(
+			array_merge(['html', 'raw_html'], _mb_substr(get_files_list(BLOCKS, '/^block\..*?\.php$/i', 'f'), 6, -4))
+		);
+	}
+	/**
+	 * Update blocks order
+	 *
+	 *
+	 * @throws ExitException
+	 */
+	static function admin_blocks_update_order () {
+		if (!isset($_POST['order']) || !is_array($_POST['order'])) {
+			throw new ExitException(400);
+		}
+		$Config           = Config::instance();
+		$blocks           = $Config->components['blocks'];
+		$indexed_blocks   = array_combine(
+			array_column($blocks, 'index'),
+			$blocks
+		);
+		$new_blocks_order = [];
+		$all_indexes      = [];
+		foreach ($_POST['order'] as $position => $indexes) {
+			foreach ($indexes as $order => $index) {
+				$all_indexes[]      = $index;
+				$block              = $indexed_blocks[$index];
+				$block['position']  = $position;
+				$new_blocks_order[] = $block;
+			}
+		}
+		foreach ($blocks as $block) {
+			if (!in_array($block['index'], $all_indexes)) {
+				$new_blocks_order[] = $block;
+			}
+		}
+		$Config->components['blocks'] = $new_blocks_order;
+		if (!$Config->save()) {
+			throw new ExitException(500);
+		}
+	}
+	/**
+	 * @param array     $block_new
+	 * @param false|int $index Index of existing block, if not specified - new block being added
+	 *
+	 * @return bool
+	 *
+	 * @throws ExitException
+	 */
+	protected static function save_block_data ($block_new, $index = false) {
+		$Config = Config::instance();
+		$db_id  = $Config->module('System')->db('texts');
+		$Text   = Text::instance();
+		$block  = [
+			'position' => 'floating',
+			'type'     => xap($block_new['type']),
+			'index'    => substr(TIME, 3)
+		];
+		if ($index) {
+			$block = &static::get_block_by_index($index);
+			if (!$block) {
+				throw new ExitException(404);
+			}
+		}
+		$block['title']    = $Text->set($db_id, 'System/Config/blocks/title', $block['index'], $block_new['title']);
+		$block['active']   = $block_new['active'];
+		$block['type']     = $block_new['type'];
+		$block['template'] = $block_new['template'];
+		$block['start']    = $block_new['start'];
+		$block['start']    = strtotime($block_new['start']);
+		$block['expire']   = $block_new['expire']['state'] ? strtotime($block_new['expire']['date']) : 0;
+		$block['content']  = '';
+		if ($block['type'] == 'html') {
+			$block['content'] = $Text->set($db_id, 'System/Config/blocks/content', $block['index'], xap($block_new['content'], true));
+		} elseif ($block['type'] == 'raw_html') {
+			$block['content'] = $Text->set($db_id, 'System/Config/blocks/content', $block['index'], $block_new['content']);
+		}
+		if (!$index) {
+			$Config->components['blocks'][] = $block;
+			Permission::instance()->add('Block', $block['index']);
+		}
+		if (!$Config->save()) {
+			throw new ExitException(500);
+		}
+	}
+	/**
+	 * @param int $index
+	 *
+	 * @return array|false
+	 */
+	protected static function & get_block_by_index ($index) {
+		foreach (Config::instance()->components['blocks'] as &$block) {
+			if ($block['index'] == $index) {
+				return $block;
+			}
+		}
+		return false;
 	}
 }

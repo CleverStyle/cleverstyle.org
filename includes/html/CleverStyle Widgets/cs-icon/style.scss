@@ -1,0 +1,32 @@
+/**
+ * @package   CleverStyle Widgets
+ * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
+ * @copyright Copyright (c) 2015-2016, Nazar Mokrynskyi
+ * @license   MIT License, see license.txt
+ */
+@import 'font-awesome.min';
+
+:host {
+	color   : inherit;
+	display : inline-block;
+
+	@apply (--cs-global);
+	@apply (--cs-icon);
+}
+
+.fa {
+	vertical-align : middle;
+}
+
+.fa-inverse {
+	color : var(--cs-icon-inverse-color);
+}
+
+.fa-stack {
+	font-size : .5em;
+}
+
+:host([hidden]),
+[hidden] {
+	display : none;
+}

@@ -2,7 +2,7 @@
 /**
  * @package   CleverStyle CMS
  * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright Copyright (c) 2013-2015, Nazar Mokrynskyi
+ * @copyright Copyright (c) 2013-2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
  */
 namespace cs;
@@ -27,10 +27,6 @@ trait CRUD {
 	 * @return false|int|string Id of created item on success, `false` otherwise
 	 */
 	protected function create ($arguments) {
-		//TODO remove in future versions
-		if (func_num_args() === 3) {
-			return call_user_func([$this, 'create_internal'], func_get_args());
-		}
 		return $this->create_internal($this->table, $this->data_model, $arguments);
 	}
 	/**
@@ -76,7 +72,7 @@ trait CRUD {
 		 * after creation (there is no id before creation)
 		 */
 		if ($update_needed) {
-			$this->update_internal($table, $data_model, array_merge([$id], $prepared_arguments), false);
+			$this->update_internal($table, $data_model, array_merge([array_keys($data_model)[0] => $id], $prepared_arguments), false);
 		}
 		return $id;
 	}
@@ -90,7 +86,7 @@ trait CRUD {
 		 * At first we remove all old data
 		 */
 		foreach ($this->data_model as $table => $model) {
-			if (!isset($model['data_model'])) {
+			if (!is_array($model) || !isset($model['data_model'])) {
 				continue;
 			}
 			$id_field                 = array_keys($model['data_model'])[0];
@@ -134,17 +130,6 @@ trait CRUD {
 		}
 	}
 	/**
-	 * @deprecated
-	 * @todo remove in future versions
-	 *
-	 * @param array $arguments First element `id` can be omitted if it is autoincrement field
-	 *
-	 * @return false|int|string Id of created item on success, `false` otherwise
-	 */
-	protected function create_simple ($arguments) {
-		return $this->create($arguments);
-	}
-	/**
 	 * Read item
 	 *
 	 * @param int|int[]|string|string[] $id
@@ -152,10 +137,6 @@ trait CRUD {
 	 * @return array|false
 	 */
 	protected function read ($id) {
-		//TODO remove in future versions
-		if (func_num_args() === 3) {
-			return call_user_func([$this, 'read_internal'], func_get_args());
-		}
 		return $this->read_internal($this->table, $this->data_model, $id);
 	}
 	/**
@@ -286,17 +267,6 @@ trait CRUD {
 		return $rows;
 	}
 	/**
-	 * @deprecated
-	 * @todo remove in future versions
-	 *
-	 * @param int|int[]|string|string[] $id
-	 *
-	 * @return array|false
-	 */
-	protected function read_simple ($id) {
-		return $this->read($id);
-	}
-	/**
 	 * Update item
 	 *
 	 * @param array $arguments
@@ -304,10 +274,6 @@ trait CRUD {
 	 * @return bool
 	 */
 	protected function update ($arguments) {
-		//TODO remove in future versions
-		if (func_num_args() === 3) {
-			return call_user_func([$this, 'update_internal'], func_get_args());
-		}
 		return $this->update_internal($this->table, $this->data_model, $arguments);
 	}
 	/**
@@ -357,17 +323,6 @@ trait CRUD {
 		return true;
 	}
 	/**
-	 * @deprecated
-	 * @todo remove in future versions
-	 *
-	 * @param array $arguments
-	 *
-	 * @return bool
-	 */
-	protected function update_simple ($arguments) {
-		return $this->update($arguments);
-	}
-	/**
 	 * Delete item
 	 *
 	 * @param int|int[]|string|string[] $id
@@ -375,10 +330,6 @@ trait CRUD {
 	 * @return bool
 	 */
 	protected function delete ($id) {
-		//TODO remove in future versions
-		if (func_num_args() === 3) {
-			return call_user_func([$this, 'delete_internal'], func_get_args());
-		}
 		return $this->delete_internal($this->table, $this->data_model, $id);
 	}
 	/**
@@ -419,16 +370,5 @@ trait CRUD {
 			$this->delete_files_tags($i);
 		}
 		return $result;
-	}
-	/**
-	 * @deprecated
-	 * @todo remove in future versions
-	 *
-	 * @param int|int[]|string|string[] $id
-	 *
-	 * @return bool
-	 */
-	protected function delete_simple ($id) {
-		return $this->delete($id);
 	}
 }

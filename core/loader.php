@@ -2,7 +2,7 @@
 /**
  * @package   CleverStyle CMS
  * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright Copyright (c) 2011-2015, Nazar Mokrynskyi
+ * @copyright Copyright (c) 2011-2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
  */
 namespace cs;
@@ -19,13 +19,30 @@ foreach (glob(CUSTOM.'/*.php') ?: [] as $custom) {
 	include $custom;
 }
 unset($custom);
-/**
- * System running
- */
 try {
-	Language::instance();
-	Index::instance();
-} catch (\ExitException $e) {}
-try {
-	shutdown_function();
-} catch (\ExitException $e) {}
+	try {
+		/**
+		 * System running
+		 */
+		try {
+			Language::instance();
+			Index::instance();
+		} catch (ExitException $e) {
+			if ($e->getCode()) {
+				throw $e;
+			}
+		}
+		try {
+			shutdown_function();
+		} catch (ExitException $e) {
+			if ($e->getCode()) {
+				throw $e;
+			}
+		}
+	} catch (ExitException $e) {
+		if ($e->getCode() >= 400) {
+			Page::instance()->error($e->getMessage() ?: null, $e->getJson(), $e->getCode());
+		}
+	}
+} catch (ExitException $e) {
+}

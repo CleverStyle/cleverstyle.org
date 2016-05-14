@@ -3,14 +3,15 @@
  * @subpackage System module
  * @category   modules
  * @author     Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright  Copyright (c) 2015, Nazar Mokrynskyi
+ * @copyright  Copyright (c) 2015-2016, Nazar Mokrynskyi
  * @license    MIT License, see license.txt
 ###
 L	= cs.Language
 Polymer(
-	L		: L
-	publish	:
-		permission_id	: null
+	'is'	: 'cs-system-admin-permissions-form'
+	behaviors		: [cs.Polymer.behaviors.Language]
+	properties		:
+		permission_id	: Number
 		group			: ''
 		label			: ''
 	save	: ->
@@ -22,6 +23,6 @@ Polymer(
 				group	: @group
 				label	: @label
 			success	: ->
-				UIkit.notify(L.changes_saved.toString(), 'success')
+				cs.ui.notify(L.changes_saved, 'success', 5)
 		)
 )

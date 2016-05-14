@@ -3,7 +3,7 @@
  * @subpackage System module
  * @category   modules
  * @author     Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright  Copyright (c) 2015, Nazar Mokrynskyi
+ * @copyright  Copyright (c) 2015-2016, Nazar Mokrynskyi
  * @license    MIT License, see license.txt
 ###
 L				= cs.Language
@@ -12,25 +12,44 @@ STATUS_INACTIVE	= 0
 GUEST_ID		= 1
 ROOT_ID			= 2
 Polymer(
-	tooltip_animation		:'{animation:true,delay:200}'
-	L						: L
-	search_column			: ''
-	search_mode				: 'LIKE'
-	search_text				: ''
-	search_page				: 1
-	search_limit			: 20
-	search_columns			: []
-	search_modes			: []
-	all_columns				: []
-	columns					: [
-		'id'
-		'login'
-		'username'
-		'email'
+	'is'					: 'cs-system-admin-users-list'
+	behaviors				: [cs.Polymer.behaviors.Language]
+	properties				:
+		search_column		: ''
+		search_mode			: 'LIKE'
+		search_text			:
+			observer	: 'search_textChanged'
+			type		: String
+			value		: ''
+		search_page			:
+			observer	: 'search'
+			type		: Number
+			value		: 1
+		search_pages		:
+			computed	: '_search_pages(users_count, search_limit)'
+			type		: Number
+		search_limit		: 20
+		search_columns		: []
+		search_modes		: []
+		all_columns			: []
+		columns				: [
+			'id'
+			'login'
+			'username'
+			'email'
+		]
+		users				: []
+		users_count			: 0
+		show_pagination		:
+			computed	: '_show_pagination(users_count, search_limit)'
+			type		: Boolean
+		searching			: false
+		searching_loader	: false
+		_initialized		: true
+	observers				: [
+		'search_again(search_column, search_mode, search_limit, _initialized)'
 	]
-	users					: []
-	users_count				: 0
-	created					: ->
+	ready : ->
 		$.ajax(
 			url		: 'api/System/admin/users'
 			type	: 'search_options'
@@ -45,31 +64,40 @@ Polymer(
 				@all_columns	= search_options.columns
 				@search_modes	= search_options.modes
 		)
-		@search()
-	search					: ->
-		# Hack to force re-rendering pages navigation
-		@users_count	= 0
+	search : ->
+		if @searching || @_initialized == undefined
+			return
+		@searching			= true
+		searching_timeout	= setTimeout (=>
+			@searching_loader	= true
+		), 200
 		$.ajax(
-			url		: 'api/System/admin/users'
-			type	: 'search'
-			data	:
+			url			: 'api/System/admin/users'
+			type		: 'search'
+			data		:
 				column	: @search_column
 				mode	: @search_mode
 				text	: @search_text
 				page	: @search_page
 				limit	: @search_limit
-			success	: (data) =>
+			complete	: (jqXHR, textStatus) =>
+				clearTimeout(searching_timeout)
+				@searching			= false
+				@searching_loader	= false
+				if !textStatus
+					@set('users', [])
+					@users_count	= 0
+			success		: (data) =>
 				@users_count	= data.count
 				if !data.count
-					@users	= []
+					@set('users', [])
 					return
 				data.users.forEach (user) =>
 					user.class		=
 						switch parseInt(user.status)
-							when STATUS_ACTIVE then 'uk-alert-success'
-							when STATUS_INACTIVE then 'uk-alert-warning'
+							when STATUS_ACTIVE then 'cs-block-success cs-text-success'
+							when STATUS_INACTIVE then 'cs-block-warning cs-text-warning'
 							else ''
-					user.is_active	= `user.status == STATUS_ACTIVE`
 					user.is_guest	= `user.id == GUEST_ID`
 					user.is_root	= `user.id == ROOT_ID`
 					user.columns	=
@@ -91,91 +119,77 @@ Polymer(
 								'g'
 						user.type		= L[type]
 						user.type_info	= L[type + '_info']
-				@users	= data.users
+				@set('users', data.users)
 		)
-	domReady				: ->
-		@workarounds(@shadowRoot)
-		cs.observe_inserts_on(@shadowRoot, @workarounds)
-	workarounds				: (target) ->
-		$(target)
-			.cs().pagination_inside()
-			.cs().tabs_inside()
-			.cs().tooltips_inside()
-	toggle_search_column	: (event, detail, sender) ->
-		index			= $(sender).data('column-index')
+	toggle_search_column : (e) ->
+		index			= e.model.index
 		column			= @search_columns[index]
-		column.selected = !column.selected
-		@columns		= (column.name for column in @search_columns when column.selected)
-		@search_page	= 1
-		@search()
-	page_click				: (event, detail, sender) ->
-		$(sender).one('select.uk.pagination', (event, pageIndex) =>
-			@search_page	= pageIndex + 1
+		@set(['search_columns', index, 'selected'], !column.selected)
+		@set('columns', column.name for column in @search_columns when column.selected)
+		@search_again()
+	search_again : ->
+		if @search_page > 1
+			# Will execute search implicitly
+			@search_page	= 1
+		else
 			@search()
-		)
-	search_columnChanged	: ->
-		@search_page	= 1
-		@search()
-	search_modeChanged		: ->
-		@search_page	= 1
-		@search()
-	search_textChanged		: ->
+	search_textChanged : ->
+		if @_initialized == undefined
+			return
 		clearTimeout(@search_text_timeout)
-		@search_text_timeout	= setTimeout(@search.bind(@), 300)
-	search_limitChanged		: ->
-		@search_page	= 1
-		@search()
-	add_user				: ->
-		$.cs.simple_modal("""
+		@search_text_timeout	= setTimeout(@search_again.bind(@), 300)
+	_show_pagination : (users_count, search_limit) ->
+		parseInt(users_count) > parseInt(search_limit)
+	_search_pages : (users_count, search_limit) ->
+		Math.ceil(users_count / search_limit)
+	add_user : ->
+		$(cs.ui.simple_modal("""
 			<h3>#{L.adding_a_user}</h3>
 			<cs-system-admin-users-add-user-form/>
-		""").on(
-			'hide.uk.modal'
-			@search.bind(@)
-		)
-	add_bot					: ->
-		$.cs.simple_modal("""
+		""")).on('hide.uk.modal', @search.bind(@))
+	add_bot : ->
+		$(cs.ui.simple_modal("""
 			<h3>#{L.adding_a_bot}</h3>
 			<cs-system-admin-users-add-bot-form/>
-		""").on(
-			'hide.uk.modal'
-			@search.bind(@)
-		)
-	edit_user				: (event, detail, sender) ->
-		$sender	= $(sender)
+		""")).on('hide.uk.modal', @search.bind(@))
+	edit_user : (e) ->
+		$sender	= $(e.currentTarget)
 		index	= $sender.closest('[data-user-index]').data('user-index')
 		user	= @users[index]
 		if user.is_bot
 			title		= L.editing_of_bot_information(
 				user.username || user.login
 			)
-			$.cs.simple_modal("""
+			$(cs.ui.simple_modal("""
 				<h2>#{title}</h2>
 				<cs-system-admin-users-edit-bot-form user_id="#{user.id}"/>
-			""").on(
-				'hide.uk.modal'
-				@search.bind(@)
-			)
+			""")).on('hide.uk.modal', @search.bind(@))
 		else
 			title		= L.editing_of_user_information(
 				user.username || user.login
 			)
-			$.cs.simple_modal("""
+			$(cs.ui.simple_modal("""
 				<h2>#{title}</h2>
 				<cs-system-admin-users-edit-user-form user_id="#{user.id}"/>
-			""").on(
-				'hide.uk.modal'
-				@search.bind(@)
-			)
-	edit_permissions		: (event, detail, sender) ->
-		$sender		= $(sender)
+			""")).on('hide.uk.modal', @search.bind(@))
+	edit_groups : (e) ->
+		$sender		= $(e.currentTarget)
+		index		= $sender.closest('[data-user-index]').data('user-index')
+		user		= @users[index]
+		title		= L.user_groups(user.username || user.login)
+		cs.ui.simple_modal("""
+			<h2>#{title}</h2>
+			<cs-system-admin-users-groups-form user="#{user.id}" for="user"/>
+		""")
+	edit_permissions : (e) ->
+		$sender		= $(e.currentTarget)
 		index		= $sender.closest('[data-user-index]').data('user-index')
 		user		= @users[index]
 		title_key	= if user.is_bot then 'permissions_for_bot' else 'permissions_for_user'
 		title		= L[title_key](
 			user.username || user.login
 		)
-		$.cs.simple_modal("""
+		cs.ui.simple_modal("""
 			<h2>#{title}</h2>
 			<cs-system-admin-permissions-for user="#{user.id}" for="user"/>
 		""")

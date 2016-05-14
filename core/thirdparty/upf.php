@@ -3,7 +3,7 @@
  * @package		CleverStyle CMS
  * @subpackage	UPF (Useful PHP Functions)
  * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2015, Nazar Mokrynskyi
+ * @copyright	Copyright (c) 2011-2016, Nazar Mokrynskyi
  * @license		MIT License, see license.txt
  */
 
@@ -687,7 +687,7 @@ function _preg_replace ($pattern, $replacement, $subject, $limit = -1, &$count =
 function xap ($in, $html = 'text', $iframe = false) {
 	if (is_array($in)) {
 		foreach ($in as &$item) {
-			$item = xap($item, $html);
+			$item = xap($item, $html, $iframe);
 		}
 		return $in;
 	/**

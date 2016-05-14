@@ -1,7 +1,8 @@
 {
 	"admin/System" : [
-		"general.js",
-		"functions.js",
+		"admin.css",
+		"behaviors.js",
+		"navigation.js",
 		"cs-system-admin-*"
 	]
 }

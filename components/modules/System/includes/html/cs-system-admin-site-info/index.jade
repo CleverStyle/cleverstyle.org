@@ -1,0 +1,19 @@
+include ../_settings_mixins
+dom-module#cs-system-admin-site-info
+	template
+		style(include="advanced-styles")
+		form.cs-text-center(is="cs-form")
+			+input("site_name")
+			+textarea("url")
+			+textarea("cookie_domain", "simple_admin_mode")
+			+input("cookie_prefix", "simple_admin_mode")
+			label(tooltip="[[L.timezone_info]]")
+				[[L.timezone]]
+				cs-tooltip
+			template(is="dom-if" if="[[timezones]]")
+				select(is="cs-select" selected="{{settings.timezone}}" size="7")
+					template(is="dom-repeat" items="[[timezones]]")
+						option(value="[[item.timezone]]") [[item.description]]
+			+input("admin_email", null, "email")
+			+footer-buttons
+	script(src="script.js")

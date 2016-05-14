@@ -2,7 +2,7 @@
 /**
  * @package   CleverStyle CMS
  * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright Copyright (c) 2011-2015, Nazar Mokrynskyi
+ * @copyright Copyright (c) 2011-2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
  */
 namespace cs;
@@ -188,17 +188,24 @@ class Language implements JsonSerializable {
 	 *
 	 * @param bool|string  $item
 	 * @param false|string $language If specified - translation for specified language will be returned, otherwise for current
+	 * @param string       $prefix   Used by `\cs\Language\Prefix`, usually no need to use it directly
 	 *
 	 * @return string
 	 */
-	function get ($item, $language = false) {
+	function get ($item, $language = false, $prefix = '') {
 		$language = $language ?: $this->clanguage;
 		if (isset($this->translation[$language])) {
-			return @$this->translation[$language][$item] ?: ucfirst(str_replace('_', ' ', $item));
+			$translation = $this->translation[$language];
+			if (isset($translation[$prefix.$item])) {
+				return $translation[$prefix.$item];
+			} elseif (isset($translation[$item])) {
+				return $translation[$item];
+			}
+			return ucfirst(str_replace('_', ' ', $item));
 		}
 		$current_language = $this->clanguage;
 		$this->change($language);
-		$return = $this->get($item);
+		$return = $this->get($item, $language, $prefix);
 		$this->change($current_language);
 		return $return;
 	}
@@ -313,14 +320,14 @@ class Language implements JsonSerializable {
 		 * Get current system translations
 		 */
 		$translation = &$this->translation[$language];
-		$translation = file_get_json_nocomments(LANGUAGES."/$language.json");
+		$translation = $this->get_translation_from_json(LANGUAGES."/$language.json");
 		$translation = $this->fill_required_translation_keys($translation, $language);
 		/**
 		 * Set modules' translations
 		 */
 		foreach (get_files_list(MODULES, false, 'd', true) as $module_dir) {
 			if (file_exists("$module_dir/languages/$language.json")) {
-				$translation = file_get_json_nocomments("$module_dir/languages/$language.json") + $translation;
+				$translation = $this->get_translation_from_json("$module_dir/languages/$language.json") + $translation;
 			}
 		}
 		/**
@@ -328,7 +335,7 @@ class Language implements JsonSerializable {
 		 */
 		foreach (get_files_list(PLUGINS, false, 'd', true) as $plugin_dir) {
 			if (file_exists("$plugin_dir/languages/$language.json")) {
-				$translation = file_get_json_nocomments("$plugin_dir/languages/$language.json") + $translation;
+				$translation = $this->get_translation_from_json("$plugin_dir/languages/$language.json") + $translation;
 			}
 		}
 		Event::instance()->fire(
@@ -345,6 +352,33 @@ class Language implements JsonSerializable {
 		 */
 		if ($this->clanguage) {
 			$translation = $translation + $this->translation[$this->clanguage];
+		}
+		return $translation;
+	}
+	/**
+	 * @param string $filename
+	 *
+	 * @return string[]
+	 */
+	protected function get_translation_from_json ($filename) {
+		$translation = file_get_json_nocomments($filename);
+		return $this->get_translation_from_json_internal($translation);
+	}
+	/**
+	 * @param string[]|string[][] $translation
+	 *
+	 * @return string[]
+	 */
+	protected function get_translation_from_json_internal ($translation) {
+		// Nested structure processing
+		foreach ($translation as $item => $value) {
+			if (is_array_assoc($value)) {
+				unset($translation[$item]);
+				foreach ($value as $sub_item => $sub_value) {
+					$translation[$item.$sub_item] = $sub_value;
+				}
+				return $this->get_translation_from_json_internal($translation);
+			}
 		}
 		return $translation;
 	}
@@ -420,13 +454,15 @@ class Language implements JsonSerializable {
 	/**
 	 * Allows to use formatted strings in translations
 	 *
-	 * @param string   $item
-	 * @param string[] $arguments
+	 * @param string       $item
+	 * @param string[]     $arguments
+	 * @param false|string $language If specified - translation for specified language will be returned, otherwise for current
+	 * @param string       $prefix   Used by `\cs\Language\Prefix`, usually no need to use it directly
 	 *
 	 * @return string
 	 */
-	function format ($item, $arguments) {
-		return vsprintf($this->get($item), $arguments);
+	function format ($item, $arguments, $language = false, $prefix = '') {
+		return vsprintf($this->get($item, $language, $prefix), $arguments);
 	}
 	/**
 	 * Formatting date according to language locale (translating months names, days of week, etc.)

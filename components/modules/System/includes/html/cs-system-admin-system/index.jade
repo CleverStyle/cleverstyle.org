@@ -1,0 +1,14 @@
+include ../_settings_mixins
+dom-module#cs-system-admin-system
+	template
+		style(include="advanced-styles")
+		form.cs-text-center(is="cs-form")
+			+on-off-switcher("site_mode")
+			+input("closed_title")
+			+editor("closed_text")
+			+input("title_delimiter")
+			+on-off-switcher("title_reverse")
+			+on-off-switcher("show_tooltips")
+			+on-off-switcher("simple_admin_mode")
+			+footer-buttons
+	script(src="script.js")

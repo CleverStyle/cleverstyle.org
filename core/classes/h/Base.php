@@ -2,7 +2,7 @@
 /**
  * @package   CleverStyle CMS
  * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright Copyright (c) 2011-2015, Nazar Mokrynskyi
+ * @copyright Copyright (c) 2011-2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
  */
 namespace cs\h;
@@ -73,13 +73,20 @@ abstract class Base extends BananaHTML {
 	 *
 	 * @static
 	 *
-	 * @param array $attributes
+	 * @param string $tag
+	 * @param array  $attributes
 	 */
-	protected static function pre_processing (&$attributes) {
-		if (isset($attributes['data-title']) && $attributes['data-title'] !== false) {
-			$attributes['title'] = static::prepare_attr_value($attributes['data-title']);
-			unset($attributes['data-title']);
-			$attributes['data-uk-tooltip'] = '{animation:true,delay:200}';
+	protected static function pre_processing ($tag, &$attributes) {
+		/**
+		 * Do not apply to custom elements, they should support this by themselves
+		 */
+		if (
+			isset($attributes['tooltip']) &&
+			$attributes['tooltip'] !== false &&
+			!isset($attributes['is']) &&
+			strpos($tag, '-') === false
+		) {
+			$attributes['in'] = isset($attributes['in']) ? $attributes['in'].static::cs_tooltip() : static::cs_tooltip();
 		}
 	}
 	/**
@@ -93,7 +100,7 @@ abstract class Base extends BananaHTML {
 	 * @return string
 	 */
 	protected static function indentation_protection ($text) {
-		$uniqid = uniqid('html_replace_');
+		$uniqid = uniqid('html_replace_', true);
 		Page::instance()->replace($uniqid, $text);
 		return $uniqid;
 	}
@@ -119,7 +126,12 @@ abstract class Base extends BananaHTML {
 		}
 		$L = Language::instance();
 		if (Config::instance(true)->core['show_tooltips']) {
-			return static::span($L->$in, array_merge(['data-title' => $L->{$in.'_info'}], $data));
+			return static::span(
+				$L->$in,
+				[
+					'tooltip' => $L->{$in.'_info'}
+				] + $data
+			);
 		} else {
 			return static::span($L->$in, $data);
 		}
@@ -129,21 +141,20 @@ abstract class Base extends BananaHTML {
 	 *
 	 * @static
 	 *
-	 * @param string $class Icon name in jQuery UI CSS Framework, fow example, <b>gear</b>, <b>note</b>
+	 * @param string $icon Icon name in Font Awesome
 	 * @param array  $data
 	 *
 	 * @return mixed
 	 */
-	static function icon ($class, $data = []) {
+	static function icon ($icon, $data = []) {
 		if (isset($in['insert']) || isset($data['insert'])) {
 			return static::__callStatic(__FUNCTION__, func_get_args());
 		}
-		if ($class === false) {
+		if ($icon === false) {
 			return '';
 		}
-		@$data['class'] .= " uk-icon-$class";
-		$data['level'] = 0;
-		return static::span($data).' ';
+		$data['icon'] = $icon;
+		return static::cs_icon($data).' ';
 	}
 	/**
 	 * Rendering of input[type=checkbox] with automatic adding labels and necessary classes
@@ -167,18 +178,12 @@ abstract class Base extends BananaHTML {
 			}
 			return $return;
 		} else {
-			self::common_checkbox_radio_post($in, $button_class);
-			return static::span(
-				static::label(
-					static::u_wrap($in),
-					[
-						'for'        => $in['id'],
-						'data-title' => isset($in['data-title']) ? $in['data-title'] : false,
-						'class'      => $button_class
-					]
-				),
+			self::common_checkbox_radio_post($in);
+			return static::label(
+				static::u_wrap($in, 'input'),
 				[
-					'data-uk-button-checkbox' => ''
+					'is'    => 'cs-label-switcher',
+					'class' => isset($item['class']) ? $item['class'] : false
 				]
 			);
 		}
@@ -203,23 +208,16 @@ abstract class Base extends BananaHTML {
 		$items   = self::array_flip_3d($in);
 		$content = '';
 		foreach ($items as $item) {
-			self::common_checkbox_radio_post($item, $button_class);
+			self::common_checkbox_radio_post($item);
 			$content .= static::label(
-				static::u_wrap($item),
+				static::u_wrap($item, 'input'),
 				[
-					'for'        => $item['id'],
-					'data-title' => isset($item['data-title']) ? $item['data-title'] : false,
-					'class'      => $button_class
+					'is'    => 'cs-label-button',
+					'class' => isset($item['class']) ? $item['class'] : false
 				]
 			);
 		}
-		return static::span(
-			$content,
-			[
-				'class'                => 'uk-button-group',
-				'data-uk-button-radio' => ''
-			]
-		);
+		return $content;
 	}
 	/**
 	 * @static
@@ -249,26 +247,12 @@ abstract class Base extends BananaHTML {
 	/**
 	 * @static
 	 *
-	 * @param array  $item
-	 * @param string $button_class
+	 * @param array $item
 	 */
-	protected static function common_checkbox_radio_post (&$item, &$button_class) {
-		$item['tag']  = 'input';
-		$button_class = 'uk-button';
-		if (!isset($item['id'])) {
-			$item['id'] = uniqid('input_');
-		}
+	protected static function common_checkbox_radio_post (&$item) {
+		$item['tag'] = 'input';
 		if (isset($item['value'], $item['checked'])) {
 			$item['checked'] = $item['value'] == $item['checked'];
-			if ($item['checked']) {
-				$button_class .= ' uk-active';
-			}
-		}
-		if (isset($item['value'])) {
-			$item['value'] = self::prepare_attr_value($item['value']);
-		}
-		if (isset($item['class'])) {
-			$button_class .= " $item[class]";
 		}
 	}
 }

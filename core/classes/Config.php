@@ -1,9 +1,9 @@
 <?php
 /**
- * @package		CleverStyle CMS
- * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2015, Nazar Mokrynskyi
- * @license		MIT License, see license.txt
+ * @package   CleverStyle CMS
+ * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
+ * @copyright Copyright (c) 2011-2016, Nazar Mokrynskyi
+ * @license   MIT License, see license.txt
  */
 namespace cs;
 
@@ -16,43 +16,34 @@ namespace cs;
  * @method static Config instance($check = false)
  */
 class Config {
-	use	Singleton;
+	use
+		Singleton;
+	const SYSTEM_MODULE = 'System';
+	const SYSTEM_THEME  = 'CleverStyle';
 	/**
 	 * Most of general configuration properties
 	 *
 	 * @var mixed[]
 	 */
-	public $core		= [];
+	public $core = [];
 	/**
 	 * Configuration of databases, except the main database, parameters of which are stored in configuration file
 	 *
 	 * @var mixed[]
 	 */
-	public $db			= [];
+	public $db = [];
 	/**
 	 * Configuration of storages, except the main storage, parameters of which are stored in configuration file
 	 *
 	 * @var mixed[]
 	 */
-	public $storage		= [];
+	public $storage = [];
 	/**
 	 * Internal structure of components parameters
 	 *
 	 * @var mixed[]
 	 */
-	public $components	= [];
-	/**
-	 * Replacing rules, that are used to replace text on pages
-	 *
-	 * @var mixed[]
-	 */
-	public $replace		= [];
-	/**
-	 * Replacing rules, they are applied to current route, every rule is applied only once
-	 *
-	 * @var mixed[]
-	 */
-	public $routing		= [];
+	public $components = [];
 	/**
 	 * Array of all domains, which allowed to access the site
 	 *
@@ -69,13 +60,9 @@ class Config {
 		'https' => []
 	];
 	/**
-	 * Initialization state
-	 *
-	 * @var bool
-	 */
-	protected	$init	= false;
-	/**
 	 * Loading of configuration, initialization of $Config, $Cache, $L and Page objects, Routing processing
+	 *
+	 * @throws ExitException
 	 */
 	protected function construct () {
 		/**
@@ -100,29 +87,22 @@ class Config {
 		$this->init();
 		Event::instance()->fire('System/Config/init/after');
 		if (!file_exists(MODULES.'/'.$this->core['default_module'])) {
-			$this->core['default_module']	= 'System';
+			$this->core['default_module'] = self::SYSTEM_MODULE;
 			$this->save();
 		}
 	}
 	/**
 	 * Engine initialization (or reinitialization if necessary)
+	 *
+	 * @throws ExitException
 	 */
 	protected function init () {
 		Language::instance()->init();
-		$Page	= Page::instance();
+		$Page = Page::instance();
 		$Page->init(
 			get_core_ml_text('name'),
 			$this->core['theme']
 		);
-		if (!$this->init) {
-			$Page->replace($this->replace['in'], $this->replace['out']);
-			$this->init = true;
-			if ($this->check_ip($this->core['ip_black_list'])) {
-				error_code(403);
-				$Page->error();
-				return;
-			}
-		}
 		/**
 		 * Setting system timezone
 		 */
@@ -135,82 +115,32 @@ class Config {
 	protected function fill_mirrors () {
 		foreach ($this->core['url'] as $i => $address) {
 			list($protocol, $urls) = explode('://', $address, 2);
-			$urls                           = explode(';', $urls);
+			$urls                       = explode(';', $urls);
 			$this->mirrors[$protocol][] = $urls[0];
 		}
 		$this->mirrors['count'] = count($this->mirrors['http']) + count($this->mirrors['https']);
 	}
 	/**
-	 * Check user's IP address matches with elements of given list
-	 *
-	 * @param string[]	$ips
-	 *
-	 * @return bool
-	 */
-	protected function check_ip ($ips) {
-		if (!$ips || !is_array($ips)) {
-			return false;
-		}
-		/**
-		 * @var _SERVER $_SERVER
-		 */
-		foreach ($ips as $ip) {
-			if ($ip) {
-				$char = mb_substr($ip, 0, 1);
-				if ($char != mb_substr($ip, -1)) {
-					$ip = "/$ip/";
-				}
-				if (
-					_preg_match($ip, $_SERVER->remote_addr) ||
-					(
-						$_SERVER->ip &&
-						_preg_match($ip, $_SERVER->ip)
-					)
-				) {
-					return true;
-				}
-			}
-		}
-		return false;
-	}
-	/**
-	 * Updating information about set of available themes
-	 */
-	function reload_themes () {
-		$this->core['themes']	= get_files_list(THEMES, false, 'd');
-		asort($this->core['themes']);
-	}
-	/**
-	 * Updating information about set of available languages
-	 */
-	function reload_languages () {
-		$this->core['languages'] = array_unique(
-			array_merge(
-				_mb_substr(get_files_list(LANGUAGES, '/^.*?\.php$/i', 'f'), 0, -4) ?: [],
-				_mb_substr(get_files_list(LANGUAGES, '/^.*?\.json$/i', 'f'), 0, -5) ?: []
-			)
-		);
-		asort($this->core['languages']);
-	}
-	/**
 	 * Reloading of settings cache
 	 *
 	 * @return bool
+	 *
+	 * @throws ExitException
 	 */
 	protected function load_config_from_db () {
-		$result = DB::instance()->qf([
-			"SELECT
-				`core`,
-				`db`,
-				`storage`,
-				`components`,
-				`replace`,
-				`routing`
-			FROM `[prefix]config`
-			WHERE `domain` = '%s'
-			LIMIT 1",
-			DOMAIN
-		]);
+		$result = DB::instance()->qf(
+			[
+				"SELECT
+					`core`,
+					`db`,
+					`storage`,
+					`components`
+				FROM `[prefix]config`
+				WHERE `domain` = '%s'
+				LIMIT 1",
+				DOMAIN
+			]
+		);
 		if (is_array($result)) {
 			foreach ($result as $part => $value) {
 				$this->$part = _json_decode($value);
@@ -219,8 +149,6 @@ class Config {
 		} else {
 			return false;
 		}
-		$this->reload_themes();
-		$this->reload_languages();
 		$this->apply_internal(false);
 		return true;
 	}
@@ -228,6 +156,8 @@ class Config {
 	 * Applying settings without saving changes into db
 	 *
 	 * @return bool
+	 *
+	 * @throws ExitException
 	 */
 	function apply () {
 		return $this->apply_internal();
@@ -238,6 +168,8 @@ class Config {
 	 * @param bool $cache_not_saved_mark
 	 *
 	 * @return bool
+	 *
+	 * @throws ExitException
 	 */
 	protected function apply_internal ($cache_not_saved_mark = true) {
 		if ($cache_not_saved_mark) {
@@ -245,15 +177,19 @@ class Config {
 		} else {
 			unset($this->core['cache_not_saved']);
 		}
-		$Cache         = Cache::instance();
-		$Cache->config = [
-			'core'       => $this->core,
-			'db'         => $this->db,
-			'storage'    => $this->storage,
-			'components' => $this->components,
-			'replace'    => $this->replace,
-			'routing'    => $this->routing
-		];
+		$Cache = Cache::instance();
+		if (!$Cache->set(
+			'config',
+			[
+				'core'       => $this->core,
+				'db'         => $this->db,
+				'storage'    => $this->storage,
+				'components' => $this->components
+			]
+		)
+		) {
+			return false;
+		}
 		unset($Cache->{'languages'});
 		$L = Language::instance();
 		if ($this->core['multilingual'] && User::instance(true)) {
@@ -268,43 +204,57 @@ class Config {
 	 * Saving settings
 	 *
 	 * @return bool
+	 *
+	 * @throws ExitException
 	 */
 	function save () {
-		if (isset($this->core['cache_not_saved'])) {
+		if ($this->cancel_available()) {
 			unset($this->core['cache_not_saved']);
 		}
-		$cdb	= DB::instance()->db_prime(0);
-		if ($cdb->q(
+		$core_settings_keys = file_get_json(MODULES.'/System/core_settings_keys.json');
+		foreach ($this->core as $key => $value) {
+			if (!in_array($key, $core_settings_keys)) {
+				unset($this->core[$key]);
+			}
+		}
+		if (DB::instance()->db_prime(0)->q(
 			"UPDATE `[prefix]config`
 			SET
 				`core`			= '%s',
 				`db`			= '%s',
 				`storage`		= '%s',
-				`components`	= '%s',
-				`replace`		= '%s',
-				`routing`		= '%s'
+				`components`	= '%s'
 			WHERE `domain` = '%s'
 			LIMIT 1",
 			_json_encode($this->core),
 			_json_encode($this->db),
 			_json_encode($this->storage),
 			_json_encode($this->components),
-			_json_encode($this->replace),
-			_json_encode($this->routing),
 			DOMAIN
-		)) {
+		)
+		) {
 			$this->apply_internal(false);
 			return true;
 		}
 		return false;
 	}
 	/**
+	 * Whether configuration was applied (not saved) and can be canceled
+	 *
+	 * @return bool
+	 */
+	function cancel_available () {
+		return isset($this->core['cache_not_saved']);
+	}
+	/**
 	 * Canceling of applied settings
+	 *
+	 * @return bool
+	 *
+	 * @throws ExitException
 	 */
 	function cancel () {
-		unset(Cache::instance()->config);
-		$this->load_config_from_db();
-		$this->apply_internal(false);
+		return $this->load_config_from_db() && $this->apply_internal(false);
 	}
 	/**
 	 * Get base url of current mirror including language suffix
@@ -318,10 +268,10 @@ class Config {
 		/**
 		 * @var _SERVER $_SERVER
 		 */
-		$base_url	= "$_SERVER->protocol://$_SERVER->host";
-		$L			= Language::instance();
-		if ($L->url_language()) {
-			$base_url	.= "/$L->clang";
+		$base_url = "$_SERVER->protocol://$_SERVER->host";
+		$L        = Language::instance();
+		if ($this->core['multilingual']) {
+			$base_url .= "/$L->clang";
 		}
 		return $base_url;
 	}
@@ -348,13 +298,5 @@ class Config {
 			return False_class::instance();
 		}
 		return new Config\Module_Properties($this->components['modules'][$module_name], $module_name);
-	}
-	/**
-	 * Allows to check ability to be admin user (can be limited by IP)
-	 *
-	 * @return bool
-	 */
-	function can_be_admin () {
-		return !$this->core['ip_admin_list_only'] || $this->check_ip($this->core['ip_admin_list']);
 	}
 }

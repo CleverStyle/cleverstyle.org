@@ -1,1 +1,15 @@
-body{transition:opacity ease-in 0.2s}body[unresolved]{cursor:wait;display:block;opacity:0;overflow:hidden}
+/**
+ * @package   CleverStyle CMS
+ * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
+ * @copyright Copyright (c) 2015-2016, Nazar Mokrynskyi
+ * @license   MIT License, see license.txt
+ */
+body[unresolved-transition] {
+	transition : opacity ease-in .2s !important;
+}
+
+body[unresolved] {
+	cursor   : wait;
+	opacity  : 0;
+	overflow : hidden;
+}

@@ -2,7 +2,7 @@
 /**
  * @package   CleverStyle CMS
  * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright Copyright (c) 2011-2015, Nazar Mokrynskyi
+ * @copyright Copyright (c) 2011-2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
  */
 /**
@@ -20,8 +20,8 @@
  *  Optional PHP libraries:
  *  * APCu, Memcached
  * * or HHVM 3.3.2+ LTS or HHVM 3.4.1+
- * * MySQL 5.5+
- * * or MariaDB 5.5+
+ * * MySQL 5.6+
+ * * or MariaDB 10.0.5+
  */
 if (version_compare(PHP_VERSION, '5.5', '<')) {
 	echo 'CleverStyle CMS require PHP 5.5 or higher';

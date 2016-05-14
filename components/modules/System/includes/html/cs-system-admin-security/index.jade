@@ -1,0 +1,11 @@
+include ../_settings_mixins
+dom-module#cs-system-admin-security
+	template
+		style(include="advanced-styles")
+		form.cs-text-center(is="cs-form")
+			+input("key_expire", null, "number", 1)
+			= ' '
+			[[L.seconds]]
+			+on-off-switcher("gravatar_support")
+			+footer-buttons
+	script(src="script.js")

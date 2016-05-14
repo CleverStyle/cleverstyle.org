@@ -1,8 +1,47 @@
 <?php
 /**
- * @package        CleverStyle CMS
- * @author         Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright      Copyright (c) 2011-2015, Nazar Mokrynskyi
- * @license        MIT License, see license.txt
+ * @package   CleverStyle CMS
+ * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
+ * @copyright Copyright (c) 2015-2016, Nazar Mokrynskyi
+ * @license   MIT License, see license.txt
  */
-class ExitException extends Exception {}
+namespace cs;
+use
+	Exception;
+
+class ExitException extends Exception {
+	/**
+	 * @var bool
+	 */
+	protected $json = false;
+	/**
+	 * ExitException constructor.
+	 *
+	 * @param int|string|string[] $message Error message (or code if no message)
+	 * @param int                 $code    HTTP status code
+	 * @param Exception|null      $previous
+	 */
+	function __construct ($message = '', $code = 0, Exception $previous = null) {
+		parent::__construct('', $code, $previous);
+		if (is_numeric($message) && !$code) {
+			$this->code = $message;
+		} else {
+			$this->message = $message;
+		}
+	}
+	/**
+	 * @return bool
+	 */
+	function getJson () {
+		return $this->json;
+	}
+	/**
+	 * Specify that error should be in JSON format
+	 *
+	 * @return $this
+	 */
+	function setJson () {
+		$this->json = true;
+		return $this;
+	}
+}

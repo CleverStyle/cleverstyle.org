@@ -2,7 +2,7 @@
 /**
  * @package   CleverStyle CMS
  * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright Copyright (c) 2015, Nazar Mokrynskyi
+ * @copyright Copyright (c) 2015-2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
  */
 /**
@@ -26,7 +26,7 @@ use
  * @return bool
  */
 function _setcookie ($name, $value, $expire = 0, $httponly = false) {
-	static $path, $domain, $prefix, $secure;
+	static $domain, $prefix, $secure;
 	if (!isset($prefix)) {
 		$Config = Config::instance(true);
 		$prefix = '';
@@ -35,12 +35,11 @@ function _setcookie ($name, $value, $expire = 0, $httponly = false) {
 		 */
 		$secure = $_SERVER->secure;
 		$domain = $_SERVER->host;
-		$path   = '/';
 		if ($Config) {
-			$Route  = Route::instance();
-			$prefix = $Config->core['cookie_prefix'];
-			$domain = $Config->core['cookie_domain'][$Route->mirror_index];
-			$path   = $Config->core['cookie_path'][$Route->mirror_index];
+			$Route          = Route::instance();
+			$prefix         = $Config->core['cookie_prefix'];
+			$cookie_domains = $Config->core['cookie_domain'];
+			$domain         = isset($cookie_domains[$Route->mirror_index]) ? $cookie_domains[$Route->mirror_index] : $cookie_domains[0];
 		}
 	}
 	if ($value === '') {
@@ -52,7 +51,7 @@ function _setcookie ($name, $value, $expire = 0, $httponly = false) {
 		$prefix.$name,
 		$value,
 		$expire,
-		$path,
+		'/',
 		$domain,
 		$secure,
 		$httponly
@@ -72,26 +71,6 @@ function _getcookie ($name) {
 		$prefix = Config::instance(true)->core['cookie_prefix'] ?: '';
 	}
 	return isset($_COOKIE[$prefix.$name]) ? $_COOKIE[$prefix.$name] : false;
-}
-
-/**
- * Function that is used to define errors by specifying error code, and system will account this in its operation
- *
- * @param int|null $code
- *
- * @return int                <b>0</b> if no errors, error code otherwise
- */
-function error_code ($code = null) {
-	static $stored_code = 0;
-	if (
-		$code !== null &&
-		(
-			!$stored_code || $code == 0 //Allows to reset error code, but not allows to redefine by other code directly
-		)
-	) {
-		$stored_code = $code;
-	}
-	return $stored_code;
 }
 
 /**
