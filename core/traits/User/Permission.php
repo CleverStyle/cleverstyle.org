@@ -71,7 +71,7 @@ trait Permission {
 			if (isset($this->permissions[$user][$permission])) {
 				return (bool)$this->permissions[$user][$permission];
 			} else {
-				$group_exploded = explode('/', $group);
+				$group_label_exploded = explode('/', "$group/$label");
 				/**
 				 * Default permissions values:
 				 *
@@ -82,10 +82,10 @@ trait Permission {
 				return $this->admin()
 					? true
 					:
-					$group_exploded[0] !== 'admin' &&
+					$group_label_exploded[0] !== 'admin' &&
 					(
-						$group_exploded[0] !== 'api' ||
-						@$group_exploded[2] !== 'admin'
+						$group_label_exploded[0] !== 'api' ||
+						@$group_label_exploded[2] !== 'admin'
 					);
 			}
 		} else {
@@ -103,7 +103,8 @@ trait Permission {
 	 * @return bool
 	 */
 	function set_permission ($group, $label, $value, $user = false) {
-		if ($permission = $this->get_permission(null, $group, $label)) {
+		$permission = System_Permission::instance()->get(null, $group, $label);
+		if ($permission) {
 			return $this->set_permissions(
 				[
 					$permission['id'] => $value
@@ -130,7 +131,7 @@ trait Permission {
 	 *
 	 * @param false|int $user If not specified - current user assumed
 	 *
-	 * @return array|false
+	 * @return int[]|false
 	 */
 	function get_permissions ($user = false) {
 		$user = (int)$user ?: $this->id;

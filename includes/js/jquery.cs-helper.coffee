@@ -20,7 +20,7 @@ do ($=jQuery, UI = UIkit) ->
 				$this
 					.addClass('uk-tab')
 					.attr('data-uk-tab', '')
-					.children()
+					.children(':not(template)')
 						.each ->
 							li	= $(@)
 							if !li.children('a').length
@@ -35,7 +35,7 @@ do ($=jQuery, UI = UIkit) ->
 					))
 				content
 					.addClass('uk-switcher uk-margin')
-					.children(':first')
+					.children(':not(template):first')
 						.addClass('uk-active')
 		###*
 		 * Dialog with UIkit
@@ -82,21 +82,28 @@ do ($=jQuery, UI = UIkit) ->
 		 * Enabling tooltips inside ShadowDOM, should be called on element.shadowRoot
 		###
 		tooltips_inside			: ->
-			@find('[data-uk-tooltip]').each ->
+			@find('[data-uk-tooltip]').add(@filter('[data-uk-tooltip]')).each ->
 				UI.tooltip(@, UI.Utils.options($(@).attr('data-uk-tooltip')))
+			@
+		###*
+		 * Enabling dynamic pagination inside ShadowDOM, should be called on element.shadowRoot
+		###
+		pagination_inside	: ->
+			@find('[data-uk-pagination]').add(@filter('[data-uk-pagination]')).each ->
+				UI.pagination(@, UI.Utils.options($(@).attr('data-uk-pagination')))
 			@
 		###*
 		 * Enabling radio buttons inside ShadowDOM, should be called on element.shadowRoot
 		###
 		radio_buttons_inside	: ->
-			@find('[data-uk-button-radio]').each ->
+			@find('[data-uk-button-radio]').add(@filter('[data-uk-button-radio]')).each ->
 				UI.buttonRadio(@, UI.Utils.options($(@).attr('data-uk-button-radio')))
 			@
 		###*
 		 * Enabling tabs inside ShadowDOM, should be called on element.shadowRoot
 		###
 		tabs_inside	: ->
-			@find('[data-uk-tab]').each ->
+			@find('[data-uk-tab]').add(@filter('[data-uk-tab]')).each ->
 				UI.tab(@, UI.Utils.options($(@).attr('data-uk-tab')))
 			@find('.cs-tabs:not(.uk-tab)').cs().tabs()
 			@

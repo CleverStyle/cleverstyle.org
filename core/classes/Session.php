@@ -12,19 +12,24 @@
  *
  *  System/Session/init/after
  *
+ *  System/Session/load
+ *  ['session_data' => $session_data]
+ *
+ *  System/Session/add
+ *  ['session_data' => $session_data]
+ *
  *  System/Session/del/before
- *  ['id' => session_id]
+ *  ['id' => $session_id]
  *
  *  System/Session/del/after
- *  ['id' => session_id]
+ *  ['id' => $session_id]
  *
  *  System/Session/del_all
- *  ['id' => user_id]
+ *  ['id' => $user_id]
  */
 namespace cs;
 use
-	cs\Cache\Prefix,
-	cs\DB\Accessor;
+	cs\Cache\Prefix;
 /**
  * Class responsible for current user session
  *
@@ -32,14 +37,15 @@ use
  */
 class Session {
 	use
-		Accessor,
+		CRUD,
 		Singleton;
+	const INITIAL_SESSION_EXPIRATION = 300;
 	/**
 	 * Id of current session
 	 *
-	 * @var bool|string
+	 * @var string
 	 */
-	protected $session_id = false;
+	protected $session_id;
 	/**
 	 * User id of current session
 	 *
@@ -58,6 +64,17 @@ class Session {
 	 * @var Prefix
 	 */
 	protected $users_cache;
+	protected $data_model = [
+		'id'          => 'text',
+		'user'        => 'int:0',
+		'created'     => 'int:0',
+		'expire'      => 'int:0',
+		'user_agent'  => 'text',
+		'remote_addr' => 'text',
+		'ip'          => 'text',
+		'data'        => 'json'
+	];
+	protected $table      = '[prefix]sessions';
 	protected function construct () {
 		$this->cache       = new Prefix('sessions');
 		$this->users_cache = new Prefix('users');
@@ -263,7 +280,7 @@ class Session {
 		if ($this->user_id == User::GUEST_ID && $this->bot()) {
 			return false;
 		}
-		return $this->session_id;
+		return $this->session_id ?: false;
 	}
 	/**
 	 * Returns user id of current session
@@ -276,11 +293,23 @@ class Session {
 	/**
 	 * Returns session details by session id
 	 *
-	 * @param null|string $session_id If `null` - loaded from `$this->session_id`, and if that also empty - from cookies
+	 * @param false|null|string $session_id If `null` - loaded from `$this->session_id`, and if that also empty - from cookies
 	 *
 	 * @return false|array
 	 */
 	function get ($session_id) {
+		$session_data = $this->get_internal($session_id);
+		if ($session_data) {
+			unset($session_data['data']);
+		}
+		return $session_data;
+	}
+	/**
+	 * @param false|null|string $session_id
+	 *
+	 * @return false|array
+	 */
+	protected function get_internal ($session_id) {
 		if (!$session_id) {
 			if (!$this->session_id) {
 				$this->session_id = _getcookie('session');
@@ -290,38 +319,49 @@ class Session {
 		if (!is_md5($session_id)) {
 			return false;
 		}
-		$session = $this->cache->get(
+		$data = $this->cache->get(
 			$session_id,
 			function () use ($session_id) {
-				return $this->db()->qf(
-					[
-						"SELECT
-							`id`,
-							`user`,
-							`expire`,
-							`user_agent`,
-							`remote_addr`,
-							`ip`
-						FROM `[prefix]sessions`
-						WHERE
-							`id`		= '%s' AND
-							`expire`	> '%s'
-						LIMIT 1",
-						$session_id,
-						time()
-					]
-				) ?: false;
+				$data = $this->read($session_id);
+				if (!$data || $data['expire'] <= time()) {
+					return false;
+				}
+				$data['data'] = $data['data'] ?: [];
+				return $data;
 			}
 		);
-		if ($session['expire'] < time()) {
-			return false;
-		}
-		return $session;
+		return $this->is_good_session($data) ? $data : false;
 	}
 	/**
-	 * Load session by id and return id of session owner (user), updates last_sign_in, last_ip and last_online information
+	 * Check whether session was not expired, user agent and IP corresponds to what is expected and user is actually active
 	 *
-	 * @param null|string $session_id If not specified - loaded from `$this->session_id`, and if that also empty - from cookies
+	 * @param mixed $session_data
+	 *
+	 * @return bool
+	 */
+	protected function is_good_session ($session_data) {
+		/**
+		 * md5() as protection against timing attacks
+		 *
+		 * @var \cs\_SERVER $_SERVER
+		 */
+		return
+			is_array($session_data) &&
+			$session_data['expire'] > time() &&
+			md5($session_data['user_agent']) == md5($_SERVER->user_agent) &&
+			$this->is_user_active($session_data['user']) &&
+			(
+				!Config::instance()->core['remember_user_ip'] ||
+				(
+					md5($session_data['remote_addr']) == md5(ip2hex($_SERVER->remote_addr)) &&
+					md5($session_data['ip']) == md5(ip2hex($_SERVER->ip))
+				)
+			);
+	}
+	/**
+	 * Load session by id and return id of session owner (user), update session expiration
+	 *
+	 * @param false|null|string $session_id If not specified - loaded from `$this->session_id`, and if that also empty - from cookies
 	 *
 	 * @return int User id
 	 */
@@ -329,8 +369,8 @@ class Session {
 		if ($this->user_id == User::GUEST_ID && $this->bot()) {
 			return User::GUEST_ID;
 		}
-		$session_data = $this->get($session_id);
-		if (!$session_data || !$this->is_good_session($session_data)) {
+		$session_data = $this->get_internal($session_id);
+		if (!$session_data) {
 			$this->add(User::GUEST_ID);
 			return User::GUEST_ID;
 		}
@@ -338,42 +378,19 @@ class Session {
 		 * Updating last online time and ip
 		 */
 		$Config = Config::instance();
-		$User   = User::instance();
 		$time   = time();
-		$update = [];
-		if ($User->get('last_online', $session_data['user']) < $time - $Config->core['online_time'] * $Config->core['update_ratio'] / 100) {
-			/**
-			 * @var \cs\_SERVER $_SERVER
-			 */
-			$ip       = ip2hex($_SERVER->ip);
-			$update[] = "
-				UPDATE `[prefix]users`
-				SET
-					`last_ip`		= '$ip',
-					`last_online`	= $time
-				WHERE `id` = $session_data[user]";
-			$User->set(
-				[
-					'last_ip'     => $ip,
-					'last_online' => $time
-				],
-				null,
-				$session_data['user']
-			);
-			unset($ip);
-		}
 		if ($session_data['expire'] - $time < $Config->core['session_expire'] * $Config->core['update_ratio'] / 100) {
-			$session_data['expire']             = $time + $Config->core['session_expire'];
-			$update[]                           = "
-				UPDATE `[prefix]sessions`
-				SET `expire` = $session_data[expire]
-				WHERE `id` = '$session_data[id]'
-				LIMIT 1";
-			$this->cache->{$session_data['id']} = $session_data;
+			$session_data['expire'] = $time + $Config->core['session_expire'];
+			$this->update($session_data);
+			$this->cache->set($session_data['id'], $session_data);
 		}
-		if (!empty($update)) {
-			$this->db_prime()->q($update);
-		}
+		unset($session_data['data']);
+		Event::instance()->fire(
+			'System/Session/load',
+			[
+				'session_data' => $session_data
+			]
+		);
 		return $this->load_initialization($session_data['id'], $session_data['user']);
 	}
 	/**
@@ -389,31 +406,6 @@ class Session {
 		$this->user_id    = $user_id;
 		$this->update_user_is();
 		return $user_id;
-	}
-	/**
-	 * Check whether session was not expired, user agent and IP corresponds to what is expected and user is actually active
-	 *
-	 * @param array $session_data
-	 *
-	 * @return bool
-	 */
-	protected function is_good_session ($session_data) {
-		/**
-		 * md5() as protection against timing attacks
-		 *
-		 * @var \cs\_SERVER $_SERVER
-		 */
-		return
-			$session_data['expire'] > time() &&
-			md5($session_data['user_agent']) == md5($_SERVER->user_agent) &&
-			$this->is_user_active($session_data['user']) &&
-			(
-				!Config::instance()->core['remember_user_ip'] ||
-				(
-					md5($session_data['remote_addr']) == md5(ip2hex($_SERVER->remote_addr)) &&
-					md5($session_data['ip']) == md5(ip2hex($_SERVER->ip))
-				)
-			);
 	}
 	/**
 	 * Whether profile is activated, not disabled and not blocked
@@ -434,7 +426,6 @@ class Session {
 				'timezone',
 				'status',
 				'block_until',
-				'last_online',
 				'avatar'
 			],
 			$user
@@ -478,7 +469,7 @@ class Session {
 	function add ($user = false, $delete_current_session = true) {
 		$user = (int)$user ?: User::GUEST_ID;
 		if ($delete_current_session && is_md5($this->session_id)) {
-			$this->del_internal(null, false);
+			$this->del_internal($this->session_id, false);
 		}
 		if (!$this->is_user_active($user)) {
 			/**
@@ -487,18 +478,6 @@ class Session {
 			return $this->add(User::GUEST_ID);
 		}
 		$session_data = $this->create_unique_session($user);
-		if ($user != User::GUEST_ID) {
-			$this->db_prime()->q(
-				"UPDATE `[prefix]users`
-				SET
-					`last_sign_in`	= %d,
-					`last_online`	= %d,
-					`last_ip`		= '$session_data[ip]'
-				WHERE `id` ='$user'",
-				time(),
-				time()
-			);
-		}
 		_setcookie('session', $session_data['id'], $session_data['expire']);
 		$this->load_initialization($session_data['id'], $session_data['user']);
 		/**
@@ -508,6 +487,12 @@ class Session {
 		if (mt_rand(0, $Config->core['inserts_limit']) < $Config->core['inserts_limit'] / 100 * (100 - $Config->core['update_ratio']) / 5) {
 			$this->delete_old_sessions();
 		}
+		Event::instance()->fire(
+			'System/Session/add',
+			[
+				'session_data' => $session_data
+			]
+		);
 		return $session_data['id'];
 	}
 	/**
@@ -525,49 +510,25 @@ class Session {
 		/**
 		 * Many guests open only one page (or do not store any cookies), so create guest session only for 5 minutes max initially
 		 */
-		$expire_in = $user == User::GUEST_ID ? min($Config->core['session_expire'], 300) : $Config->core['session_expire'];
+		$expire_in = $user == User::GUEST_ID ? min($Config->core['session_expire'], self::INITIAL_SESSION_EXPIRATION) : $Config->core['session_expire'];
 		$expire    = time() + $expire_in;
 		/**
 		 * Create unique session
 		 */
-		do {
-			$hash     = md5(random_bytes(1000));
-			$inserted = $this->db_prime()->q(
-				"INSERT INTO `[prefix]sessions`
-					(
-						`id`,
-						`user`,
-						`created`,
-						`expire`,
-						`user_agent`,
-						`remote_addr`,
-						`ip`
-					) VALUES (
-						'%s',
-						'%s',
-						'%s',
-						'%s',
-						'%s',
-						'%s',
-						'%s'
-					)",
-				$hash,
-				$user,
-				time(),
-				$expire,
-				$_SERVER->user_agent,
-				$remote_addr,
-				$ip
-			);
-		} while (!$inserted);
-		return [
-			'id'          => $hash,
+		$session_data = [
+			'id'          => null,
 			'user'        => $user,
+			'created'     => time(),
 			'expire'      => $expire,
 			'user_agent'  => $_SERVER->user_agent,
 			'remote_addr' => $remote_addr,
-			'ip'          => $ip
+			'ip'          => $ip,
+			'data'        => []
 		];
+		do {
+			$session_data['id'] = md5(random_bytes(1000));
+		} while (!$this->create($session_data));
+		return $session_data;
 	}
 	/**
 	 * Destroying of the session
@@ -601,21 +562,18 @@ class Session {
 		unset($this->cache->$session_id);
 		$this->session_id = false;
 		_setcookie('session', '');
-		$result = $this->db_prime()->q(
-			"DELETE FROM `[prefix]sessions`
-			WHERE `id` = '%s'
-			LIMIT 1",
-			$session_id
-		);
-		if ($create_guest_session) {
-			return (bool)$this->add(User::GUEST_ID);
+		$result = $this->delete($session_id);
+		if ($result) {
+			if ($create_guest_session) {
+				return (bool)$this->add(User::GUEST_ID);
+			}
+			Event::instance()->fire(
+				'System/Session/del/after',
+				[
+					'id' => $session_id
+				]
+			);
 		}
-		Event::instance()->fire(
-			'System/Session/del/after',
-			[
-				'id' => $session_id
-			]
-		);
 		return (bool)$result;
 	}
 	/**
@@ -648,14 +606,12 @@ class Session {
 			WHERE `user` = '$user'"
 		);
 		if (is_array($sessions)) {
+			if (!$this->delete($sessions)) {
+				return false;
+			}
 			foreach ($sessions as $session) {
 				unset($this->cache->$session);
 			}
-			$sessions = implode("','", $sessions);
-			return (bool)$this->db_prime()->q(
-				"DELETE FROM `[prefix]sessions`
-				WHERE `id` IN('$sessions')"
-			);
 		}
 		return true;
 	}
@@ -673,23 +629,8 @@ class Session {
 		if (!is_md5($session_id)) {
 			return false;
 		}
-		$data = $this->cache->get(
-			"data/$session_id",
-			function () use ($session_id) {
-				return _json_decode(
-					$this->db()->qfs(
-						[
-							"SELECT `data`
-							FROM `[prefix]sessions`
-							WHERE `id` = '%s'
-							LIMIT 1",
-							$session_id
-						]
-					)
-				) ?: false;
-			}
-		) ?: [];
-		return isset($data[$item]) ? $data[$item] : false;
+		$session_data = $this->get_internal($session_id);
+		return $session_data && isset($session_data['data'][$item]) ? $session_data['data'][$item] : false;
 	}
 	/**
 	 * Store data with session
@@ -706,36 +647,12 @@ class Session {
 		if (!is_md5($session_id)) {
 			return false;
 		}
-		$data        = $this->cache->get(
-			"data/$session_id",
-			function () use ($session_id) {
-				return _json_decode(
-					$this->db()->qfs(
-						[
-							"SELECT `data`
-							FROM `[prefix]sessions`
-							WHERE `id` = '%s'
-							LIMIT 1",
-							$session_id
-						]
-					)
-				) ?: false;
-			}
-		) ?: [];
-		$data[$item] = $value;
-		if ($this->db()->q(
-			"UPDATE `[prefix]sessions`
-			SET `data` = '%s'
-			WHERE `id` = '%s'
-			LIMIT 1",
-			_json_encode($data),
-			$session_id
-		)
-		) {
-			unset($this->cache->{"data/$session_id"});
-			return true;
+		$session_data = $this->get_internal($session_id);
+		if (!$session_data) {
+			return false;
 		}
-		return false;
+		$session_data['data'][$item] = $value;
+		return $this->update($session_data) && $this->cache->del($session_id);
 	}
 	/**
 	 * Delete data, stored with session
@@ -751,38 +668,13 @@ class Session {
 		if (!is_md5($session_id)) {
 			return false;
 		}
-		$data = $this->cache->get(
-			"data/$session_id",
-			function () use ($session_id) {
-				return _json_decode(
-					$this->db()->qfs(
-						[
-							"SELECT `data`
-							FROM `[prefix]sessions`
-							WHERE `id` = '%s'
-							LIMIT 1",
-							$session_id
-						]
-					)
-				) ?: false;
-			}
-		) ?: [];
-		if (!isset($data[$item])) {
+		$session_data = $this->get_internal($session_id);
+		if (!$session_data) {
+			return false;
+		}
+		if (!isset($session_data['data'][$item])) {
 			return true;
 		}
-		unset($data[$item]);
-		if ($this->db()->q(
-			"UPDATE `[prefix]sessions`
-			SET `data` = '%s'
-			WHERE `id` = '%s'
-			LIMIT 1",
-			_json_encode($data),
-			$session_id
-		)
-		) {
-			unset($this->cache->{"data/$session_id"});
-			return true;
-		}
-		return false;
+		return $this->update($session_data) && $this->cache->del($session_id);
 	}
 }

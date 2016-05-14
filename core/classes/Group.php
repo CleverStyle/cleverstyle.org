@@ -21,7 +21,6 @@
 namespace cs;
 use
 	cs\Cache\Prefix,
-	cs\DB\Accessor,
 	cs\Permission\Any;
 /**
  * Class for groups manipulating
@@ -30,9 +29,15 @@ use
  */
 class Group {
 	use
-		Accessor,
+		CRUD_helpers,
 		Singleton,
 		Any;
+	protected $data_model = [
+		'id'          => 'int:0',
+		'title'       => 'html',
+		'description' => 'html'
+	];
+	protected $table      = '[prefix]groups';
 	/**
 	 * @var Prefix
 	 */
@@ -51,65 +56,43 @@ class Group {
 	/**
 	 * Get group data
 	 *
-	 * @param int|int[]    $group
-	 * @param false|string $item If <b>false</b> - array will be returned, if title|description|data - corresponding item
+	 * @param int|int[] $id
 	 *
-	 * @return array|array[]|false|mixed
+	 * @return array|array[]|false
 	 */
-	function get ($group, $item = false) {
-		if (is_array($group)) {
-			foreach ($group as &$g) {
-				$g = $this->get($g, $item);
+	function get ($id) {
+		if (is_array($id)) {
+			foreach ($id as &$i) {
+				$i = $this->get($i);
 			}
-			return $group;
+			return $id;
 		}
-		$group = (int)$group;
-		if (!$group) {
+		$id = (int)$id;
+		if (!$id) {
 			return false;
 		}
-		$group_data = $this->cache->get(
-			$group,
-			function () use ($group) {
-				$group_data         = $this->db()->qf(
-					"SELECT
-						`id`,
-						`title`,
-						`description`,
-						`data`
-					FROM `[prefix]groups`
-					WHERE `id` = '$group'
-					LIMIT 1"
-				);
-				$group_data['data'] = _json_decode($group_data['data']);
-				return $group_data;
+		return $this->cache->get(
+			$id,
+			function () use ($id) {
+				return $this->read($id);
 			}
 		);
-		if ($item === false) {
-			return $group_data;
-		}
-		if (isset($group_data[$item])) {
-			return $group_data[$item];
-		}
-		return false;
 	}
 	/**
-	 * Get list of all groups
+	 * Get array of all groups
 	 *
-	 * @return array Every item in form of ['id' => <i>id</i>, 'title' => <i>title</i>, 'description' => <i>description</i>]
+	 * @return array
 	 */
 	function get_all () {
 		return $this->cache->get(
 			'all',
 			function () {
-				return $this->db()->qfa(
-					"SELECT
-						`id`,
-						`title`,
-						`description`
-					FROM `[prefix]groups`"
+				return $this->db()->qfas(
+					"SELECT `id`
+					FROM `$this->table`"
 				);
 			}
-		) ?: [];
+		);
 	}
 	/**
 	 * Add new group
@@ -120,124 +103,103 @@ class Group {
 	 * @return false|int
 	 */
 	function add ($title, $description) {
-		$title       = xap($title, false);
-		$description = xap($description, false);
-		if (!$title) {
-			return false;
-		}
-		if ($this->db_prime()->q(
-			"INSERT INTO `[prefix]groups`
-				(
-					`title`,
-					`description`
-				) VALUES (
-					'%s',
-					'%s'
-				)",
-			$title,
-			$description
-		)
-		) {
+		$id = $this->create(
+			[
+				$title,
+				$description
+			]
+		);
+		if ($id) {
 			unset($this->cache->all);
-			$id = $this->db_prime()->id();
 			Event::instance()->fire(
 				'System/User/Group/add',
 				[
 					'id' => $id
 				]
 			);
-			return $id;
-		} else {
-			return false;
 		}
+		return $id;
 	}
 	/**
 	 * Set group data
 	 *
-	 * @param array $data May contain items title|description|data
-	 * @param int   $group
+	 * @param int    $id
+	 * @param string $title
+	 * @param string $description
 	 *
 	 * @return bool
 	 */
-	function set ($data, $group) {
-		$group = (int)$group;
-		if (!$group) {
-			return false;
-		}
-		$update = [];
-		if (isset($data['title'])) {
-			$update[] = '`title` = '.$this->db_prime()->s(xap($data['title'], false));
-		}
-		if (isset($data['description'])) {
-			$update[] = '`description` = '.$this->db_prime()->s(xap($data['description'], false));
-		}
-		if (isset($data['data'])) {
-			$update[] = '`data` = '.$this->db_prime()->s(_json_encode($data['data']));
-		}
-		$update = implode(', ', $update);
-		if (!empty($update) && $this->db_prime()->q("UPDATE `[prefix]groups` SET $update WHERE `id` = '$group' LIMIT 1")) {
+	function set ($id, $title, $description) {
+		$id     = (int)$id;
+		$result = $this->update(
+			[
+				$id,
+				$title,
+				$description
+			]
+		);
+		if ($result) {
 			$Cache = $this->cache;
 			unset(
-				$Cache->$group,
+				$Cache->$id,
 				$Cache->all
 			);
-			return true;
-		} else {
-			return false;
 		}
+		return (bool)$result;
 	}
 	/**
 	 * Delete group
 	 *
-	 * @param int|int[] $group
+	 * @param int|int[] $id
 	 *
 	 * @return bool
 	 */
-	function del ($group) {
-		if (is_array($group)) {
-			foreach ($group as &$g) {
-				$g = $this->del($g);
+	function del ($id) {
+		if (is_array($id)) {
+			foreach ($id as &$i) {
+				$i = (int)$this->del($i);
 			}
-			return (bool)array_filter($group);
+			return (bool)array_product($id);
 		}
-		$group = (int)$group;
+		$id = (int)$id;
+		if (in_array($id, [User::ADMIN_GROUP_ID, User::USER_GROUP_ID, User::BOT_GROUP_ID])) {
+			return false;
+		}
 		Event::instance()->fire(
 			'System/User/Group/del/before',
 			[
-				'id' => $group
+				'id' => $id
 			]
 		);
-		if ($group != 1 && $group != 2 && $group != 3) {
-			$return = $this->db_prime()->q(
-				[
-					"DELETE FROM `[prefix]groups` WHERE `id` = $group",
-					"DELETE FROM `[prefix]users_groups` WHERE `group` = $group"
-				]
-			);
-			$this->del_permissions_all($group);
+		$result = $this->db_prime()->q(
+			[
+				"DELETE FROM `[prefix]groups` WHERE `id` = $id",
+				"DELETE FROM `[prefix]users_groups` WHERE `group` = $id"
+			]
+		);
+		if ($result) {
+			$this->del_permissions_all($id);
 			$Cache = $this->cache;
 			unset(
 				Cache::instance()->{'users/groups'},
-				$Cache->$group,
+				$Cache->$id,
 				$Cache->all
 			);
 			Event::instance()->fire(
 				'System/User/Group/del/after',
 				[
-					'id' => $group
+					'id' => $id
 				]
 			);
-			return (bool)$return;
-		} else {
-			return false;
 		}
+		return (bool)$result;
 	}
 	/**
 	 * Get group permissions
 	 *
 	 * @param int $group
 	 *
-	 * @return array
+	 * @return int[]|false
 	 */
 	function get_permissions ($group) {
 		return $this->get_any_permissions($group, 'group');

@@ -15,9 +15,11 @@ $ ->
 				if xhr.responseText
 					JSON.parse(xhr.responseText).error_description
 				else
-					L.connection_error
-				status	: 'warning'
+					L.connection_error.toString()
+				'warning'
 			)
+	UIkit.modal.labels.Ok		= L.yes.toString()
+	UIkit.modal.labels.Cancel	= L.cancel.toString()
 	$('.cs-header-sign-in-slide').click ->
 		$('.cs-header-guest-form').removeClass('active')
 		$('.cs-header-sign-in-form').addClass('active')
