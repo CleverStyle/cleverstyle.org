@@ -1,13 +1,14 @@
 <?php
 /**
- * @package		Languages
- * @category	blocks
- * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2011-2013, Nazar Mokrynskyi
- * @license		MIT License, see license.txt
+ * @package   Languages
+ * @category  blocks
+ * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
+ * @copyright Copyright (c) 2011-2013, Nazar Mokrynskyi
+ * @license   MIT License, see license.txt
  */
-namespace	cs;
-$address	= current_module() == 'Home' ? '' : '/'.Route::instance()->relative_address;
+namespace cs;
+$Request = Request::instance();
+$address = $Request->current_module == 'Home' ? '' : '/'.$Request->path_normalized;
 ?>
 <nav>
 	<a href="/en<?=$address?>" hreflang="en">English</a>

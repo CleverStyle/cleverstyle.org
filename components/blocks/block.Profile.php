@@ -1,29 +1,20 @@
 <?php
 /**
- * @package		Profile
- * @category	blocks
- * @author		Nazar Mokrynskyi <nazar@mokrynskyi.com>
- * @copyright	Copyright (c) 2014, Nazar Mokrynskyi
- * @license		MIT License, see license.txt
+ * @package   Profile
+ * @category  blocks
+ * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
+ * @copyright Copyright (c) 2014-2016, Nazar Mokrynskyi
+ * @license   MIT License, see license.txt
  */
-namespace	cs;
-use			h;
-include_once THEMES.'/CleverStyle/functions.php';
-$content	= uniqid('Profile_block_');
-echo $content;
-Event::instance()->on(
-	'System/Page/display',
-	function () use ($content) {
-		$Page		= Page::instance();
-		$Page->Html	= str_replace(
-			$content,
-			h::{'div.uk-text-center.uk-form.cs-side-bar-profile'}(
-				h::{'img.uk-thumbnail'}([
-					'src'	=> User::instance()->avatar(128)
-				]).
-				\cs\themes\CleverStyle\get_header_info()
-			),
-			$Page->Html
-		);
-	}
+namespace cs;
+use
+	h;
+
+$User = User::instance();
+echo h::cs_side_user_block(
+	[
+		'avatar'   => $User->avatar(),
+		'username' => $User->username(),
+		'login'    => $User->login
+	]
 );
