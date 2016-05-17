@@ -8,7 +8,7 @@
  */
 namespace	cs;
 Event::instance()->on(
-	'System/Page/pre_display',
+	'System/Page/render/before',
 	function () {
 		if (User::instance()->admin() || !in_array('Metrics', Config::instance()->components['plugins'])) {
 			return;
