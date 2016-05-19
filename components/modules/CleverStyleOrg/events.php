@@ -13,9 +13,11 @@ Event::instance()->on(
 	function ($data) {
 		if ($data['rc'] == 'cms') {
 			Response::instance()->redirect('CMS', 302);
+			throw new ExitException;
 		}
 		if (strtolower($data['rc']) == 'framework') {
 			Response::instance()->redirect('CMS', 302);
+			throw new ExitException;
 		}
 	}
 );
