@@ -1,6 +1,6 @@
 <?php
 /**
- * @package   CleverStyle CMS
+ * @package   CleverStyle Framework
  * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
  * @copyright Copyright (c) 2015-2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
@@ -14,10 +14,6 @@ use
 	cs\Response;
 
 /**
- * Provides next events:
- *  System/Request/routing_replace
- *  ['rc'    => &$rc] //Reference to string with current route, this string can be changed
- *
  * @property string $scheme
  * @property string $host
  * @property string $path

@@ -1,12 +1,12 @@
 /**
- * @package   CleverStyle CMS
+ * @package   CleverStyle Framework
  * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
  * @copyright Copyright (c) 2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
  */
 # Simplified default value declaration
-Polymer.Base._registerFeatures_original	= Polymer.Base._registerFeatures
-normalize_properties					= (properties) !->
+registerFeatures_original	= Polymer.Base._registerFeatures
+normalize_properties		= (properties) !->
 	if properties
 		for property, value of properties
 			type =
@@ -29,5 +29,5 @@ Polymer.Base._addFeature(
 		if @behaviors
 			@behaviors.forEach (behavior) !->
 				normalize_properties(behavior.properties)
-		@_registerFeatures_original()
+		registerFeatures_original.call(@)
 )

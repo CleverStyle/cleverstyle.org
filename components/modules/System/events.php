@@ -34,8 +34,9 @@ Event::instance()
 				/**
 				 * Change language if configuration is multilingual and this is not page with localized url
 				 */
-				if ($Config->core['multilingual'] && !$L->url_language()) {
-					$L->change($User->get('language', $user_id));
+				$language = $User->get('language', $user_id);
+				if ($Config->core['multilingual'] && !$L->url_language() && $language) {
+					$L->change($language);
 				}
 			}
 			$Request = Request::instance();

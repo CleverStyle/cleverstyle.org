@@ -1,6 +1,6 @@
 <?php
 /**
- * @package   CleverStyle CMS
+ * @package   CleverStyle Framework
  * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
  * @copyright Copyright (c) 2011-2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
@@ -244,11 +244,14 @@ class Text {
 		if ($exists_for_current_language) {
 			if ($cdb->q(
 				"UPDATE `[prefix]texts_data`
-				SET `text` = '%s'
+				SET
+					`text`		= '%s',
+					`text_md5`	= '%s'
 				WHERE
 					`id` = '%s' AND
 					`lang` = '%s'",
 				$text,
+				md5($text),
 				$id,
 				$L->clang
 			)
@@ -262,8 +265,10 @@ class Text {
 						`id`,
 						`id_`,
 						`lang`,
-						`text`
+						`text`,
+						`text_md5`
 					) VALUES (
+						'%s',
 						'%s',
 						'%s',
 						'%s',
@@ -272,7 +277,8 @@ class Text {
 				$id,
 				"{¶$id}",
 				$L->clang,
-				$text
+				$text,
+				md5($text)
 			)
 			) {
 				return "{¶$id}";

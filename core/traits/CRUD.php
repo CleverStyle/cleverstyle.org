@@ -1,6 +1,6 @@
 <?php
 /**
- * @package   CleverStyle CMS
+ * @package   CleverStyle Framework
  * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
  * @copyright Copyright (c) 2013-2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
@@ -75,7 +75,17 @@ trait CRUD {
 		 * after creation (there is no id before creation)
 		 */
 		if ($update_needed) {
-			$this->update_internal($table, $data_model, array_merge([array_keys($data_model)[0] => $id], $prepared_arguments), false);
+			$this->update_internal(
+				$table,
+				array_filter(
+					$data_model,
+					function ($item) {
+						return !isset($item['data_model']);
+					}
+				),
+				array_merge([array_keys($data_model)[0] => $id], $prepared_arguments),
+				false
+			);
 		}
 		return $id;
 	}
@@ -239,7 +249,7 @@ trait CRUD {
 		/**
 		 * If no rows found for current language - find another language that should contain some rows
 		 */
-		if (!$rows) {
+		if (!$rows && $language_field !== null) {
 			$new_clang = $this->db_prime()->qfs(
 				"SELECT `$language_field`
 				FROM `{$this->table}_$table`
@@ -248,7 +258,7 @@ trait CRUD {
 				$id
 			);
 			if ($new_clang && $new_clang != $clang) {
-				return $this->read_joined_table($id, $table, $model, $force_clang);
+				return $this->read_joined_table($id, $table, $model, $new_clang);
 			}
 			return [];
 		}
@@ -338,9 +348,6 @@ trait CRUD {
 	 * @return bool
 	 */
 	protected function delete ($id) {
-		if (!$this->read_internal($this->table, $this->data_model, $id)) {
-			return false;
-		}
 		return $this->delete_internal($this->table, $this->data_model, $id);
 	}
 	/**
@@ -360,6 +367,7 @@ trait CRUD {
 		foreach ($id as $i) {
 			$result =
 				$result &&
+				$this->read_internal($table, $data_model, $i) &&
 				$this->db_prime()->q(
 					"DELETE FROM `$table`
 					WHERE `$first_column` = '%s'",

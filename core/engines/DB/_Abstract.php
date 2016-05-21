@@ -1,6 +1,6 @@
 <?php
 /**
- * @package   CleverStyle CMS
+ * @package   CleverStyle Framework
  * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
  * @copyright Copyright (c) 2011-2016, Nazar Mokrynskyi
  * @license   MIT License, see license.txt
@@ -198,7 +198,7 @@ abstract class _Abstract {
 	 *
 	 * @abstract
 	 *
-	 * @param string|string[] $query
+	 * @param string $query
 	 *
 	 * @return false|object|resource
 	 */
