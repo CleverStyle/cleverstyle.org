@@ -1,6 +1,10 @@
 <?php
 namespace cs;
-Page::instance()->Head .= '<meta name="viewport" content="width=device-width, initial-scale=1">';
+Page::instance()->Head .= <<<HTML
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#161616">
+
+HTML;
 ?><!doctype html>
 <!--pre_Html--><!--head-->
 <body cs-unresolved>
