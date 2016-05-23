@@ -23,6 +23,7 @@ Polymer(
 			setTimeout(@_init_sortable.bind(@), 100)
 			return
 		$group	= $shadowRoot.find('[group]')
+		<-! require(['html5sortable'])
 		$group
 			.sortable(
 				connectWith	: 'blocks-list'

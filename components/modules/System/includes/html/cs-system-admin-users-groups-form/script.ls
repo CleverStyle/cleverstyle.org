@@ -41,6 +41,7 @@ Polymer(
 			setTimeout(@_init_sortable.bind(@), 100)
 			return
 		$group	= $shadowRoot.find('#user-groups, #other-groups')
+		<-! require(['html5sortable'])
 		$group
 			.sortable(
 				connectWith	: 'user-groups-list'
