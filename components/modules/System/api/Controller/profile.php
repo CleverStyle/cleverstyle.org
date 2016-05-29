@@ -10,6 +10,7 @@
 namespace cs\modules\System\api\Controller;
 use
 	cs\Config,
+	cs\Core,
 	cs\ExitException,
 	cs\Language,
 	cs\Mail,
@@ -18,10 +19,7 @@ use
 
 trait profile {
 	static function profile___get () {
-		$User = User::instance();
-		if ($User->guest()) {
-			throw new ExitException(403);
-		}
+		$User         = User::instance();
 		$fields       = [
 			'id',
 			'login',
@@ -32,6 +30,10 @@ trait profile {
 		];
 		$result       = $User->get($fields, $User->id);
 		$result['id'] = (int)$result['id'];
+		if ($User->guest()) {
+			$result['username'] = Language::instance()->system_profile_guest;
+			$result['avatar']   = $User->avatar();
+		}
 		return $result;
 	}
 	/**
@@ -319,5 +321,13 @@ trait profile {
 	static function profile_contacts_get () {
 		$User = User::instance();
 		return $User->get_contacts();
+	}
+	static function profile___configuration () {
+		$Config = Config::instance();
+		return [
+			'public_key'            => Core::instance()->public_key,
+			'password_min_length'   => (int)$Config->core['password_min_length'],
+			'password_min_strength' => (int)$Config->core['password_min_strength']
+		];
 	}
 }

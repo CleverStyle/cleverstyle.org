@@ -267,6 +267,10 @@ class Page {
 		$this->Title = $Config->core['title_reverse'] ? array_reverse($this->Title) : $this->Title;
 		$this->Title = implode($Config->core['title_delimiter'] ?: '|', $this->Title);
 		/**
+		 * Addition of CSS, JavaScript and Web Components includes
+		 */
+		$this->add_includes_on_page();
+		/**
 		 * Forming <head> content
 		 */
 		$this->Head =
@@ -301,10 +305,6 @@ class Page {
 				]
 			).
 			h::link(array_values($this->link) ?: false);
-		/**
-		 * Addition of CSS, JavaScript and Web Components includes
-		 */
-		$this->add_includes_on_page();
 		/**
 		 * Generation of Open Graph protocol information
 		 */
@@ -352,7 +352,7 @@ class Page {
 		if ($file) {
 			return str_replace(THEMES, 'themes', $file);
 		}
-		return 'favicon.ico';
+		return str_replace(DIR.'/', '', file_exists_with_extension(DIR."/favicon", ['png', 'ico']));
 	}
 	/**
 	 * @param string $property
@@ -618,7 +618,7 @@ class Page {
 			 * Processing of replacing in content
 			 */
 			/** @noinspection NestedTernaryOperatorInspection */
-			$Response->body = $this->process_replacing($this->Content ?: ($Request->api_path ? 'null' : ''));
+			$Response->body = $this->process_replacing(strlen($this->Content) ? $this->Content : ($Request->api_path ? 'null' : ''));
 		} else {
 			Event::instance()->fire('System/Page/render/before');
 			/**

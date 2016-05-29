@@ -28,7 +28,6 @@ trait optimization {
 			'inserts_limit'              => $Config->core['inserts_limit'],
 			'update_ratio'               => $Config->core['update_ratio'],
 			'cache_state'                => Cache::instance()->cache_state(),
-			'simple_admin_mode'          => $Config->core['simple_admin_mode'],
 			'applied'                    => $Config->cancel_available()
 		];
 	}
@@ -120,8 +119,6 @@ trait optimization {
 	 * @throws ExitException
 	 */
 	static function admin_optimization_cancel_settings () {
-		if (!Config::instance()->cancel()) {
-			throw new ExitException(500);
-		}
+		Config::instance()->cancel();
 	}
 }

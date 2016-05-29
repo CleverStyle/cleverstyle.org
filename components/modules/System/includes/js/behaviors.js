@@ -15,8 +15,14 @@
       _enable_component: function(component, component_type, meta){
         var category, this$ = this;
         category = component_type + 's';
-        $.getJSON("api/System/admin/" + category + "/" + component + "/dependencies", function(dependencies){
-          var translation_key, title, message, message_more, modal;
+        Promise.all([
+          $.getJSON("api/System/admin/" + category + "/" + component + "/dependencies"), $.ajax({
+            url: 'api/System/admin/system',
+            type: 'get_settings'
+          })
+        ]).then(function(arg$){
+          var dependencies, settings, translation_key, title, message, message_more, modal;
+          dependencies = arg$[0], settings = arg$[1];
           delete dependencies.db_support;
           delete dependencies.storage_support;
           translation_key = component_type === 'module' ? 'modules_enabling_of_module' : 'plugins_enabling_of_plugin';
@@ -25,7 +31,7 @@
           message_more = '';
           if (Object.keys(dependencies).length) {
             message = this$._compose_dependencies_message(component, dependencies);
-            if (cs.simple_admin_mode) {
+            if (settings.simple_admin_mode) {
               cs.ui.notify(message, 'error', 5);
               return;
             }
@@ -59,8 +65,14 @@
       _disable_component: function(component, component_type){
         var category, this$ = this;
         category = component_type + 's';
-        $.getJSON("api/System/admin/" + category + "/" + component + "/dependent_packages", function(dependent_packages){
-          var translation_key, title, message, type, packages, i$, len$, _package, modal;
+        Promise.all([
+          $.getJSON("api/System/admin/" + category + "/" + component + "/dependent_packages"), $.ajax({
+            url: 'api/System/admin/system',
+            type: 'get_settings'
+          })
+        ]).then(function(arg$){
+          var dependent_packages, settings, translation_key, title, message, type, packages, i$, len$, _package, modal;
+          dependent_packages = arg$[0], settings = arg$[1];
           translation_key = component_type === 'module' ? 'modules_disabling_of_module' : 'plugins_disabling_of_plugin';
           title = "<h3>" + L[translation_key](component) + "</h3>";
           message = '';
@@ -74,7 +86,7 @@
               }
             }
             message += "<p>" + L.dependencies_not_satisfied + "</p>";
-            if (cs.simple_admin_mode) {
+            if (settings.simple_admin_mode) {
               cs.ui.notify(message, 'error', 5);
               return;
             }
@@ -106,8 +118,14 @@
         var component, category, this$ = this;
         component = new_meta['package'];
         category = new_meta.category;
-        $.getJSON("api/System/admin/" + category + "/" + component + "/update_dependencies", function(dependencies){
-          var translation_key, title, message, message_more, modal;
+        Promise.all([
+          $.getJSON("api/System/admin/" + category + "/" + component + "/update_dependencies"), $.ajax({
+            url: 'api/System/admin/system',
+            type: 'get_settings'
+          })
+        ]).then(function(arg$){
+          var dependencies, settings, translation_key, title, message, message_more, modal;
+          dependencies = arg$[0], settings = arg$[1];
           delete dependencies.db_support;
           delete dependencies.storage_support;
           translation_key = (function(){
@@ -144,7 +162,7 @@
           }
           if (Object.keys(dependencies).length) {
             message = this$._compose_dependencies_message(component, dependencies);
-            if (cs.simple_admin_mode) {
+            if (settings.simple_admin_mode) {
               cs.ui.notify(message, 'error', 5);
               return;
             }
@@ -254,7 +272,24 @@
                 return 'appearance_update_theme_impossible_older_version';
               }
             }());
-            return L[translation_key](detail.from, detail.to);
+            return L[translation_key](component, detail.from, detail.to);
+          case 'update_same':
+            translation_key = (function(){
+              switch (category) {
+              case 'modules':
+                if (component === 'System') {
+                  return 'modules_update_system_impossible_same_version';
+                } else {
+                  return 'modules_update_module_impossible_same_version';
+                }
+                break;
+              case 'plugins':
+                return 'plugins_update_plugin_impossible_same_version';
+              case 'themes':
+                return 'appearance_update_theme_impossible_same_version';
+              }
+            }());
+            return L[translation_key](component, detail.version);
           case 'provide':
             translation_key = category === 'modules' ? 'module_already_provides_functionality' : 'plugin_already_provides_functionality';
             return L[translation_key](detail.name, detail.features.join('", "'));
@@ -316,22 +351,23 @@
           type: String
         },
         settings: Object,
-        simple_admin_mode: {
-          computed: '_simple_admin_mode(settings.simple_admin_mode)',
-          type: Boolean
-        }
-      },
-      _simple_admin_mode: function(simple_admin_mode){
-        return simple_admin_mode == 1;
+        simple_admin_mode: Boolean
       },
       _reload_settings: function(){
         var this$ = this;
-        $.ajax({
-          url: this.settings_api_url,
-          type: 'get_settings',
-          success: function(settings){
-            this$.set('settings', settings);
-          }
+        Promise.all([
+          $.ajax({
+            url: this.settings_api_url,
+            type: 'get_settings'
+          }), $.ajax({
+            url: 'api/System/admin/system',
+            type: 'get_settings'
+          })
+        ]).then(function(arg$){
+          var settings, system_settings;
+          settings = arg$[0], system_settings = arg$[1];
+          this$.simple_admin_mode = system_settings.simple_admin_mode === 1;
+          this$.set('settings', settings);
         });
       },
       _apply: function(){

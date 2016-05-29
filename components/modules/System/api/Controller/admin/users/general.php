@@ -29,7 +29,6 @@ trait general {
 			'require_registration_confirmation' => $Config->core['require_registration_confirmation'],
 			'registration_confirmation_time'    => $Config->core['registration_confirmation_time'],
 			'auto_sign_in_after_registration'   => $Config->core['auto_sign_in_after_registration'],
-			'simple_admin_mode'                 => $Config->core['simple_admin_mode'],
 			'applied'                           => $Config->cancel_available()
 		];
 	}
@@ -98,8 +97,6 @@ trait general {
 	 * @throws ExitException
 	 */
 	static function admin_users_general_cancel_settings () {
-		if (!Config::instance()->cancel()) {
-			throw new ExitException(500);
-		}
+		Config::instance()->cancel();
 	}
 }

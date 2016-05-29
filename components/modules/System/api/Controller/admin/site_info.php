@@ -19,14 +19,13 @@ trait site_info {
 	static function admin_site_info_get_settings () {
 		$Config = Config::instance();
 		return [
-			'site_name'         => get_core_ml_text('name'),
-			'url'               => implode("\n", $Config->core['url']),
-			'cookie_domain'     => implode("\n", $Config->core['cookie_domain']),
-			'cookie_prefix'     => $Config->core['cookie_prefix'],
-			'timezone'          => $Config->core['timezone'],
-			'admin_email'       => $Config->core['admin_email'],
-			'simple_admin_mode' => $Config->core['simple_admin_mode'],
-			'applied'           => $Config->cancel_available()
+			'site_name'     => get_core_ml_text('name'),
+			'url'           => implode("\n", $Config->core['url']),
+			'cookie_domain' => implode("\n", $Config->core['cookie_domain']),
+			'cookie_prefix' => $Config->core['cookie_prefix'],
+			'timezone'      => $Config->core['timezone'],
+			'admin_email'   => $Config->core['admin_email'],
+			'applied'       => $Config->cancel_available()
 		];
 	}
 	/**
@@ -91,8 +90,6 @@ trait site_info {
 	 * @throws ExitException
 	 */
 	static function admin_site_info_cancel_settings () {
-		if (!Config::instance()->cancel()) {
-			throw new ExitException(500);
-		}
+		Config::instance()->cancel();
 	}
 }

@@ -8,7 +8,6 @@
 namespace cs\Page;
 use
 	cs\App,
-	cs\Core,
 	cs\Config,
 	cs\Language,
 	cs\Request,
@@ -237,10 +236,6 @@ trait Includes {
 		 * Base name for cache files
 		 */
 		$this->pcache_basename_path = PUBLIC_CACHE.'/'.$this->theme.'_'.Language::instance()->clang;
-		/**
-		 * Some JS configs required by system
-		 */
-		$this->add_system_configs();
 		// TODO: I hope some day we'll get rid of this sh*t :(
 		$this->ie_edge();
 		$Request = Request::instance();
@@ -248,8 +243,12 @@ trait Includes {
 		 * If CSS and JavaScript compression enabled
 		 */
 		if ($this->page_compression_usage($Config, $Request)) {
+			/**
+			 * Rebuilding HTML, JS and CSS cache if necessary
+			 */
+			$this->rebuild_cache($Config);
 			$this->webcomponents_polyfill($Request, true);
-			list($includes, $preload) = $this->get_includes_and_preload_resource_for_page_with_compression($Config, $Request);
+			list($includes, $preload) = $this->get_includes_and_preload_resource_for_page_with_compression($Request);
 		} else {
 			$this->webcomponents_polyfill($Request, false);
 			/**
@@ -288,35 +287,6 @@ trait Includes {
 			true
 		);
 	}
-	protected function add_system_configs () {
-		$Config         = Config::instance();
-		$Request        = Request::instance();
-		$User           = User::instance();
-		$current_module = $Request->current_module;
-		$this->config_internal(
-			[
-				'base_url'              => $Config->base_url(),
-				'current_base_url'      => $Config->base_url().'/'.($Request->admin_path ? 'admin/' : '').$current_module,
-				'public_key'            => Core::instance()->public_key,
-				'module'                => $current_module,
-				'in_admin'              => (int)$Request->admin_path,
-				'is_admin'              => (int)$User->admin(),
-				'is_user'               => (int)$User->user(),
-				'is_guest'              => (int)$User->guest(),
-				'password_min_length'   => (int)$Config->core['password_min_length'],
-				'password_min_strength' => (int)$Config->core['password_min_strength'],
-				'debug'                 => (int)DEBUG,
-				'route'                 => $Request->route,
-				'route_path'            => $Request->route_path,
-				'route_ids'             => $Request->route_ids
-			],
-			'cs',
-			true
-		);
-		if ($User->admin()) {
-			$this->config_internal((int)$Config->core['simple_admin_mode'], 'cs.simple_admin_mode', true);
-		}
-	}
 	/**
 	 * Hack: Add WebComponents Polyfill for browsers without native Shadow DOM support
 	 *
@@ -327,31 +297,19 @@ trait Includes {
 		if ($Request->cookie('shadow_dom') == 1) {
 			return;
 		}
-		$file = '/includes/js/WebComponents-polyfill/webcomponents-custom.min.js';
 		if ($with_compression) {
-			$compressed_file = PUBLIC_CACHE.'/webcomponents.js';
-			if (!file_exists($compressed_file)) {
-				$content = file_get_contents(DIR."$file");
-				file_put_contents($compressed_file, gzencode($content, 9), LOCK_EX | FILE_BINARY);
-				file_put_contents("$compressed_file.hash", substr(md5($content), 0, 5));
-			}
-			$hash = file_get_contents("$compressed_file.hash");
+			$hash = file_get_contents(PUBLIC_CACHE.'/webcomponents.js.hash');
 			$this->js_internal("/storage/pcache/webcomponents.js?$hash", 'file', true);
 		} else {
-			$this->js_internal($file, 'file', true);
+			$this->js_internal('/includes/js/WebComponents-polyfill/webcomponents-custom.min.js', 'file', true);
 		}
 	}
 	/**
-	 * @param Config  $Config
 	 * @param Request $Request
 	 *
 	 * @return array[]
 	 */
-	protected function get_includes_and_preload_resource_for_page_with_compression ($Config, $Request) {
-		/**
-		 * Rebuilding HTML, JS and CSS cache if necessary
-		 */
-		$this->rebuild_cache($Config);
+	protected function get_includes_and_preload_resource_for_page_with_compression ($Request) {
 		list($dependencies, $compressed_includes_map, $not_embedded_resources_map) = file_get_json("$this->pcache_basename_path.json");
 		$includes = $this->get_normalized_includes($dependencies, $compressed_includes_map, $Request);
 		$preload  = [];
@@ -407,7 +365,8 @@ trait Includes {
 		$dependencies_includes = array_values($dependencies_includes);
 		// Flatten array on higher level
 		$dependencies_includes = array_merge(...$dependencies_includes);
-		return _array(array_merge_recursive($system_includes, ...$dependencies_includes, ...$includes));
+		// Hack: 2 array_merge_recursive() just to be compatible with HHVM, simplify when https://github.com/facebook/hhvm/issues/7087 is resolved
+		return _array(array_merge_recursive(array_merge_recursive($system_includes, ...$dependencies_includes), ...$includes));
 	}
 	/**
 	 * @param array   $dependencies
@@ -487,16 +446,16 @@ trait Includes {
 		if ($this->page_compression_usage($Config, $Request) && $Config->core['frontend_load_optimization']) {
 			$this->add_includes_on_page_manually_added_frontend_load_optimization($Config);
 		} else {
-			$this->add_includes_on_page_manually_added_normal($Config, $preload);
+			$this->add_includes_on_page_manually_added_normal($Config, $Request, $preload);
 		}
 	}
 	/**
 	 * @param Config   $Config
+	 * @param Request  $Request
 	 * @param string[] $preload
 	 */
-	protected function add_includes_on_page_manually_added_normal ($Config, $preload) {
-		// Hack: jQuery is kind of special; it is only loaded directly in normal mode, during frontend load optimization it is loaded asynchronously in frontend
-		$jquery    = '/includes/js/jquery/jquery-3.0.0-pre.js';
+	protected function add_includes_on_page_manually_added_normal ($Config, $Request, $preload) {
+		$jquery    = $this->jquery($this->page_compression_usage($Config, $Request));
 		$preload[] = $jquery;
 		$this->add_preload($preload);
 		$configs      = $this->core_config.$this->config;
@@ -524,6 +483,22 @@ trait Includes {
 		}
 	}
 	/**
+	 * Hack: jQuery is kind of special; it is only loaded directly in normal mode, during frontend load optimization it is loaded asynchronously in frontend
+	 * TODO: In future we'll load jQuery as AMD module only and this thing will not be needed
+	 *
+	 * @param bool $with_compression
+	 *
+	 * @return string
+	 */
+	protected function jquery ($with_compression) {
+		if ($with_compression) {
+			$hash = file_get_contents(PUBLIC_CACHE.'/jquery.js.hash');
+			return "/storage/pcache/jquery.js?$hash";
+		} else {
+			return '/includes/js/jquery/jquery-3.0.0-pre.js';
+		}
+	}
+	/**
 	 * @param string[] $preload
 	 */
 	protected function add_preload ($preload) {
@@ -532,7 +507,7 @@ trait Includes {
 			$extension = explode('?', file_extension($resource))[0];
 			$as        = $this->extension_to_as[$extension];
 			$resource  = str_replace(' ', '%20', $resource);
-			$Response->header('Link', "<$resource>; rel=preload; as=$as'", false);
+			$Response->header('Link', "<$resource>; rel=preload; as=$as", false);
 		}
 	}
 	/**
@@ -550,7 +525,7 @@ trait Includes {
 			)
 		);
 		$system_scripts    = '';
-		$optimized_scripts = [];
+		$optimized_scripts = [$this->jquery(true)];
 		$system_imports    = '';
 		$optimized_imports = [];
 		foreach (array_merge($this->core_js['path'], $this->js['path']) as $script) {

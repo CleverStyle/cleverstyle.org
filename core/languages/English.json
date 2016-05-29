@@ -94,7 +94,8 @@
 			"appearance_"                           : {
 				"set_current_theme"                      : "Set as current theme",
 				"this_is_not_theme_installer_file"       : "This is not theme installer file",
-				"update_theme_impossible_older_version"  : "Theme %s already installed, but can't be updated, because proposed version is older, than installed",
+				"update_theme_impossible_older_version"  : "Theme %s already installed, but can't be updated, because proposed version %s is older than already installed version %s",
+				"update_theme_impossible_same_version"   : "Theme %s of this version (%s) is already installed, no need to update",
 				"updating_theme"                         : "Updating theme %s",
 				"update_theme"                           : "Theme %s already installed. Are you sure want to update theme from version %s to version %s?",
 				"cant_unpack_theme_no_write_permissions" : "Unable to unpack theme, no writing permissions for themes directory",
@@ -277,13 +278,15 @@
 				"upload_and_install_update_module"         : "Upload and install (update) module",
 				"this_is_not_module_installer_file"        : "This is not module installer file",
 				"updating_of_module"                       : "Updating of module %s",
-				"update_module_impossible_older_version"   : "Module %s already installed, but can't be updated, because proposed version is older, than installed",
+				"update_module_impossible_older_version"   : "Module %s already installed, but can't be updated, because proposed version %s is older than already installed version %s",
+				"update_module_impossible_same_version"    : "Module %s of this version (%s) is already installed, no need to update",
 				"update_module"                            : "Module %s already installed. Are you sure want to update module from version %s to version %s?",
 				"force_update_not_recommended"             : "Force update (not recommended)",
 				"upload_and_update_system"                 : "Upload and update system",
 				"this_is_not_system_installer_file"        : "This is not system installer file",
 				"update_system_impossible_from_version_to" : "System can't be updated from version %1$s to %2$s. This package can update version %3$s and newer. If you want to get version %2$s - try to update current version at least to %3$s.",
-				"update_system_impossible_older_version"   : "System can't be updated, because proposed version is older, than installed",
+				"update_system_impossible_older_version"   : "System can't be updated, because proposed version %2$s is older than already installed version %3$s",
+				"update_system_impossible_same_version"    : "System of this version (%2$s) is already installed, no need to update",
 				"updating_of_system"                       : "Updating of system",
 				"update_system"                            : "Are you sure want to update system from version %s to version %s?",
 				"system_files_unpacking_error"             : "An error occurred during unpacking of system files",
@@ -318,7 +321,7 @@
 				"inserts_limit"                   : "Inserts limit",
 				"inserts_limit_info"              : "Some features of engine requires active work with database, namely, insertion and deletion of rows. Because of heavy deletion operation, deletion of old rows from database is performed periodically after some number of inserts. Depending on the load on the site value should be set appropriately. A lower value will keep the optimal size of the database by removing unnecessary data, a larger value will reduce the load on the database.",
 				"update_ratio"                    : "Update ratio",
-				"update_ratio_info"               : "The value is specified as a percentage of the maximum value.<br>Some options have time limits boundary, for example, time of authorization session. In order not to update it every time you load the page update ratio is used, which reduces the load on the system.<br>Ащк example, session timeout is, 4 days, and the update ratio 0.75 - if the user visits the site within 1-3 days - session will not be updated, and if later than three days but less than 4 - session will be updated.<br>It can be used not only for the time limits, but also for others purposes.<br>Especially useful option when high traffic to the site.",
+				"update_ratio_info"               : "The value is specified as a percentage of the maximum value.<br>Some options have time limits boundary, for example, time of authorization session. In order not to update it every time you load the page update ratio is used, which reduces the load on the system.<br>For example, session timeout is, 4 days, and the update ratio 0.75 - if the user visits the site within 1-3 days - session will not be updated, and if later than three days but less than 4 - session will be updated.<br>It can be used not only for the time limits, but also for others purposes.<br>Especially useful option when high traffic to the site.",
 				"partial_cache_cleaning"          : "Partial cache cleaning",
 				"clean_settings_cache"            : "Clear settings cache",
 				"clean_scripts_styles_cache"      : "Clear the cache of scripts and styles",
@@ -362,7 +365,8 @@
 				"upload_and_install_update_plugin"        : "Upload and install (update) plugin",
 				"this_is_not_plugin_installer_file"       : "This is not plugin installer file",
 				"updating_of_plugin"                      : "Updating of plugin %s",
-				"update_plugin_impossible_older_version"  : "Plugin %s already installed, but can't be updated, because proposed version is older, than installed",
+				"update_plugin_impossible_older_version"  : "Plugin %s already installed, but can't be updated, because proposed version %s is older than already installed version %s",
+				"update_plugin_impossible_same_version"   : "Plugin %s of this version (%s) is already installed, no need to update",
 				"update_plugin"                           : "Plugin %s already installed. Are you sure want to update plugin from version %s to version %s?",
 				"completely_remove_plugin"                : "Remove plugin %s completely?",
 				"complete_plugin_removal"                 : "Complete plugin removal",
@@ -378,8 +382,8 @@
 				"yes"                                     : "Yes",
 				"no"                                      : "No"
 			},
+			"security"                              : "Security",
 			"security_"                             : {
-				"security"              : "Security",
 				"key_expire"            : "Key expires after",
 				"key_expire_info"       : "For some operations temporary keys are created that may contain some attached information, and are used to ensure the safety and/or to store some temporary data. Enter time interval after which the keys will be considered obsolete and invalid.",
 				"gravatar_support"      : "Gravatar support",
@@ -516,7 +520,7 @@
 				"auto_sign_in_after_registration"        : "Auto sign in after registration",
 				"auto_sign_in_after_registration_info"   : "For the user convenience - after completion of the registration, user session will be created automatically",
 				"registration_confirmation_time"         : "Time for registration confirmation",
-				"registration_confirmation_time_info"    : "Если в течении указанного времени (в днях) аккаунт не будет подтвержден - он будет удален"
+				"registration_confirmation_time_info"    : "If during specified time (in days) account is not confirmed - it will be removed"
 			}
 		},
 		"profile_"  : {

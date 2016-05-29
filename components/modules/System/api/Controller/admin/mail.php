@@ -30,7 +30,6 @@ trait mail {
 			'mail_from'         => $Config->core['mail_from'],
 			'mail_from_name'    => get_core_ml_text('mail_from_name'),
 			'mail_signature'    => get_core_ml_text('mail_signature'),
-			'simple_admin_mode' => $Config->core['simple_admin_mode'],
 			'applied'           => $Config->cancel_available()
 		];
 	}
@@ -115,8 +114,6 @@ trait mail {
 	 * @throws ExitException
 	 */
 	static function admin_mail_cancel_settings () {
-		if (!Config::instance()->cancel()) {
-			throw new ExitException(500);
-		}
+		Config::instance()->cancel();
 	}
 }

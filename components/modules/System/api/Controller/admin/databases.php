@@ -201,7 +201,6 @@ trait databases {
 		return [
 			'db_balance'        => $Config->core['db_balance'],
 			'db_mirror_mode'    => $Config->core['db_mirror_mode'],
-			'simple_admin_mode' => $Config->core['simple_admin_mode'],
 			'applied'           => $Config->cancel_available()
 		];
 	}
@@ -251,8 +250,6 @@ trait databases {
 	 * @throws ExitException
 	 */
 	static function admin_databases_cancel_settings () {
-		if (!Config::instance()->cancel()) {
-			throw new ExitException(500);
-		}
+		Config::instance()->cancel();
 	}
 }

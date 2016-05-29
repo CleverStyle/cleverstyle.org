@@ -4,3 +4,6 @@ config/main.json
 storage/*/*
 # Except .htaccess, which should be commited
 !storage/*/.htaccess
+# Exclude backups, they are just for investigations in case when update failed
+fs_backup.json
+meta_backup.json

@@ -8,11 +8,9 @@
  * @license    MIT License, see license.txt
  */
 (function(){
-  var L;
-  L = cs.Language('system_admin_users_');
   Polymer({
     'is': 'cs-system-admin-users-edit-user-form',
-    behaviors: [cs.Polymer.behaviors.cs, cs.Polymer.behaviors.Language('system_admin_users_')],
+    behaviors: [cs.Polymer.behaviors.Language('system_admin_users_')],
     properties: {
       user_id: -1,
       user_data: {
@@ -24,7 +22,8 @@
       block_until: {
         observer: '_block_until',
         type: String
-      }
+      },
+      can_upload: 'file_upload' in cs
     },
     ready: function(){
       var this$ = this;
@@ -34,7 +33,7 @@
         languages_list = [];
         languages_list.push({
           clanguage: '',
-          description: L.system_default
+          description: this$.L.system_default
         });
         for (i$ = 0, len$ = languages.length; i$ < len$; ++i$) {
           language = languages[i$];
@@ -46,7 +45,7 @@
         timezones_list = [];
         timezones_list.push({
           timezone: '',
-          description: L.system_default
+          description: this$.L.system_default
         });
         for (description in timezones) {
           timezone = timezones[description];
@@ -106,6 +105,7 @@
       this.set('user_data.block_until', date.getTime() / 1000);
     },
     save: function(){
+      var this$ = this;
       $.ajax({
         url: 'api/System/admin/users/' + this.user_id,
         type: 'patch',
@@ -113,7 +113,7 @@
           user: this.user_data
         },
         success: function(){
-          cs.ui.notify(L.changes_saved, 'success', 5);
+          cs.ui.notify(this$.L.changes_saved, 'success', 5);
         }
       });
     }
