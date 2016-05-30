@@ -11,12 +11,8 @@ namespace cs;
 Event::instance()->on(
 	'System/Request/routing_replace',
 	function ($data) {
-		if ($data['rc'] == 'cms') {
-			Response::instance()->redirect('CMS', 302);
-			throw new ExitException;
-		}
-		if (strtolower($data['rc']) == 'framework') {
-			Response::instance()->redirect('CMS', 302);
+		if (in_array(strtolower($data['rc']), ['cms', 'framework'])) {
+			Response::instance()->redirect('https://github.com/nazar-pc/CleverStyle-Framework', 302);
 			throw new ExitException;
 		}
 	}
