@@ -15,6 +15,6 @@ echo h::cs_side_user_block(
 	[
 		'avatar'   => $User->avatar(),
 		'username' => $User->username(),
-		'login'    => $User->login
+		'guest'    => $User->guest()
 	]
 );
