@@ -15,17 +15,13 @@
       can_edit: false,
       can_delete: false,
       show_comments: false,
-      preview: false
+      preview: false,
+      url_prefix: location.pathname.indexOf('/' + cs.Language.clang) === 0 ? '/' + cs.Language.clang : ''
     },
     ready: function(){
       var this$ = this;
       this.jsonld = JSON.parse(this.children[0].innerHTML);
-      Promise.all([
-        $.ajax({
-          url: 'api/Blogs',
-          type: 'get_settings'
-        }), $.getJSON('api/System/profile')
-      ]).then(function(arg$){
+      cs.api(['get_settings	api/Blogs', 'get			api/System/profile']).then(function(arg$){
         var profile;
         this$.settings = arg$[0], profile = arg$[1];
         this$.can_edit = !this$.preview && (this$.settings.admin_edit || this$.jsonld.user === profile.id);
@@ -41,15 +37,11 @@
     },
     _delete: function(){
       var this$ = this;
-      cs.ui.confirm(this.L.sure_to_delete_post(this.jsonld.title), function(){
-        $.ajax({
-          url: 'api/Blogs/posts/' + this$.jsonld.id,
-          type: 'delete',
-          success: function(result){
-            this$._remove_close_tab_handler();
-            location.href = 'Blogs';
-          }
-        });
+      cs.ui.confirm(this.L.sure_to_delete_post(this.jsonld.title)).then(function(){
+        return cs.api('delete api/Blogs/posts/' + this$.jsonld.id);
+      }).then(function(result){
+        this$._remove_close_tab_handler();
+        location.href = 'Blogs';
       });
     }
   });

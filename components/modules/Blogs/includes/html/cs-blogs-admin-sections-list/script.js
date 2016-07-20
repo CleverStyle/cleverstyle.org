@@ -18,33 +18,25 @@
     },
     _reload_sections: function(){
       var this$ = this;
-      $.ajax({
-        url: 'api/Blogs/admin/sections',
-        type: 'get',
-        success: function(sections){
-          this$.set('sections', sections);
-        }
+      cs.api('get api/Blogs/admin/sections').then(function(sections){
+        this$.set('sections', sections);
       });
     },
     _add: function(){
-      $(cs.ui.simple_modal("<h3>" + this.L.addition_of_posts_section + "</h3>\n<cs-blogs-admin-sections-add-edit-form/>")).on('close', bind$(this, '_reload_sections'));
+      cs.ui.simple_modal("<h3>" + this.L.addition_of_posts_section + "</h3>\n<cs-blogs-admin-sections-add-edit-form/>").addEventListener('close', bind$(this, '_reload_sections'));
     },
     _edit: function(e){
       var title;
       title = this.L.editing_of_posts_section(e.model.item.title);
-      $(cs.ui.simple_modal("<h2>" + title + "</h2>\n<cs-blogs-admin-sections-add-edit-form id=\"" + e.model.item.id + "\"/>")).on('close', bind$(this, '_reload_sections'));
+      cs.ui.simple_modal("<h2>" + title + "</h2>\n<cs-blogs-admin-sections-add-edit-form id=\"" + e.model.item.id + "\"/>").addEventListener('close', bind$(this, '_reload_sections'));
     },
     _delete: function(e){
       var this$ = this;
-      cs.ui.confirm(this.L.sure_to_delete_posts_section(e.model.item.title), function(){
-        $.ajax({
-          url: 'api/Blogs/admin/sections/' + e.model.item.id,
-          type: 'delete',
-          success: function(){
-            cs.ui.notify(this$.L.changes_saved, 'success', 5);
-            this$._reload_sections();
-          }
-        });
+      cs.ui.confirm(this.L.sure_to_delete_posts_section(e.model.item.title)).then(function(){
+        return cs.api('delete api/Blogs/admin/sections/' + e.model.item.id);
+      }).then(function(){
+        cs.ui.notify(this$.L.changes_saved, 'success', 5);
+        this$._reload_sections();
       });
     }
   });
