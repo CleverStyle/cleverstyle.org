@@ -60,7 +60,7 @@ trait Management {
 		if (!$found_users) {
 			return false;
 		}
-		return $found_users;
+		return _int($found_users);
 	}
 	/**
 	 * User registration
@@ -74,26 +74,18 @@ trait Management {
 	 *                             <b>error</b> - if error occurred<br>
 	 *                             <b>false</b> - if email is incorrect<br>
 	 *                             <b>[<br>
-	 *                             &nbsp;'reg_key'     => *,</b> //Registration confirmation key, or <b>true</b> if confirmation is not required<br>
-	 *                             &nbsp;<b>'password' => *,</b> //Automatically generated password<br>
-	 *                             &nbsp;<b>'id'       => *</b> //Id of registered user in DB<br>
+	 *                             &nbsp;&nbsp;&nbsp;&nbsp;'reg_key'     => *,</b> //Registration confirmation key, or <b>true</b> if confirmation is not
+	 *                             required<br>
+	 *                             &nbsp;&nbsp;&nbsp;&nbsp;<b>'password' => *,</b> //Automatically generated password (empty if confirmation is needed and
+	 *                             will be set during registration confirmation)<br>
+	 *                             &nbsp;&nbsp;&nbsp;&nbsp;<b>'id'       => *</b>  //Id of registered user in DB<br>
 	 *                             <b>]</b>
 	 */
 	function registration ($email, $confirmation = true, $auto_sign_in = true) {
 		if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
 			return false;
 		}
-		$email = mb_strtolower($email);
-		$this->delete_unconfirmed_users();
-		if (!Event::instance()->fire(
-			'System/User/registration/before',
-			[
-				'email' => $email
-			]
-		)
-		) {
-			return false;
-		}
+		$email      = mb_strtolower($email);
 		$email_hash = hash('sha224', $email);
 		$login      = strstr($email, '@', true);
 		$login_hash = hash('sha224', $login);
@@ -116,6 +108,16 @@ trait Management {
 		)
 		) {
 			return 'exists';
+		}
+		$this->delete_unconfirmed_users();
+		if (!Event::instance()->fire(
+			'System/User/registration/before',
+			[
+				'email' => $email
+			]
+		)
+		) {
+			return false;
 		}
 		$Config       = Config::instance();
 		$confirmation = $confirmation && $Config->core['require_registration_confirmation'];
@@ -150,17 +152,15 @@ trait Management {
 			!$confirmation ? 1 : -1
 		)
 		) {
-			$this->reg_id = $this->db_prime()->id();
+			$this->reg_id = (int)$this->db_prime()->id();
 			$password     = '';
-			if ($confirmation) {
+			if (!$confirmation) {
 				$password = password_generate($Config->core['password_min_length'], $Config->core['password_min_strength']);
 				$this->set_password($password, $this->reg_id);
-			}
-			if (!$confirmation) {
 				$this->set_groups([User::USER_GROUP_ID], $this->reg_id);
-			}
-			if (!$confirmation && $auto_sign_in && $Config->core['auto_sign_in_after_registration']) {
-				Session::instance()->add($this->reg_id);
+				if ($auto_sign_in && $Config->core['auto_sign_in_after_registration']) {
+					Session::instance()->add($this->reg_id);
+				}
 			}
 			if (!Event::instance()->fire(
 				'System/User/registration/after',
@@ -223,10 +223,10 @@ trait Management {
 		if (!$data) {
 			return false;
 		}
-		$this->reg_id = $data['id'];
+		$this->reg_id = (int)$data['id'];
 		$Config       = Config::instance();
 		$password     = '';
-		if (!$this->get('password_hash', $data['id'])) {
+		if (!$this->get('password_hash', $this->reg_id)) {
 			$password = password_generate($Config->core['password_min_length'], $Config->core['password_min_strength']);
 			$this->set_password($password, $this->reg_id);
 		}
@@ -254,12 +254,11 @@ trait Management {
 	 * Canceling of bad/failed registration
 	 */
 	function registration_cancel () {
-		if ($this->reg_id == 0) {
-			return;
+		if ($this->reg_id) {
+			Session::instance()->add(User::GUEST_ID);
+			$this->del_user($this->reg_id);
+			$this->reg_id = 0;
 		}
-		Session::instance()->add(User::GUEST_ID);
-		$this->del_user($this->reg_id);
-		$this->reg_id = 0;
 	}
 	/**
 	 * Checks for unconfirmed registrations and deletes expired
@@ -341,9 +340,8 @@ trait Management {
 		if ($user && $user != User::GUEST_ID) {
 			$reg_key = md5(random_bytes(1000));
 			if ($this->set('reg_key', $reg_key, $user)) {
-				$data                  = $this->get('data', $user);
-				$data['restore_until'] = time() + Config::instance()->core['registration_confirmation_time'] * 86400;
-				if ($this->set('data', $data, $user)) {
+				$restore_until = time() + Config::instance()->core['registration_confirmation_time'] * 86400;
+				if ($this->set_data('restore_until', $restore_until, $user)) {
 					return $reg_key;
 				}
 			}
@@ -361,7 +359,7 @@ trait Management {
 		if (!is_md5($key)) {
 			return false;
 		}
-		$id = $this->db_prime()->qfs(
+		$id = (int)$this->db_prime()->qfs(
 			"SELECT `id`
 			FROM `[prefix]users`
 			WHERE
@@ -374,19 +372,14 @@ trait Management {
 		if (!$id) {
 			return false;
 		}
-		$data = $this->get('data', $id);
-		if (!isset($data['restore_until'])) {
-			return false;
-		} elseif ($data['restore_until'] < time()) {
-			unset($data['restore_until']);
-			$this->set('data', $data, $id);
+		$restore_until = $this->get_data('restore_until', $id);
+		$this->del_data('restore_until', $id);
+		if ($restore_until < time()) {
 			return false;
 		}
-		unset($data['restore_until']);
 		$Config   = Config::instance();
 		$password = password_generate($Config->core['password_min_length'], $Config->core['password_min_strength']);
 		$this->set_password($password, $id);
-		$this->set('data', $data, $id);
 		Session::instance()->add($id);
 		return [
 			'id'       => $id,
@@ -399,6 +392,7 @@ trait Management {
 	 * @param int|int[] $user User id or array of users ids
 	 */
 	function del_user ($user) {
+		$this->disable_memory_cache();
 		if (is_array($user)) {
 			foreach ($user as $id) {
 				$this->del_user($id);
@@ -406,7 +400,7 @@ trait Management {
 			return;
 		}
 		$user = (int)$user;
-		if (!$user) {
+		if (in_array($user, [0, User::GUEST_ID, User::ROOT_ID]) || !$this->get('id', $user)) {
 			return;
 		}
 		Event::instance()->fire(
@@ -436,6 +430,9 @@ trait Management {
 	}
 	/**
 	 * Returns array of user id, that are associated as contacts
+	 *
+	 * @deprecated
+	 * @todo Remove in 5.x
 	 *
 	 * @param false|int $user If not specified - current user assumed
 	 *

@@ -19,37 +19,28 @@ Polymer(
 	ready : !->
 		@reload()
 	reload : !->
-		$.getJSON('api/System/admin/groups', (groups) !~>
+		cs.api('get api/System/admin/groups').then (groups) !~>
 			groups.forEach (group) !->
 				group.allow_to_delete	= group.id !~= ADMIN_GROUP_ID && group.id !~= USER_GROUP_ID
 			@set('groups', groups)
-		)
 	add_group : !->
-		$(cs.ui.simple_modal("""
+		cs.ui.simple_modal("""
 			<h3>#{L.group_addition}</h3>
 			<cs-system-admin-groups-form/>
-		""")).on('close', @~reload)
+		""").addEventListener('close', @~reload)
 	edit_group : (e) !->
 		group	= e.model.group
-		$(cs.ui.simple_modal("""
+		cs.ui.simple_modal("""
 			<h3>#{L.editing_group(group.title)}</h3>
 			<cs-system-admin-groups-form group_id="#{group.id}"/>
-		""")).on('close', @~reload)
+		""").addEventListener('close', @~reload)
 	delete_group : (e) !->
 		group	= e.model.group
-		cs.ui.confirm(
-			"""
-				<h3>#{L.sure_delete_group(group.title)}</h3>
-			"""
-			!~>
-				$.ajax(
-					url		: 'api/System/admin/groups/' + group.id
-					type	: 'delete'
-					success	: !~>
-						cs.ui.notify(L.changes_saved, 'success', 5)
-						@splice('groups', e.model.index, 1)
-				)
-		)
+		cs.ui.confirm(L.sure_delete_group(group.title))
+			.then -> cs.api('delete api/System/admin/groups/' + group.id)
+			.then !~>
+				cs.ui.notify(L.changes_saved, 'success', 5)
+				@splice('groups', e.model.index, 1)
 	edit_permissions : (e) !->
 		group	= e.model.group
 		title	= L.permissions_for_group(group.title)

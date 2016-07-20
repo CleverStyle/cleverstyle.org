@@ -9,6 +9,68 @@
   var L, x$, slice$ = [].slice;
   L = cs.Language('system_profile_');
   /**
+   * Simple function for XHR requests to API wrapped in promise
+   *
+   * @param {string} method_path Whitespace-separated method and path for API call
+   * @param {object} data Data to be passed with request
+   *
+   * @return {Promise}
+   */
+  cs.api = function(method_path, data){
+    var ref$, method, path;
+    if (method_path instanceof Array) {
+      return Promise.all(method_path.map(cs.api));
+    }
+    ref$ = method_path.split(/\s+/, 2), method = ref$[0], path = ref$[1];
+    return new Promise(function(resolve, reject){
+      var xhr, param, value;
+      xhr = new XMLHttpRequest();
+      xhr.onload = function(){
+        if (this.status >= 400) {
+          this.onerror();
+        } else {
+          resolve(JSON.parse(this.responseText));
+        }
+      };
+      xhr.onerror = function(){
+        var timeout, this$ = this;
+        timeout = setTimeout(function(){
+          cs.ui.notify(this$.responseText
+            ? JSON.parse(this$.responseText).error_description
+            : L.system_server_connection_error, 'warning', 5);
+        });
+        reject({
+          timeout: timeout,
+          xhr: xhr
+        });
+      };
+      xhr.onabort = xhr.onerror;
+      if (method.toLowerCase() === 'get' && data) {
+        path += '?' + (function(){
+          var ref$, results$ = [];
+          for (param in ref$ = data) {
+            value = ref$[param];
+            results$.push(encodeURIComponent(param) + '=' + encodeURIComponent(value));
+          }
+          return results$;
+        }()).join('&');
+        data = undefined;
+      }
+      xhr.open(method.toUpperCase(), path);
+      if (data instanceof HTMLFormElement) {
+        xhr.send(new FormData(data));
+      } else if (data instanceof FormData) {
+        xhr.send(data);
+      } else if (data) {
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        xhr.send(JSON.stringify(data));
+      } else {
+        xhr.send();
+      }
+    });
+  };
+  /**
    * Supports algorithms sha1, sha224, sha256, sha384, sha512
    *
    * @param {object} jssha jsSHA object
@@ -47,36 +109,22 @@
   cs.sign_in = function(login, password){
     login = String(login).toLowerCase();
     password = String(password);
-    require(['jssha'], function(jssha){
-      $.ajax({
-        url: 'api/System/profile',
-        type: 'configuration'
-      }).then(function(configuration){
-        $.ajax({
-          url: 'api/System/profile',
-          data: {
-            login: cs.hash(jssha, 'sha224', login),
-            password: cs.hash(jssha, 'sha512', cs.hash(jssha, 'sha512', password) + configuration.public_key)
-          },
-          type: 'sign_in',
-          success: function(){
-            location.reload();
-          }
-        });
+    Promise.all([require(['jssha']), cs.api('configuration api/System/profile')]).then(function(arg$){
+      var jssha, configuration;
+      jssha = arg$[0][0], configuration = arg$[1];
+      login = cs.hash(jssha, 'sha224', login);
+      password = cs.hash(jssha, 'sha512', cs.hash(jssha, 'sha512', password) + configuration.public_key);
+      return cs.api('sign_in api/System/profile', {
+        login: login,
+        password: password
       });
-    });
+    }).then(bind$(location, 'reload'));
   };
   /**
    * Sign out
    */
   cs.sign_out = function(){
-    $.ajax({
-      url: 'api/System/profile',
-      type: 'sign_out',
-      success: function(){
-        location.reload();
-      }
-    });
+    cs.api('sign_out api/System/profile').then(bind$(location, 'reload'));
   };
   /**
    * Registration in the system
@@ -84,24 +132,36 @@
    * @param {string} email
    */
   cs.registration = function(email){
+    var xhr;
     if (!email) {
       cs.ui.alert(L.registration_please_type_your_email);
       return;
     }
     email = String(email).toLowerCase();
-    $.ajax({
-      url: 'api/System/profile',
-      data: {
-        email: email
-      },
-      type: 'registration',
-      success_201: function(){
+    xhr = new XMLHttpRequest();
+    xhr.onload = function(){
+      switch (this.status) {
+      case 201:
         cs.ui.simple_modal('<div>' + L.registration_success + '</div>');
-      },
-      success_202: function(){
+        break;
+      case 202:
         cs.ui.simple_modal('<div>' + L.registration_confirmation + '</div>');
+        break;
+      default:
+        this.onerror();
       }
-    });
+    };
+    xhr.onerror = function(){
+      cs.ui.notify(this.responseText
+        ? JSON.parse(this.responseText).error_description
+        : L.system_server_connection_error, 'warning', 5);
+    };
+    xhr.onabort = xhr.onerror;
+    xhr.open('registration'.toUpperCase(), 'api/System/profile');
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.send(JSON.stringify({
+      email: email
+    }));
   };
   /**
    * Password restoring
@@ -114,19 +174,15 @@
       return;
     }
     email = String(email).toLowerCase();
-    require(['jssha'], function(jssha){
-      $.ajax({
-        url: 'api/System/profile',
-        data: {
-          email: cs.hash(jssha, 'sha224', email)
-        },
-        type: 'restore_password',
-        success: function(result){
-          if (result === 'OK') {
-            cs.ui.simple_modal('<div>' + L.restore_password_confirmation + '</div>');
-          }
-        }
+    require(['jssha']).then(function(arg$){
+      var jssha;
+      jssha = arg$[0];
+      email = cs.hash(jssha, 'sha224', email);
+      return cs.api('restore_password api/System/profile', {
+        email: email
       });
+    }).then(function(){
+      cs.ui.simple_modal('<div>' + L.restore_password_confirmation + '</div>');
     });
   };
   /**
@@ -148,10 +204,9 @@
       cs.ui.alert(L.current_new_password_equal);
       return;
     }
-    $.ajax({
-      url: 'api/System/profile',
-      type: 'configuration'
-    }).then(function(configuration){
+    Promise.all([require(['jssha']), cs.api('configuration api/System/profile')]).then(function(arg$){
+      var jssha, configuration;
+      jssha = arg$[0][0], configuration = arg$[1];
       if (String(new_password).length < configuration.password_min_length) {
         cs.ui.alert(L.password_too_short);
         return;
@@ -159,27 +214,23 @@
         cs.ui.alert(L.password_too_easy);
         return;
       }
-      require(['jssha'], function(jssha){
-        var current_password, new_password;
-        current_password = cs.hash(jssha, 'sha512', cs.hash(jssha, 'sha512', String(current_password)) + configuration.public_key);
-        new_password = cs.hash(jssha, 'sha512', cs.hash(jssha, 'sha512', String(new_password)) + configuration.public_key);
-        $.ajax({
-          url: 'api/System/profile',
-          data: {
-            current_password: current_password,
-            new_password: new_password
-          },
-          type: 'change_password',
-          success: function(result){
-            if (success) {
-              success();
-            } else {
-              cs.ui.alert(L.password_changed_successfully);
-            }
-          },
-          error: error || $.ajaxSettings.error
-        });
+      current_password = cs.hash(jssha, 'sha512', cs.hash(jssha, 'sha512', String(current_password)) + configuration.public_key);
+      new_password = cs.hash(jssha, 'sha512', cs.hash(jssha, 'sha512', String(new_password)) + configuration.public_key);
+      return cs.api('change_password api/System/profile', {
+        current_password: current_password,
+        new_password: new_password
       });
+    }).then(function(){
+      if (success) {
+        success();
+      } else {
+        cs.ui.alert(L.password_changed_successfully);
+      }
+    })['catch'](function(o){
+      if (error) {
+        clearTimeout(o.timeout);
+        error();
+      }
     });
   };
   /**
@@ -277,27 +328,29 @@
    * @return {HTMLElement}
    */
   x$.alert = function(content){
-    var x$, modal, y$, ok, z$;
     if (content instanceof Function) {
       content = content.toString();
     }
     if (typeof content === 'string' && content.indexOf('<') === -1) {
       content = "<h3>" + content + "</h3>";
     }
-    x$ = modal = cs.ui.modal(content);
-    x$.autoDestroy = true;
-    x$.manualClose = true;
-    y$ = ok = document.createElement('button', 'cs-button');
-    y$.innerHTML = 'OK';
-    y$.primary = true;
-    y$.action = 'close';
-    y$.bind = modal;
-    z$ = modal;
-    z$.ok = ok;
-    z$.appendChild(ok);
-    z$.open();
-    ok.focus();
-    return modal;
+    return new Promise(function(resolve){
+      var x$, modal, y$, ok, z$;
+      x$ = modal = cs.ui.modal(content);
+      x$.autoDestroy = true;
+      x$.manualClose = true;
+      y$ = ok = document.createElement('button', 'cs-button');
+      y$.innerHTML = 'OK';
+      y$.primary = true;
+      y$.action = 'close';
+      y$.bind = modal;
+      y$.addEventListener('click', resolve);
+      z$ = modal;
+      z$.ok = ok;
+      z$.appendChild(ok);
+      z$.open();
+      ok.focus();
+    });
   };
   /**
    * Confirm modal
@@ -324,7 +377,7 @@
     y$.primary = true;
     y$.action = 'close';
     y$.bind = modal;
-    y$.addEventListener('click', ok_callback);
+    y$.addEventListener('click', ok_callback || function(){});
     z$ = cancel = document.createElement('button', 'cs-button');
     z$.innerHTML = L.system_admin_cancel;
     z$.action = 'close';
@@ -337,7 +390,14 @@
     z1$.appendChild(cancel);
     z1$.open();
     ok.focus();
-    return modal;
+    if (ok_callback) {
+      return modal;
+    } else {
+      return new Promise(function(resolve, reject){
+        ok.addEventListener('click', resolve);
+        cancel.addEventListener('click', reject);
+      });
+    }
   };
   /**
    * Notify
@@ -384,4 +444,7 @@
       setTimeout(resolve);
     }
   });
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
 }).call(this);

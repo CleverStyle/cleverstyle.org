@@ -20,13 +20,16 @@ class Event {
 	/**
 	 * @var callable[][]
 	 */
-	protected $callbacks;
+	protected $callbacks = [];
 	/**
 	 * @var callable[][]
 	 */
 	protected $callbacks_cache;
 	protected function init () {
-		$this->callbacks = [];
+		/** @noinspection PhpUndefinedFieldInspection */
+		if ($this->__request_id > 1) {
+			$this->callbacks = [];
+		}
 	}
 	/**
 	 * Add event handler
@@ -81,7 +84,7 @@ class Event {
 		}
 		$wrapped_callback = function (...$arguments) use (&$wrapped_callback, $event, $callback) {
 			$this->off($event, $wrapped_callback);
-			$callback(...$arguments);
+			return $callback(...$arguments);
 		};
 		return $this->on($event, $wrapped_callback);
 	}
@@ -126,7 +129,7 @@ class Event {
 	 */
 	protected function register_events () {
 		foreach ($this->events_files_paths() as $path) {
-			include DIR."/$path";
+			include $path;
 		}
 	}
 	/**
@@ -134,13 +137,13 @@ class Event {
 	 */
 	protected function events_files_paths () {
 		$paths = [];
-		foreach (get_files_list(MODULES, false, 'd', 'components/modules') as $path) {
-			if (file_exists(DIR."/$path/events.php")) {
+		foreach (get_files_list(MODULES, false, 'd', true) as $path) {
+			if (file_exists("$path/events.php")) {
 				$paths[] = "$path/events.php";
 			}
 		}
-		foreach (get_files_list(PLUGINS, false, 'd', 'components/plugins') as $path) {
-			if (file_exists(DIR."/$path/events.php")) {
+		foreach (get_files_list(PLUGINS, false, 'd', true) as $path) {
+			if (file_exists("$path/events.php")) {
 				$paths[] = "$path/events.php";
 			}
 		}

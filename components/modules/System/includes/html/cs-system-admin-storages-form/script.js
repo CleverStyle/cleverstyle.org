@@ -31,12 +31,7 @@
     },
     ready: function(){
       var this$ = this;
-      Promise.all([
-        $.getJSON('api/System/admin/storages'), $.ajax({
-          url: 'api/System/admin/storages',
-          type: 'engines'
-        })
-      ]).then(function(arg$){
+      cs.api(['get		api/System/admin/storages', 'engines	api/System/admin/storages']).then(function(arg$){
         this$.storages = arg$[0], this$.engines = arg$[1];
         if (!this$.add) {
           this$.storages.forEach(function(storage){
@@ -48,34 +43,21 @@
       });
     },
     _save: function(){
-      $.ajax({
-        url: 'api/System/admin/storages' + (!this.add ? '/' + this.storageIndex : ''),
-        type: this.add ? 'post' : 'patch',
-        data: {
-          url: this.storage.url,
-          host: this.storage.host,
-          connection: this.storage.connection,
-          user: this.storage.user,
-          password: this.storage.password
-        },
-        success: function(){
-          cs.ui.notify(L.changes_saved, 'success', 5);
-        }
+      var method, suffix;
+      method = this.add ? 'post' : 'patch';
+      suffix = !this.add ? '/' + this.storageIndex : '';
+      cs.api(method + " api/System/admin/storages" + suffix, this.storage).then(function(){
+        cs.ui.notify(L.changes_saved, 'success', 5);
       });
     },
     _test_connection: function(e){
       var $modal;
-      $modal = $(cs.ui.simple_modal("<div>\n	<h3 class=\"cs-text-center\">" + L.test_connection + "</h3>\n	<progress is=\"cs-progress\" infinite></progress>\n</div>"));
-      $.ajax({
-        url: 'api/System/admin/storages',
-        data: this.storage,
-        type: 'test',
-        success: function(result){
-          $modal.find('progress').replaceWith("<p class=\"cs-text-center cs-block-success cs-text-success\" style=text-transform:capitalize;\">" + L.success + "</p>");
-        },
-        error: function(){
-          $modal.find('progress').replaceWith("<p class=\"cs-text-center cs-block-error cs-text-error\" style=text-transform:capitalize;\">" + L.failed + "</p>");
-        }
+      $modal = cs.ui.simple_modal("<div>\n	<h3 class=\"cs-text-center\">" + L.test_connection + "</h3>\n	<progress is=\"cs-progress\" infinite></progress>\n</div>");
+      cs.api('test api/System/admin/storages', this.storage).then(function(){
+        modal.querySelector('progress').outerHTML = "<p class=\"cs-text-center cs-block-success cs-text-success\" style=text-transform:capitalize;\">" + L.success + "</p>";
+      })['catch'](function(o){
+        clearTimeout(o.timeout);
+        modal.querySelector('progress').outerHTML = "<p class=\"cs-text-center cs-block-error cs-text-error\" style=text-transform:capitalize;\">" + L.failed + "</p>";
       });
     }
   });

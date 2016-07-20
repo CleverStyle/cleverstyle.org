@@ -52,20 +52,16 @@ Polymer(
 		'search_again(search_column, search_mode, search_limit, _initialized)'
 	]
 	ready : !->
-		$.ajax(
-			url		: 'api/System/admin/users'
-			type	: 'search_options'
-			success	: (search_options) !~>
-				search_columns	= []
-				for column in search_options.columns
-					search_columns.push(
-						name		: column
-						selected	: @columns.indexOf(column) != -1
-					)
-				@search_columns	= search_columns
-				@all_columns	= search_options.columns
-				@search_modes	= search_options.modes
-		)
+		cs.api('search_options api/System/admin/users').then (search_options) !~>
+			search_columns	= []
+			for column in search_options.columns
+				search_columns.push(
+					name		: column
+					selected	: @columns.indexOf(column) != -1
+				)
+			@search_columns	= search_columns
+			@all_columns	= search_options.columns
+			@search_modes	= search_options.modes
 	search : !->
 		if @searching || @_initialized == undefined
 			return
@@ -73,23 +69,18 @@ Polymer(
 		searching_timeout	= setTimeout (!~>
 			@searching_loader	= true
 		), 200
-		$.ajax(
-			url			: 'api/System/admin/users'
-			type		: 'search'
-			data		:
-				column	: @search_column
-				mode	: @search_mode
-				text	: @search_text
-				page	: @search_page
-				limit	: @search_limit
-			complete	: (jqXHR, textStatus) !~>
+		cs.api(
+			'search api/System/admin/users'
+			column	: @search_column
+			mode	: @search_mode
+			text	: @search_text
+			page	: @search_page
+			limit	: @search_limit
+		)
+			.then (data) !~>
 				clearTimeout(searching_timeout)
 				@searching			= false
 				@searching_loader	= false
-				if !textStatus
-					@set('users', [])
-					@users_count	= 0
-			success		: (data) !~>
 				@users_count	= data.count
 				if !data.count
 					@set('users', [])
@@ -120,7 +111,12 @@ Polymer(
 						user.type		= L[type]
 						user.type_info	= L[type + '_info']
 				@set('users', data.users)
-		)
+			.catch !~>
+				clearTimeout(searching_timeout)
+				@searching			= false
+				@searching_loader	= false
+				@set('users', [])
+				@users_count	= 0
 	toggle_search_column : (e) !->
 		index			= e.model.index
 		column			= @search_columns[index]
@@ -143,35 +139,41 @@ Polymer(
 	_search_pages : (users_count, search_limit) ->
 		Math.ceil(users_count / search_limit)
 	add_user : !->
-		$(cs.ui.simple_modal("""
+		cs.ui.simple_modal("""
 			<h3>#{L.adding_a_user}</h3>
 			<cs-system-admin-users-add-user-form/>
-		""")).on('close', @~search)
+		""").addEventListener('close', @~search)
 	edit_user : (e) !->
-		$sender	= $(e.currentTarget)
-		index	= $sender.closest('[data-user-index]').data('user-index')
+		data	= e.currentTarget.parentElement
+		while !data.matches('[data-user-index]')
+			data	= data.parentElement
+		index	= data.dataset.user-index
 		user	= @users[index]
 		title	= L.editing_of_user_information(
 			user.username || user.login
 		)
-		$(cs.ui.simple_modal("""
+		cs.ui.simple_modal("""
 			<h2>#{title}</h2>
 			<cs-system-admin-users-edit-user-form user_id="#{user.id}"/>
-		""")).on('close', @~search)
+		""").addEventListener('close', @~search)
 	edit_groups : (e) !->
-		$sender		= $(e.currentTarget)
-		index		= $sender.closest('[data-user-index]').data('user-index')
-		user		= @users[index]
-		title		= L.user_groups(user.username || user.login)
+		data	= e.currentTarget.parentElement
+		while !data.matches('[data-user-index]')
+			data	= data.parentElement
+		index	= data.dataset.user-index
+		user	= @users[index]
+		title	= L.user_groups(user.username || user.login)
 		cs.ui.simple_modal("""
 			<h2>#{title}</h2>
 			<cs-system-admin-users-groups-form user="#{user.id}" for="user"/>
 		""")
 	edit_permissions : (e) !->
-		$sender		= $(e.currentTarget)
-		index		= $sender.closest('[data-user-index]').data('user-index')
-		user		= @users[index]
-		title		= L.permissions_for_user(
+		data	= e.currentTarget.parentElement
+		while !data.matches('[data-user-index]')
+			data	= data.parentElement
+		index	= data.dataset.user-index
+		user	= @users[index]
+		title	= L.permissions_for_user(
 			user.username || user.login
 		)
 		cs.ui.simple_modal("""

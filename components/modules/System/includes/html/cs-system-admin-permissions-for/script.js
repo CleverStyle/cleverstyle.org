@@ -23,7 +23,7 @@
     },
     ready: function(){
       var this$ = this;
-      Promise.all([$.getJSON('api/System/admin/blocks'), $.getJSON('api/System/admin/permissions'), $.getJSON("api/System/admin/" + this['for'] + "s/" + this[this['for']] + "/permissions")]).then(function(arg$){
+      cs.api(['get api/System/admin/blocks', 'get api/System/admin/permissions', "get api/System/admin/" + this['for'] + "s/" + this[this['for']] + "/permissions"]).then(function(arg$){
         var blocks, all_permissions, permissions, block_index_to_title, res$, group, labels, label, id;
         blocks = arg$[0], all_permissions = arg$[1], permissions = arg$[2];
         block_index_to_title = {};
@@ -56,23 +56,45 @@
     },
     save: function(){
       var this$ = this;
-      $.ajax({
-        url: "api/System/admin/" + this['for'] + "s/" + this[this['for']] + "/permissions",
-        data: $(this.$.form).serialize(),
-        type: 'put',
-        success: function(){
-          cs.ui.notify(this$.L.changes_saved, 'success', 5);
-        }
+      cs.api("put api/System/admin/" + this['for'] + "s/" + this[this['for']] + "/permissions", this.$.form).then(function(){
+        cs.ui.notify(this$.L.changes_saved, 'success', 5);
       });
     },
     invert: function(e){
-      $(e.currentTarget).closest('div').find(':radio:not(:checked)[value!=-1]').parent().click();
+      var div, radios, i$, len$, radio;
+      div = e.currentTarget;
+      while (!div.matches('div')) {
+        div = div.parentElement;
+      }
+      radios = Array.prototype.filter.call(div.querySelectorAll("[type=radio]:not([value='-1'])"), function(it){
+        return !it.checked;
+      });
+      for (i$ = 0, len$ = radios.length; i$ < len$; ++i$) {
+        radio = radios[i$];
+        radio.parentElement.click();
+      }
     },
     allow_all: function(e){
-      $(e.currentTarget).closest('div').find(':radio[value=1]').parent().click();
+      var div, i$, ref$, len$, radio;
+      div = e.currentTarget;
+      while (!div.matches('div')) {
+        div = div.parentElement;
+      }
+      for (i$ = 0, len$ = (ref$ = div.querySelectorAll("[type=radio][value='1']")).length; i$ < len$; ++i$) {
+        radio = ref$[i$];
+        radio.parentElement.click();
+      }
     },
     deny_all: function(e){
-      $(e.currentTarget).closest('div').find(':radio[value=0]').parent().click();
+      var div, i$, ref$, len$, radio;
+      div = e.currentTarget;
+      while (!div.matches('div')) {
+        div = div.parentElement;
+      }
+      for (i$ = 0, len$ = (ref$ = div.querySelectorAll("[type=radio][value='0']")).length; i$ < len$; ++i$) {
+        radio = ref$[i$];
+        radio.parentElement.click();
+      }
     },
     permission_state: function(id, expected){
       var permission;

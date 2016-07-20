@@ -20,87 +20,124 @@
       groups: Array
     },
     ready: function(){
-      var $shadowRoot, $search, this$ = this;
+      var x$, this$ = this;
       Promise.all([
-        $.getJSON('api/System/admin/permissions/for_item', {
+        cs.api('get api/System/admin/permissions/for_item', {
           group: this.group,
           label: this.label
-        }), $.getJSON('api/System/admin/groups')
+        }), cs.api('get api/System/admin/groups')
       ]).then(function(arg$){
-        var permissions, groups, user;
-        permissions = arg$[0], groups = arg$[1];
-        this$.permissions = permissions;
-        this$.groups = groups;
+        var ids, user;
+        this$.permissions = arg$[0], this$.groups = arg$[1];
         if (!Object.keys(this$.permissions.users).length) {
           return;
         }
-        $.getJSON('api/System/admin/users', {
-          ids: (function(){
-            var results$ = [];
-            for (user in this.permissions.users) {
-              results$.push(user);
-            }
-            return results$;
-          }.call(this$)).join(',')
-        }, function(users){
+        ids = (function(){
+          var results$ = [];
+          for (user in this.permissions.users) {
+            results$.push(user);
+          }
+          return results$;
+        }.call(this$)).join(',');
+        cs.api('get api/System/admin/users', {
+          ids: ids
+        }).then(function(users){
           this$.set('users', users);
         });
       });
-      $shadowRoot = $(this.shadowRoot);
-      $(this.$.form).submit(function(){
-        return false;
+      this.$.form.addEventListener('submit', function(e){
+        e.preventDefault();
       });
-      $search = $(this.$.search);
-      $search.keyup(function(event){
-        var text;
-        text = $search.val();
-        if (event.which !== 13 || !text) {
+      x$ = this.$.search;
+      x$.addEventListener('keyup', function(e){
+        var search, i$, ref$, len$, row;
+        search = e.target.value;
+        if (e.which !== 13 || !search) {
           return;
         }
-        $shadowRoot.find('tr.changed').removeClass('changed').clone().appendTo(this$.$.users);
+        for (i$ = 0, len$ = (ref$ = this$.shadowRoot.querySelectorAll('tr.changed')).length; i$ < len$; ++i$) {
+          row = ref$[i$];
+          row.classList.remove('changed');
+          this$.$.users.insertAdjacentHTML('beforeend', row.outerHTML);
+        }
         this$.set('found_users', []);
-        $.getJSON('api/System/admin/users', {
-          search: text
-        }, function(found_users){
+        cs.api('get api/System/admin/users', {
+          search: search
+        }).then(function(found_users){
+          var ids;
           found_users = found_users.filter(function(user){
-            return !$shadowRoot.find("[name='users[" + user + "]']").length;
+            return !this$.shadowRoot.querySelector("[name='users[" + user + "]']");
           });
           if (!found_users.length) {
             cs.ui.notify('404 Not Found', 'warning', 5);
             return;
           }
-          $.getJSON('api/System/admin/users', {
-            ids: found_users.join(',')
-          }, function(users){
+          ids = found_users.join(',');
+          cs.api('get api/System/admin/users', {
+            ids: ids
+          }).then(function(users){
             this$.set('found_users', users);
           });
         });
-      }).keydown(function(event){
-        event.which !== 13;
       });
-      $(this.$['search-results']).on('change', ':radio', function(){
-        $(this).closest('tr').addClass('changed');
+      x$.addEventListener('keydown', function(e){
+        if (e.which === 13) {
+          e.preventDefault();
+        }
+      });
+      this.$['search-results'].addEventListener('click', function(e){
+        var tr;
+        if (!e.target.matches('[type=radio]')) {
+          return;
+        }
+        tr = e.target.parentElement;
+        while (!tr.matches('tr')) {
+          tr = tr.parentElement;
+        }
+        tr.classList.add('changed');
       });
     },
     save: function(){
       var this$ = this;
-      $.ajax({
-        url: 'api/System/admin/permissions/for_item',
-        data: $(this.$.form).serialize() + '&label=' + this.label + '&group=' + this.group,
-        type: 'post',
-        success: function(){
-          cs.ui.notify(this$.L.changes_saved, 'success', 5);
-        }
+      cs.api('post api/System/admin/permissions/for_item', this.$.form).then(function(){
+        cs.ui.notify(this$.L.changes_saved, 'success', 5);
       });
     },
     invert: function(e){
-      $(e.currentTarget).closest('div').find(':radio:not(:checked)[value!=-1]').parent().click();
+      var div, radios, i$, len$, radio;
+      div = e.currentTarget;
+      while (!div.matches('div')) {
+        div = div.parentElement;
+      }
+      radios = Array.prototype.filter.call(div.querySelectorAll("[type=radio]:not([value='-1'])"), function(it){
+        return !it.checked;
+      });
+      for (i$ = 0, len$ = radios.length; i$ < len$; ++i$) {
+        radio = radios[i$];
+        radio.parentElement.click();
+      }
     },
     allow_all: function(e){
-      $(e.currentTarget).closest('div').find(':radio[value=1]').parent().click();
+      var div, i$, ref$, len$, radio;
+      div = e.currentTarget;
+      while (!div.matches('div')) {
+        div = div.parentElement;
+      }
+      for (i$ = 0, len$ = (ref$ = div.querySelectorAll("[type=radio][value='1']")).length; i$ < len$; ++i$) {
+        radio = ref$[i$];
+        radio.parentElement.click();
+      }
     },
     deny_all: function(e){
-      $(e.currentTarget).closest('div').find(':radio[value=0]').parent().click();
+      var div, i$, ref$, len$, radio;
+      div = e.currentTarget;
+      while (!div.matches('div')) {
+        div = div.parentElement;
+      }
+      for (i$ = 0, len$ = (ref$ = div.querySelectorAll("[type=radio][value='0']")).length; i$ < len$; ++i$) {
+        radio = ref$[i$];
+        radio.parentElement.click();
+      }
     },
     permission_state: function(type, id, expected){
       var permission;

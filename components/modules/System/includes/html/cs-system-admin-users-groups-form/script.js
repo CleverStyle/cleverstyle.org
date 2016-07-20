@@ -21,18 +21,23 @@
     },
     _reload: function(){
       var this$ = this;
-      Promise.all([$.getJSON('api/System/admin/groups'), $.getJSON("api/System/admin/users/" + this.user + "/groups")]).then(function(arg$){
-        var groups, user_groups_ids, user_groups, other_groups, group;
+      cs.api(['get api/System/admin/groups', "get api/System/admin/users/" + this.user + "/groups"]).then(function(arg$){
+        var groups, user_groups_ids, user_groups, other_groups, normalized_groups, group, i$, len$;
         groups = arg$[0], user_groups_ids = arg$[1];
         user_groups = [];
         other_groups = [];
+        normalized_groups = {};
         for (group in groups) {
           group = groups[group];
           if (user_groups_ids.indexOf(group.id) !== -1) {
-            user_groups.push(group);
+            normalized_groups[group.id] = group;
           } else {
             other_groups.push(group);
           }
+        }
+        for (i$ = 0, len$ = user_groups_ids.length; i$ < len$; ++i$) {
+          group = user_groups_ids[i$];
+          user_groups.push(normalized_groups[group]);
         }
         this$.user_groups = user_groups;
         this$.other_groups = other_groups;
@@ -40,38 +45,42 @@
       });
     },
     _init_sortable: function(){
-      var $shadowRoot, $group;
-      $shadowRoot = $(this.shadowRoot);
-      if ($shadowRoot.find('#user-groups > div:not(:first)').length < this.user_groups.length || $shadowRoot.find('#other-groups > div:not(:first)').length < this.other_groups.length) {
-        setTimeout(this._init_sortable.bind(this), 100);
-        return;
-      }
-      $group = $shadowRoot.find('#user-groups, #other-groups');
-      require(['html5sortable'], function(){
-        var this$ = this;
-        $group.sortable({
+      var this$ = this;
+      require(['html5sortable-no-jquery'], function(html5sortable){
+        if (this$.shadowRoot.querySelectorAll('#user-groups > div:not(:first-child)').length < this$.user_groups.length || this$.shadowRoot.querySelectorAll('#other-groups > div:not(:first-child)').length < this$.other_groups.length) {
+          setTimeout(this$._init_sortable.bind(this$), 100);
+          return;
+        }
+        html5sortable(this$.shadowRoot.querySelectorAll('#user-groups, #other-groups'), {
           connectWith: 'user-groups-list',
-          items: 'div:not(:first)',
+          items: 'div:not(:first-child)',
           placeholder: '<div class="cs-block-primary">'
-        }).on('sortupdate', function(){
-          $(this$.$['user-groups']).children('div:not(:first)').removeClass('cs-block-warning cs-text-warning').addClass('cs-block-success cs-text-success');
-          $(this$.$['other-groups']).children('div:not(:first)').removeClass('cs-block-success cs-text-success').addClass('cs-block-warning cs-text-warning');
+        })[0].addEventListener('sortupdate', function(){
+          var i$, ref$, len$, element, x$, y$;
+          for (i$ = 0, len$ = (ref$ = this$.shadowRoot.querySelectorAll('#user-groups > div:not(:first-child)')).length; i$ < len$; ++i$) {
+            element = ref$[i$];
+            x$ = element.classList;
+            x$.remove('cs-block-warning', 'cs-text-warning');
+            x$.add('cs-block-success', 'cs-text-success');
+          }
+          for (i$ = 0, len$ = (ref$ = this$.shadowRoot.querySelectorAll('#other-groups > div:not(:first-child)')).length; i$ < len$; ++i$) {
+            element = ref$[i$];
+            y$ = element.classList;
+            y$.remove('cs-block-success', 'cs-text-success');
+            y$.add('cs-block-warning', 'cs-text-warning');
+          }
         });
       });
     },
     save: function(){
-      var this$ = this;
-      $.ajax({
-        url: "api/System/admin/users/" + this.user + "/groups",
-        data: {
-          groups: $(this.$['user-groups']).children('div:not(:first)').map(function(){
-            return this.group;
-          }).get()
-        },
-        type: 'put',
-        success: function(){
-          cs.ui.notify(this$.L.changes_saved, 'success', 5);
-        }
+      var groups, this$ = this;
+      groups = [].map.call(this.shadowRoot.querySelectorAll('#user-groups > div:not(:first-child)'), function(it){
+        return it.group;
+      });
+      cs.api("put api/System/admin/users/" + this.user + "/groups", {
+        groups: groups
+      }).then(function(){
+        cs.ui.notify(this$.L.changes_saved, 'success', 5);
       });
     }
   });

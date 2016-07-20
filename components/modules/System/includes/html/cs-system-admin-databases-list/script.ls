@@ -18,28 +18,24 @@ Polymer(
 	ready : !->
 		@reload()
 	reload : !->
-		databases <~! $.getJSON('api/System/admin/databases', _)
-		@set('databases', databases)
+		cs.api('get api/System/admin/databases').then (databases) !~>
+			@set('databases', databases)
 	_add : (e) !->
 		database	= e.model && e.model.database
-		$(cs.ui.simple_modal("""
+		cs.ui.simple_modal("""
 			<h3>#{L.database_addition}</h3>
 			<cs-system-admin-databases-form add database-index="#{database && database.index}"/>
-		""")).on('close', !~>
-			@reload()
-		)
+		""").addEventListener('close', @~reload)
 	_edit : (e) !->
 		# Hack: ugly, but the only way to do it while https://github.com/Polymer/polymer/issues/1865 not resolved
 		database_model	= @$.databases_list.modelForElement(e.target)
 		database		= e.model.database || database_model.database
 		mirror			= e.model.mirror
 		name			= @_database_name(database, mirror)
-		$(cs.ui.simple_modal("""
+		cs.ui.simple_modal("""
 			<h3>#{L.editing_database(name)}</h3>
 			<cs-system-admin-databases-form database-index="#{database.index}" mirror-index="#{mirror && mirror.index}"/>
-		""")).on('close', !~>
-			@reload()
-		)
+		""").addEventListener('close', @~reload)
 	_database_name : (database, mirror) ->
 		if mirror
 			master_db_name = do !~>
@@ -55,22 +51,10 @@ Polymer(
 		database		= e.model.database || database_model.database
 		mirror			= e.model.mirror
 		name			= @_database_name(database, mirror)
-		cs.ui.confirm(
-			L.sure_to_delete(name)
-			!~>
-				$.ajax(
-					url		:
-						'api/System/admin/databases/' + database.index +
-						(
-							if mirror
-								'/' + mirror.index
-							else
-								''
-						)
-					type	: 'delete'
-					success	: !~>
-						cs.ui.notify(L.changes_saved, 'success', 5)
-						@reload()
-				)
-		)
+		suffix			= if mirror then '/' + mirror.index else ''
+		cs.ui.confirm(L.sure_to_delete(name))
+			.then -> cs.api('delete api/System/admin/databases/' + database.index + suffix)
+			.then !~>
+				cs.ui.notify(L.changes_saved, 'success', 5)
+				@reload()
 )

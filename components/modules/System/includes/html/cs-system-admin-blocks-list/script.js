@@ -21,24 +21,24 @@
       this._reload();
     },
     _init_sortable: function(){
-      var $shadowRoot, $group;
-      $shadowRoot = $(this.shadowRoot);
-      if ($shadowRoot.find('[group] > div:not(:first)').length < this.blocks_count) {
-        setTimeout(this._init_sortable.bind(this), 100);
-        return;
-      }
-      $group = $shadowRoot.find('[group]');
-      require(['html5sortable'], function(){
-        $group.sortable({
+      var this$ = this;
+      require(['html5sortable-no-jquery'], function(html5sortable){
+        var group;
+        if (this$.blocks_count === undefined || this$.shadowRoot.querySelectorAll('[group] > div:not(:first-child)').length < this$.blocks_count) {
+          setTimeout(bind$(this$, '_init_sortable'), 100);
+          return;
+        }
+        group = this$.shadowRoot.querySelectorAll('[group]');
+        html5sortable(this$.shadowRoot.querySelectorAll('[group]'), {
           connectWith: 'blocks-list',
-          items: 'div:not(:first)',
-          placeholder: '<div class="cs-block-primary">'
-        }).on('sortupdate', function(){
+          items: 'div:not(:first-child)',
+          placeholder: '<div class="cs-block-primary"/>'
+        })[0].addEventListener('sortupdate', function(){
           var get_indexes, order;
-          get_indexes = function(it){
-            return $group.filter("[group=" + it + "]").children('div:not(:first)').map(function(){
-              return this.index;
-            }).get();
+          get_indexes = function(group){
+            return [].map.call(this$.shadowRoot.querySelectorAll("[group=" + group + "] > div:not(:first-child)"), function(it){
+              return it.index;
+            });
           };
           order = {
             top: get_indexes('top'),
@@ -47,15 +47,10 @@
             right: get_indexes('right'),
             bottom: get_indexes('bottom')
           };
-          $.ajax({
-            url: 'api/System/admin/blocks',
-            type: 'update_order',
-            data: {
-              order: order
-            },
-            success: function(){
-              cs.ui.notify(L.changes_saved, 'success', 5);
-            }
+          cs.api('update_order api/System/admin/blocks', {
+            order: order
+          }).then(function(){
+            cs.ui.notify(L.changes_saved, 'success', 5);
           });
         });
       });
@@ -69,7 +64,7 @@
     },
     _reload: function(){
       var this$ = this;
-      $.getJSON('api/System/admin/blocks', function(blocks){
+      cs.api('get api/System/admin/blocks').then(function(blocks){
         var blocks_grouped, i$, len$, index, block;
         this$.blocks_count = blocks.length;
         blocks_grouped = {
@@ -94,31 +89,24 @@
       cs.ui.simple_modal("<h3>" + title + "</h3>\n<cs-system-admin-permissions-for-item label=\"" + e.model.item.index + "\" group=\"Block\"/>");
     },
     _add_block: function(){
-      var this$ = this;
-      $(cs.ui.simple_modal("<h3>" + L.block_addition + "</h3>\n<cs-system-admin-blocks-form/>")).on('close', function(){
-        this$._reload();
-      });
+      cs.ui.simple_modal("<h3>" + L.block_addition + "</h3>\n<cs-system-admin-blocks-form/>").addEventListener('close', bind$(this, '_reload'));
     },
     _edit_block: function(e){
-      var title, this$ = this;
+      var title;
       title = L.editing_block(e.model.item.title);
-      $(cs.ui.simple_modal("<h3>" + title + "</h3>\n<cs-system-admin-blocks-form index=\"" + e.model.item.index + "\"/>")).on('close', function(){
-        this$._reload();
-      });
+      cs.ui.simple_modal("<h3>" + title + "</h3>\n<cs-system-admin-blocks-form index=\"" + e.model.item.index + "\"/>").addEventListener('close', bind$(this, '_reload'));
     },
     _delete_block: function(e){
-      var title, this$ = this;
-      title = L.sure_to_delete_block(e.model.item.title);
-      cs.ui.confirm("<h3>" + title + "</h3>", function(){
-        $.ajax({
-          url: 'api/System/admin/blocks/' + e.model.item.index,
-          type: 'delete',
-          success: function(){
-            cs.ui.notify(L.changes_saved, 'success', 5);
-            this$._reload();
-          }
-        });
+      var this$ = this;
+      cs.ui.confirm(L.sure_to_delete_block(e.model.item.title)).then(function(){
+        return cs.api('delete api/System/admin/blocks/' + e.model.item.index);
+      }).then(function(){
+        cs.ui.notify(L.changes_saved, 'success', 5);
+        this$._reload();
       });
     }
   });
+  function bind$(obj, key, target){
+    return function(){ return (target || obj)[key].apply(obj, arguments) };
+  }
 }).call(this);

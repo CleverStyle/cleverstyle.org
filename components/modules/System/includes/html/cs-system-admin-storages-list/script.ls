@@ -15,40 +15,30 @@ Polymer(
 	ready : !->
 		@reload()
 	reload : !->
-		storages <~! $.getJSON('api/System/admin/storages', _)
-		@set('storages', storages)
+		cs.api('get api/System/admin/storages').then (storages) !~>
+			@set('storages', storages)
 	_add : !->
-		$(cs.ui.simple_modal("""
+		cs.ui.simple_modal("""
 			<h3>#{L.adding_of_storage}</h3>
 			<cs-system-admin-storages-form add/>
-		""")).on('close', !~>
-			@reload()
-		)
+		""").addEventListener('close', @~reload)
 	_edit : (e) !->
 		# Hack: ugly, but the only way to do it while https://github.com/Polymer/polymer/issues/1865 not resolved
 		storage_model	= @$.storages_list.modelForElement(e.target)
 		storage			= e.model.storage || storage_model.storage
 		name			= storage.host + '/' + storage.connection
-		$(cs.ui.simple_modal("""
+		cs.ui.simple_modal("""
 			<h3>#{L.editing_of_storage(name)}</h3>
 			<cs-system-admin-storages-form storage-index="#{storage.index}"/>
-		""")).on('close', !~>
-			@reload()
-		)
+		""").addEventListener('close', @~reload)
 	_delete : (e) !->
 		# Hack: ugly, but the only way to do it while https://github.com/Polymer/polymer/issues/1865 not resolved
 		storage_model	= @$.storages_list.modelForElement(e.target)
 		storage			= e.model.storage || storage_model.storage
 		name			= storage.host + '/' + storage.connection
-		cs.ui.confirm(
-			L.sure_to_delete(name)
-			!~>
-				$.ajax(
-					url		: 'api/System/admin/storages/' + storage.index
-					type	: 'delete'
-					success	: !~>
-						cs.ui.notify(L.changes_saved, 'success', 5)
-						@reload()
-				)
-		)
+		cs.ui.confirm(L.sure_to_delete(name))
+			.then -> cs.api('delete api/System/admin/storages/' + storage.index)
+			.then !~>
+				cs.ui.notify(L.changes_saved, 'success', 5)
+				@reload()
 )

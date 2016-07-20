@@ -34,12 +34,7 @@
     },
     ready: function(){
       var this$ = this;
-      Promise.all([
-        $.getJSON('api/System/admin/databases'), $.ajax({
-          url: 'api/System/admin/databases',
-          type: 'engines'
-        })
-      ]).then(function(arg$){
+      cs.api(['get		api/System/admin/databases', 'engines	api/System/admin/databases']).then(function(arg$){
         this$.databases = arg$[0], this$.engines = arg$[1];
         if (this$.add) {
           if (!isNaN(this$.databaseIndex)) {
@@ -63,21 +58,11 @@
       });
     },
     _save: function(){
-      $.ajax({
-        url: 'api/System/admin/databases' + (!isNaN(this.databaseIndex) ? '/' + this.databaseIndex + (!isNaN(this.mirrorIndex) ? '/' + this.mirrorIndex : '') : ''),
-        type: this.add ? 'post' : 'patch',
-        data: {
-          mirror: this.database.mirror,
-          host: this.database.host,
-          type: this.database.type,
-          prefix: this.database.prefix,
-          name: this.database.name,
-          user: this.database.user,
-          password: this.database.password
-        },
-        success: function(){
-          cs.ui.notify(L.changes_saved, 'success', 5);
-        }
+      var method, suffix;
+      method = this.add ? 'post' : 'patch';
+      suffix = !isNaN(this.databaseIndex) ? '/' + this.databaseIndex + (!isNaN(this.mirrorIndex) ? '/' + this.mirrorIndex : '') : '';
+      cs.api(method + " api/System/admin/databases" + suffix, this.database).then(function(){
+        cs.ui.notify(L.changes_saved, 'success', 5);
       });
     },
     _db_name: function(index, host, name){
@@ -88,18 +73,13 @@
       }
     },
     _test_connection: function(e){
-      var $modal;
-      $modal = $(cs.ui.simple_modal("<div>\n	<h3 class=\"cs-text-center\">" + L.test_connection + "</h3>\n	<progress is=\"cs-progress\" infinite></progress>\n</div>"));
-      $.ajax({
-        url: 'api/System/admin/databases',
-        data: this.database,
-        type: 'test',
-        success: function(result){
-          $modal.find('progress').replaceWith("<p class=\"cs-text-center cs-block-success cs-text-success\" style=text-transform:capitalize;\">" + L.success + "</p>");
-        },
-        error: function(){
-          $modal.find('progress').replaceWith("<p class=\"cs-text-center cs-block-error cs-text-error\" style=text-transform:capitalize;\">" + L.failed + "</p>");
-        }
+      var modal;
+      modal = cs.ui.simple_modal("<div>\n	<h3 class=\"cs-text-center\">" + L.test_connection + "</h3>\n	<progress is=\"cs-progress\" infinite></progress>\n</div>");
+      cs.api('test api/System/admin/databases', this.database).then(function(){
+        modal.querySelector('progress').outerHTML = "<p class=\"cs-text-center cs-block-success cs-text-success\" style=text-transform:capitalize;\">" + L.success + "</p>";
+      })['catch'](function(o){
+        clearTimeout(o.timeout);
+        modal.querySelector('progress').outerHTML = "<p class=\"cs-text-center cs-block-error cs-text-error\" style=text-transform:capitalize;\">" + L.failed + "</p>";
       });
     }
   });

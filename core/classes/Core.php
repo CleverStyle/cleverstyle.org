@@ -48,7 +48,7 @@ class Core {
 	 */
 	protected function construct () {
 		$this->config = $this->load_config();
-		include_once DIR.'/config/main.php';
+		require DIR.'/config/main.php';
 		$this->constructed = true;
 	}
 	/**

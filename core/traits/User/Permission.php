@@ -58,10 +58,13 @@ trait Permission {
 		if (!$user || ($admin_section && !$this->admin())) {
 			return false;
 		}
-		$all_permission = Cache::instance()->{'permissions/all'} ?: System_Permission::instance()->get_all();
-		if (isset($all_permission[$group][$label])) {
+		$all_permissions = Cache::instance()->get('permissions/all');
+		if ($all_permissions === false) {
+			$all_permissions = System_Permission::instance()->get_all();
+		}
+		if (isset($all_permissions[$group][$label])) {
 			$user_permissions = $this->get_permission_internal($user);
-			$permission_id    = $all_permission[$group][$label];
+			$permission_id    = $all_permissions[$group][$label];
 			return isset($user_permissions[$permission_id]) ? (bool)$user_permissions[$permission_id] : !$admin_section;
 		}
 		return true;
@@ -72,23 +75,27 @@ trait Permission {
 	 * @return array
 	 */
 	protected function get_permission_internal ($user) {
-		if (!isset($this->permissions[$user])) {
-			$this->permissions[$user] = $this->cache->get(
-				"permissions/$user",
-				function () use ($user) {
-					$permissions = [];
-					if ($user != User::GUEST_ID) {
-						$Group = System_Group::instance();
-						foreach ($this->get_groups($user) ?: [] as $group_id) {
-							$permissions = $Group->get_permissions($group_id) ?: [] + $permissions;
-						}
-					}
-					$permissions = $this->get_permissions($user) ?: [] + $permissions;
-					return $permissions;
-				}
-			);
+		if (isset($this->permissions[$user])) {
+			return $this->permissions[$user];
 		}
-		return $this->permissions[$user];
+		$permissions = $this->cache->get(
+			"permissions/computed/$user",
+			function () use ($user) {
+				$permissions = [];
+				if ($user != User::GUEST_ID) {
+					$Group = System_Group::instance();
+					foreach ($this->get_groups($user) ?: [] as $group_id) {
+						$permissions = ($Group->get_permissions($group_id) ?: []) + $permissions;
+					}
+				}
+				$permissions = ($this->get_permissions($user) ?: []) + $permissions;
+				return $permissions;
+			}
+		);
+		if ($this->memory_cache || $user == User::GUEST_ID) {
+			$this->permissions[$user] = $permissions;
+		}
+		return $permissions;
 	}
 	/**
 	 * Set permission state for specified user
@@ -105,7 +112,7 @@ trait Permission {
 		if ($permission) {
 			return $this->set_permissions(
 				[
-					$permission['id'] => $value
+					$permission[0]['id'] => $value
 				],
 				$user
 			);
@@ -133,7 +140,7 @@ trait Permission {
 	 */
 	function get_permissions ($user = false) {
 		$user = (int)$user ?: $this->id;
-		if (!$user) {
+		if ($user == User::ROOT_ID || !$user) {
 			return false;
 		}
 		return $this->get_any_permissions($user, 'user');
@@ -148,10 +155,13 @@ trait Permission {
 	 */
 	function set_permissions ($data, $user = false) {
 		$user = (int)$user ?: $this->id;
-		if (!$user) {
+		if ($user == User::ROOT_ID || !$user) {
 			return false;
 		}
-		return $this->set_any_permissions($data, $user, 'user');
+		$result = $this->set_any_permissions($data, $user, 'user');
+		$this->cache->del("permissions/computed/$user");
+		unset($this->permissions[$user]);
+		return $result;
 	}
 	/**
 	 * Delete all user's permissions
@@ -162,9 +172,12 @@ trait Permission {
 	 */
 	function del_permissions_all ($user = false) {
 		$user = (int)$user ?: $this->id;
-		if (!$user) {
+		if ($user == User::ROOT_ID || !$user) {
 			return false;
 		}
-		return $this->del_any_permissions_all($user, 'user');
+		$result = $this->del_any_permissions_all($user, 'user');
+		$this->cache->del("permissions/computed/$user");
+		unset($this->permissions[$user]);
+		return $result;
 	}
 }
