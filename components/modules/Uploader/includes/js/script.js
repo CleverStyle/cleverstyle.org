@@ -7,26 +7,37 @@
  * @license   MIT License, see license.txt
  */
 (function(){
-  var L, uploader, files_handler;
+  var L, uploader, files_handler, _on, _off;
   L = cs.Language('uploader_');
   uploader = function(file, progress, state){
-    var form_data;
-    form_data = new FormData;
-    form_data.append('file', file);
-    return state.ajax = $.ajax({
-      url: 'api/Uploader',
-      type: 'post',
-      data: form_data,
-      xhrFields: {
-        onprogress: function(e){
-          if (typeof progress == 'function') {
-            progress(e, file);
-          }
+    return new Promise(function(resolve, reject){
+      var form_data, xhr;
+      form_data = new FormData;
+      form_data.append('file', file);
+      xhr = new XMLHttpRequest();
+      state.xhr = xhr;
+      xhr.onload = function(){
+        var data;
+        data = JSON.parse(this.responseText);
+        if (this.status >= 400) {
+          reject(data);
+        } else {
+          resolve(data);
         }
-      },
-      processData: false,
-      contentType: false,
-      error: function(){}
+      };
+      xhr.onerror = function(){
+        reject({
+          timeout: timeout,
+          xhr: xhr
+        });
+      };
+      xhr.onprogress = function(e){
+        if (typeof progress == 'function') {
+          progress(e, file);
+        }
+      };
+      xhr.open('post'.toUpperCase(), 'api/Uploader');
+      xhr.send(form_data);
     });
   };
   files_handler = function(files, success, error, progress, state){
@@ -40,12 +51,12 @@
       file = files.shift();
       if (file) {
         uploader(file, progress, state).then(function(data){
-          return next_upload(data.url);
+          next_upload(data.url);
         })['catch'](function(e){
           if (error) {
-            error.call(error, L.file_uploading_failed(file.name, e.responseJSON.error_description), e, file);
+            error.call(error, L.file_uploading_failed(file.name, e.error_description), state.xhr, file);
           } else {
-            cs.ui.notify(L.file_uploading_failed(file.name, e.responseJSON.error_description), 'error');
+            cs.ui.notify(L.file_uploading_failed(file.name, e.error_description), 'error');
           }
           next_upload();
         });
@@ -58,6 +69,20 @@
       }
     };
     next_upload();
+  };
+  _on = function(element, event, callback){
+    if (element.addEventListener) {
+      element.addEventListener(event, callback);
+    } else if (element.on) {
+      element.on(event, callback);
+    }
+  };
+  _off = function(element, event, callback){
+    if (element.removeEventListener) {
+      element.removeEventListener(event, callback);
+    } else if (element.off) {
+      element.off(event, callback);
+    }
   };
   /**
    * Files uploading interface
@@ -72,7 +97,7 @@
    * @return {function}
    */
   cs.file_upload = function(button, success, error, progress, multi, drop_element){
-    var state, local_files_handler, x$, input;
+    var state, local_files_handler, x$, input, click, dragover, drop;
     if (!success) {
       return;
     }
@@ -114,43 +139,45 @@
         local_files_handler(this.files);
       }
     });
-    $(button).on('click.cs-uploader', bind$(input, 'click'));
-    if (drop_element) {
-      $(drop_element).on('dragover.cs-uploader', function(e){
-        e.preventDefault();
-      }).on('drop.cs-uploader', function(e){
-        var files;
-        e.preventDefault();
-        files = e.originalEvent.dataTransfer.files;
-        if (files) {
-          if (multi) {
-            local_files_handler(files);
-          } else {
-            local_files_handler([files[0]]);
-          }
+    click = input.click.bind(input);
+    _on(button, 'click', click);
+    dragover = function(e){
+      e.preventDefault();
+    };
+    drop = function(e){
+      var files;
+      e.preventDefault();
+      files = e.originalEvent.dataTransfer.files;
+      if (files) {
+        if (multi) {
+          local_files_handler(files);
+        } else {
+          local_files_handler([files[0]]);
         }
-      });
+      }
+    };
+    if (drop_element) {
+      _on(drop_element, 'dragover', dragover);
+      _on(drop_element, 'drop', drop);
     }
     return {
       stop: function(){
         var ref$;
-        return state != null ? (ref$ = state.ajax) != null ? ref$.abort() : void 8 : void 8;
+        return state != null ? (ref$ = state.xhr) != null ? ref$.abort() : void 8 : void 8;
       },
       destroy: function(){
         var ref$;
         if (state != null) {
-          if ((ref$ = state.ajax) != null) {
+          if ((ref$ = state.xhr) != null) {
             ref$.abort();
           }
         }
-        $(button).off('click.cs-uploader');
+        _off(button, 'click', click);
         if (drop_element) {
-          return $(drop_element).off('dragover.cs-uploader').off('drop.cs-uploader');
+          _off(drop_element, 'dragover', dragover);
+          return _off(drop_element, 'drop', drop);
         }
       }
     };
   };
-  function bind$(obj, key, target){
-    return function(){ return (target || obj)[key].apply(obj, arguments) };
-  }
 }).call(this);
