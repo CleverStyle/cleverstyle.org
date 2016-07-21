@@ -1,6 +1,7 @@
 AddDefaultCharset utf-8
 Options -Indexes -Multiviews +FollowSymLinks
 IndexIgnore *.php *.pl *.cgi *.htaccess *.htpasswd
+FileETag None
 
 RewriteEngine On
 RewriteBase /
@@ -10,15 +11,6 @@ RewriteBase /
 </FilesMatch>
 <FilesMatch "\.(css|js|gif|jpg|jpeg|png|ico|svg|svgz|ttc|ttf|otf|woff|woff2|eot)$">
 	RewriteEngine Off
-</FilesMatch>
-<FilesMatch "\.(css|js|gif|jpg|jpeg|png|ico|svg|svgz|ttc|ttf|otf|woff|woff2|eot|html)$">
-	<ifModule mod_expires.c>
-		ExpiresActive On
-		ExpiresDefault "access plus 1 month"
-	</ifModule>
-	<ifModule mod_headers.c>
-		Header set Cache-Control "max-age=2592000, public"
-	</ifModule>
 </FilesMatch>
 <FilesMatch "\.(css|js|gif|jpg|jpeg|png|ico|svg|svgz|ttc|ttf|otf|woff|woff2|eot|html)$">
 	<ifModule mod_expires.c>
