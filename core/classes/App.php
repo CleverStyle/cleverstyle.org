@@ -17,8 +17,6 @@ use
  *      'blocks_array'    => &$blocks_array //Reference to array in form ['top' => '', 'left' => '', 'right' => '', 'bottom' => '']
  *  ]
  *
- *  System/App/construct
- *
  *  System/App/render/before
  *
  *  System/App/execute_router/before
@@ -40,7 +38,7 @@ class App {
 		$this->init_router();
 	}
 	/**
-	 * Executes plugins processing, blocks and module page generation
+	 * Executes blocks and module page generation
 	 *
 	 * @throws ExitException
 	 */
@@ -53,13 +51,6 @@ class App {
 		$this->handle_closed_site(!$Config->core['site_mode'], $Request);
 		if (!$this->check_permission($Request, 'index')) {
 			throw new ExitException(403);
-		}
-		Event::instance()->fire('System/App/construct');
-		/**
-		 * Plugins processing
-		 */
-		foreach ($Config->components['plugins'] as $plugin) {
-			_include(PLUGINS."/$plugin/index.php", false, false);
 		}
 		Event::instance()->fire('System/App/render/before');
 		$this->render($Request);
@@ -136,10 +127,10 @@ class App {
 	 * @throws ExitException
 	 */
 	protected function render ($Request) {
-		if ($Request->cli_path || $Request->api_path) {
+		$Page = Page::instance();
+		if ($Request->cli_path || $Request->api_path || !$Page->interface) {
 			$this->execute_router($Request);
 		} else {
-			$Page = Page::instance();
 			$this->render_title($Request, $Page);
 			$this->execute_router($Request);
 			$this->render_blocks($Page);
@@ -222,34 +213,13 @@ class App {
 					$block['content'] = $this->ml_process($block['content']);
 					break;
 			}
-			/**
-			 * Template file will have access to `$block` variable, so it can use that
-			 */
-			$content = str_replace(
-				[
-					'<!--id-->',
-					'<!--title-->',
-					'<!--content-->'
-				],
-				[
-					$block['index'],
-					$block['title'],
-					$block['content']
-				],
-				ob_wrapper(
-					function () use ($block) {
-						$template = file_exists(TEMPLATES."/blocks/block.$block[template]") ? $block['template'] : 'default.html';
-						include TEMPLATES."/blocks/block.$template";
-					}
-				)
-			);
 			if ($block['position'] == 'floating') {
 				$Page->replace(
 					"<!--block#$block[index]-->",
-					$content
+					$block['content']
 				);
 			} else {
-				$blocks_array[$block['position']] .= $content;
+				$blocks_array[$block['position']] .= $block['content'];
 			}
 		}
 		$Page->Top .= $blocks_array['top'];

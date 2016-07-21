@@ -11,14 +11,20 @@ use
 	cs\Event,
 	cs\ExitException,
 	cs\Language,
+	cs\Request\Route\Static_files,
 	cs\Response;
 
 /**
+ * @property bool   $cli
  * @property string $scheme
  * @property string $host
  * @property string $path
+ *
+ * @method string header(string $name)
  */
 trait Route {
+	use
+		Static_files;
 	/**
 	 * Current mirror according to configuration
 	 *
@@ -85,6 +91,10 @@ trait Route {
 	 * @throws ExitException
 	 */
 	function init_route () {
+		/**
+		 * Serve static files here for early exit
+		 */
+		$this->serve_static_files();
 		$this->mirror_index    = -1;
 		$this->path_normalized = '';
 		$this->route           = [];
@@ -160,16 +170,16 @@ trait Route {
 	 */
 	function analyze_route_path ($path) {
 		$rc = trim($path, '/');
-		if (Language::instance()->url_language($rc)) {
-			$rc = explode('/', $rc, 2);
-			$rc = isset($rc[1]) ? $rc[1] : '';
-		}
 		Event::instance()->fire(
-			'System/Request/routing_replace',
+			'System/Request/routing_replace/before',
 			[
 				'rc' => &$rc
 			]
 		);
+		if (Language::instance()->url_language($rc)) {
+			$rc = explode('/', $rc, 2);
+			$rc = isset($rc[1]) ? $rc[1] : '';
+		}
 		/**
 		 * Obtaining page path in form of array
 		 */
@@ -181,7 +191,7 @@ trait Route {
 		/**
 		 * If url is cli, admin or API page - set corresponding variables to corresponding path prefix
 		 */
-		if (@mb_strtolower($rc[0]) == 'cli') {
+		if ($this->cli && @mb_strtolower($rc[0]) == 'cli') {
 			$cli_path = 'cli/';
 			array_shift($rc);
 		} elseif (@mb_strtolower($rc[0]) == 'admin') {
@@ -195,10 +205,23 @@ trait Route {
 		 * Module detection
 		 */
 		$current_module = $this->determine_page_module($rc, $home_page, $cli_path, $admin_path, $api_path);
+		$rc             = implode('/', $rc);
+		Event::instance()->fire(
+			'System/Request/routing_replace/after',
+			[
+				'rc'             => &$rc,
+				'cli_path'       => &$cli_path,
+				'admin_path'     => &$admin_path,
+				'api_path'       => &$api_path,
+				'regular_path'   => !($cli_path || $admin_path || $api_path),
+				'current_module' => &$current_module,
+				'home_page'      => &$home_page
+			]
+		);
 		return [
-			'route'           => $rc,
+			'route'           => explode('/', $rc),
 			'path_normalized' => trim(
-				$cli_path.$admin_path.$api_path.$current_module.'/'.implode('/', $rc),
+				"$cli_path$admin_path$api_path$current_module/$rc",
 				'/'
 			),
 			'cli_path'        => (bool)$cli_path,
@@ -270,7 +293,7 @@ trait Route {
 	protected function determine_page_module (&$rc, &$home_page, $cli_path, $admin_path, $api_path) {
 		$Config           = Config::instance();
 		$modules          = $this->get_modules($Config, (bool)$admin_path);
-		$module_specified = isset($rc[0]);
+		$module_specified = @$rc[0];
 		if ($module_specified) {
 			if (in_array($module_specified, $modules)) {
 				return array_shift($rc);

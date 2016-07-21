@@ -57,15 +57,22 @@ trait Data_and_files {
 		if (is_resource($this->data_stream)) {
 			fclose($this->data_stream);
 		}
-		$this->data  = $data;
-		$this->files = $this->normalize_files($files);
+		$this->data        = $data;
+		$this->files       = $this->normalize_files($files);
+		$this->data_stream = null;
+		if (in_array($this->method, ['GET', 'HEAD', 'OPTIONS'])) {
+			return;
+		}
 		$data_stream = is_string($data_stream) ? fopen($data_stream, 'rb') : $data_stream;
-		if ($copy_stream && is_resource($data_stream)) {
-			$this->data_stream = fopen('php://temp', 'w+b');
-			stream_copy_to_stream($data_stream, $this->data_stream);
-			fclose($data_stream);
-		} else {
-			$this->data_stream = $data_stream;
+		if (is_resource($data_stream)) {
+			rewind($data_stream);
+			if ($copy_stream) {
+				$this->data_stream = fopen('php://temp', 'w+b');
+				stream_copy_to_stream($data_stream, $this->data_stream);
+				fclose($data_stream);
+			} else {
+				$this->data_stream = $data_stream;
+			}
 		}
 		/**
 		 * If we don't appear to have any data or files detected - probably, we need to parse request ourselves
@@ -139,7 +146,7 @@ trait Data_and_files {
 						'stream'   => @$files['stream'][$index],
 						'error'    => $files['error'][$index]
 					],
-					$file_path
+					"$file_path/$index"
 				);
 			}
 			return $result;
@@ -273,7 +280,7 @@ trait Data_and_files {
 		 * Last boundary after all parts ends with '--' and we don't care what rubbish happens after it
 		 */
 		$post_max_size = $this->post_max_size();
-		if (0 !== strpos($body, '--')) {
+		if (strpos($body, '--') !== 0) {
 			return false;
 		}
 		/**
@@ -312,7 +319,7 @@ trait Data_and_files {
 					'stream' => Stream_slicer::slice($stream, $part['body']['offset'], $part['body']['size']),
 					'error'  => UPLOAD_ERR_OK
 				];
-				if ($headers['content-disposition']['filename'] === '') {
+				if ($file['name'] === '') {
 					$file['type']   = '';
 					$file['stream'] = null;
 					$file['error']  = UPLOAD_ERR_NO_FILE;
@@ -403,7 +410,7 @@ trait Data_and_files {
 		$headers = [];
 		foreach (explode("\r\n", $content) as $header) {
 			list($name, $value) = explode(':', $header, 2);
-			if (!preg_match_all('/(.+)(?:="*?(.*)"?)?(?:;\s|$)/U', $value, $matches)) {
+			if (!preg_match_all('/(.+)(?:="?([^"]*)"?)?(?:;\s|$)/U', $value, $matches)) {
 				continue;
 			}
 			$name           = strtolower($name);
@@ -416,7 +423,7 @@ trait Data_and_files {
 				}
 			}
 			if (count($headers[$name]) == 1) {
-				$headers[$name] = $headers[$name][0];
+				$headers[$name] = @$headers[$name][0];
 			}
 		}
 		return $headers;

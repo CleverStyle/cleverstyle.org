@@ -1,0 +1,7 @@
+{
+	"admin/System" : [
+		"behaviors.js",
+		"navigation.js",
+		"cs-system-admin-*"
+	]
+}

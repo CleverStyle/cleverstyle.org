@@ -92,7 +92,7 @@ abstract class _Abstract {
 	 * @param string[]        $param  if <b>$params</b> is string - this parameter will be second argument for formatting of <b>$query</b>.
 	 *                                If you need more arguments - add them after this one, function will accept them.
 	 *
-	 * @return false|object|resource
+	 * @return bool|object|resource
 	 */
 	function q ($query, $params = [], ...$param) {
 		$normalized = $this->prepare_and_normalize_arguments($query, func_get_args());
@@ -142,7 +142,7 @@ abstract class _Abstract {
 	 * @param string[] $queries
 	 * @param string[] $params
 	 *
-	 * @return false|object|resource
+	 * @return bool
 	 */
 	protected function execute_multiple ($queries, $params) {
 		$time_from = microtime(true);
@@ -193,7 +193,7 @@ abstract class _Abstract {
 	 *
 	 * @param string[] $query
 	 *
-	 * @return false|object|resource
+	 * @return bool
 	 */
 	abstract protected function q_multi_internal ($query);
 	/**

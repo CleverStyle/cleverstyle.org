@@ -1,0 +1,30 @@
+/**
+ * @package   CleverStyleOrg
+ * @category  modules
+ * @author    Nazar Mokrynskyi <nazar@mokrynskyi.com>
+ * @copyright Copyright (c) 2016, Nazar Mokrynskyi
+ * @license   MIT License, see license.txt
+ */
+.cs-blocks-last-posts > article {
+	& + article {
+		border-top  : 1px solid #2e2e2e;
+		margin-top  : 1.5em;
+		padding-top : 1em;
+	}
+
+	h3 {
+		margin-bottom : 0;
+	}
+}
+
+html /deep/ {
+	:not(pre) > code[class*="language-"],
+	pre[class*="language-"] {
+		background : #262626 !important;
+	}
+
+	code[class*="language-"],
+	pre[class*="language-"] {
+		font-family : "DejaVu Sans Mono", "Monaco", "Courier New", monospace !important;
+	}
+}

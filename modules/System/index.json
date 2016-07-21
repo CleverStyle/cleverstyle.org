@@ -1,0 +1,8 @@
+{
+	"blank"			: [],
+	"profile"		: [
+		"registration_confirmation",
+		"restore_password_confirmation"
+	],
+	"robots.txt"	: []
+}

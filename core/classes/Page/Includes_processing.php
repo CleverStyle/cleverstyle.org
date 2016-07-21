@@ -64,10 +64,6 @@ class Includes_processing {
 		 */
 		$data = preg_replace('/;+/m', ';', $data);
 		/**
-		 * Minify repeated colors declarations
-		 */
-		$data = preg_replace('/#([0-9a-f])\1([0-9a-f])\2([0-9a-f])\3/i', '#$1$2$3', $data);
-		/**
 		 * Minify rgb colors declarations
 		 */
 		$data = preg_replace_callback(
@@ -83,39 +79,49 @@ class Includes_processing {
 			$data
 		);
 		/**
+		 * Minify repeated colors declarations
+		 */
+		$data = preg_replace('/#([0-9a-f])\1([0-9a-f])\2([0-9a-f])\3/i', '#$1$2$3', $data);
+		/**
 		 * Remove unnecessary zeros
 		 */
 		$data = preg_replace('/(\D)0\.(\d+)/i', '$1.$2', $data);
 		/**
+		 * Unnecessary spaces around colons (should have whitespace character after, otherwise might be `.c :disabled` and will be handled incorrectly)
+		 */
+		$data = preg_replace('/\s*:\s+/', ':', $data);
+		/**
 		 * Includes processing
 		 */
 		$data = preg_replace_callback(
-			'/url\((.*?)\)|@import[\s\t\n\r]*[\'"](.*?)[\'"]/',
+			'/url\((.*?)\)|@import\s*[\'"](.*?)[\'"]\s*;/',
 			function ($match) use ($dir, &$not_embedded_resources) {
-				$link = trim($match[1], '\'" ');
-				$link = explode('?', $link, 2)[0];
+				$path = @$match[2] ?: $match[1];
+				$path = trim($path, '\'" ');
+				$link = explode('?', $path, 2)[0];
 				if (!static::is_relative_path_and_exists($link, $dir)) {
 					return $match[0];
 				}
-				$content   = file_get_contents("$dir/$link");
 				$extension = file_extension($link);
-				if (!isset(static::$extension_to_mime[$extension]) || filesize("$dir/$link") > static::MAX_EMBEDDING_SIZE) {
-					$path_relatively_to_the_root = str_replace(getcwd(), '', realpath("$dir/$link"));
-					$path_relatively_to_the_root .= '?'.substr(md5($content), 0, 5);
-					if (strpos($match[1], '?') === false) {
-						$not_embedded_resources[] = $path_relatively_to_the_root;
-					}
-					return str_replace($match[1], "'".str_replace("'", "\\'", $path_relatively_to_the_root)."'", $match[0]);
-				}
 				if ($extension == 'css') {
 					/**
 					 * For recursive includes processing, if CSS file includes others CSS files
+					 * TODO: Support for `@import` with media queries
 					 */
-					$content = static::css($content, $link, $not_embedded_resources);
+					return static::css(file_get_contents("$dir/$link"), "$dir/$link", $not_embedded_resources);
+				}
+				$content = file_get_contents("$dir/$link");
+				if (!isset(static::$extension_to_mime[$extension]) || filesize("$dir/$link") > static::MAX_EMBEDDING_SIZE) {
+					$path_relatively_to_the_root = str_replace(getcwd(), '', realpath("$dir/$link"));
+					$path_relatively_to_the_root .= '?'.substr(md5($content), 0, 5);
+					if (strpos($path, '?') === false) {
+						$not_embedded_resources[] = $path_relatively_to_the_root;
+					}
+					return str_replace($path, "'".str_replace("'", "\\'", $path_relatively_to_the_root)."'", $match[0]);
 				}
 				$mime_type = static::$extension_to_mime[$extension];
 				$content   = base64_encode($content);
-				return str_replace($match[1], "data:$mime_type;charset=utf-8;base64,$content", $match[0]);
+				return str_replace($path, "data:$mime_type;charset=utf-8;base64,$content", $match[0]);
 			},
 			$data
 		);
@@ -211,8 +217,8 @@ class Includes_processing {
 	 * @return string
 	 */
 	static function html ($data, $file, $base_target_file_path, $vulcanization, &$not_embedded_resources = []) {
-		static::html_process_scripts($data, $file, $base_target_file_path, $vulcanization, $not_embedded_resources);
 		static::html_process_links_and_styles($data, $file, $base_target_file_path, $vulcanization, $not_embedded_resources);
+		static::html_process_scripts($data, $file, $base_target_file_path, $vulcanization, $not_embedded_resources);
 		// Removing HTML comments (those that are mostly likely comments, to avoid problems)
 		$data = preg_replace_callback(
 			'/^\s*<!--([^>-].*[^-])?-->/Ums',
@@ -267,11 +273,7 @@ class Includes_processing {
 			 * md5 to distinguish modifications of the files
 			 */
 			$content_md5 = substr(md5($scripts_content), 0, 5);
-			file_put_contents(
-				"$base_target_file_path.js",
-				gzencode($scripts_content, 9),
-				LOCK_EX | FILE_BINARY
-			);
+			file_put_contents("$base_target_file_path.js", $scripts_content, LOCK_EX | FILE_BINARY);
 			$base_target_file_name = basename($base_target_file_path);
 			// Add script with combined content file to the end
 			$data .= "<script src=\"$base_target_file_name.js?$content_md5\"></script>";
@@ -296,9 +298,7 @@ class Includes_processing {
 		if (!preg_match_all('/<link(.*)>|<style(.*)<\/style>/Uims', $data, $links_and_styles)) {
 			return;
 		}
-		$imports_content             = '';
-		$links_and_styles_to_replace = [];
-		$dir                         = dirname($file);
+		$dir = dirname($file);
 		foreach ($links_and_styles[1] as $index => $link) {
 			/**
 			 * Check for custom styles `is="custom-style"` or styles includes `include=".."` - we'll skip them
@@ -344,21 +344,19 @@ class Includes_processing {
 				/**
 				 * If content is HTML import
 				 */
-				$links_and_styles_to_replace[] = $links_and_styles[0][$index];
-				$imports_content .= static::html(
-					file_get_contents("$dir/$url"),
-					"$dir/$url",
-					"$base_target_file_path-".basename($url, '.html'),
-					$vulcanization,
-					$not_embedded_resources
+				$data = str_replace(
+					$links_and_styles[0][$index],
+					static::html(
+						file_get_contents("$dir/$url"),
+						"$dir/$url",
+						"$base_target_file_path-".basename($url, '.html'),
+						$vulcanization,
+						$not_embedded_resources
+					),
+					$data
 				);
 			}
 		}
-		if (!$links_and_styles_to_replace) {
-			return;
-		}
-		// Add imports to the end
-		$data .= $imports_content;
 	}
 	/**
 	 * @param string $link

@@ -1,0 +1,36 @@
+{
+	"admin"     : {
+		"about_server" : [],
+		"blocks"       : [],
+		"databases"    : [],
+		"groups"       : [
+			"_",
+			"permissions"
+		],
+		"languages"    : [],
+		"mail"         : [],
+		"modules"      : [],
+		"optimization" : [],
+		"permissions"  : [
+			"_",
+			"for_item"
+		],
+		"security"     : [],
+		"site_info"    : [],
+		"storages"     : [],
+		"system"       : [],
+		"themes"       : [],
+		"upload"       : [],
+		"users"        : [
+			"_",
+			"general",
+			"groups",
+			"permissions"
+		]
+	},
+	"blank"     : [],
+	"languages" : [],
+	"profile"   : [],
+	"profiles"  : [],
+	"timezones" : []
+}

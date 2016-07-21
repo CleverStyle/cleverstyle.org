@@ -1,0 +1,22 @@
+{
+	"components"	: [
+		"modules",
+		"blocks"
+	],
+	"general"		: [
+		"site_info",
+		"system",
+		"optimization",
+		"appearance",
+		"languages",
+		"about_server"
+	],
+	"users"			: [
+		"general",
+		"users",
+		"groups",
+		"permissions",
+		"security",
+		"mail"
+	]
+}

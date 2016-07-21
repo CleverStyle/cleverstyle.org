@@ -16,13 +16,10 @@ chdir(DIR);
 /**
  * Defining of basic constants with paths to system directories
  */
-defined('ENGINES') || define('ENGINES', DIR.'/core/engines'); // Deprecated, TODO: remove in 5.x
 defined('LANGUAGES') || define('LANGUAGES', DIR.'/core/languages');
 defined('CUSTOM') || define('CUSTOM', DIR.'/custom');
-defined('TEMPLATES') || define('TEMPLATES', DIR.'/templates');
-defined('BLOCKS') || define('BLOCKS', DIR.'/components/blocks');
-defined('MODULES') || define('MODULES', DIR.'/components/modules');
-defined('PLUGINS') || define('PLUGINS', DIR.'/components/plugins');
+defined('BLOCKS') || define('BLOCKS', DIR.'/blocks');
+defined('MODULES') || define('MODULES', DIR.'/modules');
 defined('STORAGE') || define('STORAGE', DIR.'/storage');
 defined('PUBLIC_STORAGE') || define('PUBLIC_STORAGE', STORAGE.'/public');
 defined('CACHE') || define('CACHE', STORAGE.'/cache');
@@ -50,84 +47,16 @@ error_reporting(E_ALL);
  */
 stream_wrapper_register('request-file', cs\Request\File_stream::class);
 /**
- * Stream wrapper for PSR7 interface
- */
-stream_wrapper_register('request-psr7-data', cs\Request\Psr7_data_stream::class);
-/**
  * Hack: HHVM doesn't have ENT_DISALLOWED constant unfortunately, remove when https://github.com/facebook/hhvm/issues/4938 resolved
  */
 defined('ENT_DISALLOWED') || define('ENT_DISALLOWED', 128);
-
-if (!is_dir(PUBLIC_STORAGE)) {
-	/** @noinspection MkdirRaceConditionInspection */
-	@mkdir(PUBLIC_STORAGE, 0775, true);
-}
-if (!file_exists(PUBLIC_STORAGE.'/.htaccess')) {
-	file_put_contents(
-		PUBLIC_STORAGE.'/.htaccess',
-		/** @lang ApacheConfig */
-		<<<HTACCESS
-Allow From All
-<ifModule mod_expires.c>
-	ExpiresActive On
-	ExpiresDefault "access plus 1 year"
-</ifModule>
-<ifModule mod_headers.c>
-	Header set Cache-Control "max-age=946080000, public"
-	Header always append X-Frame-Options DENY
-	Header set Content-Type application/octet-stream
-</ifModule>
-
-HTACCESS
-	);
-}
 if (!is_dir(CACHE)) {
 	/** @noinspection MkdirRaceConditionInspection */
-	@mkdir(CACHE, 0770);
-}
-if (!is_dir(PUBLIC_CACHE)) {
-	/** @noinspection MkdirRaceConditionInspection */
-	@mkdir(PUBLIC_CACHE, 0770);
-}
-if (!file_exists(PUBLIC_CACHE.'/.htaccess')) {
-	file_put_contents(
-		PUBLIC_CACHE.'/.htaccess',
-		/** @lang ApacheConfig */
-		<<<HTACCESS
-<FilesMatch "\.(css|js|html)$">
-	Allow From All
-</FilesMatch>
-<ifModule mod_expires.c>
-	ExpiresActive On
-	ExpiresDefault "access plus 1 month"
-</ifModule>
-<ifModule mod_headers.c>
-	Header set Cache-Control "max-age=2592000, public"
-</ifModule>
-AddEncoding gzip .js
-AddEncoding gzip .css
-AddEncoding gzip .html
-
-HTACCESS
-	);
+	mkdir(CACHE, 0770);
 }
 if (!is_dir(LOGS)) {
 	/** @noinspection MkdirRaceConditionInspection */
-	@mkdir(LOGS, 0770);
-}
-if (!is_dir(TEMP)) {
-	/** @noinspection MkdirRaceConditionInspection */
-	@mkdir(TEMP, 0775);
-}
-if (!file_exists(TEMP.'/.htaccess')) {
-	file_put_contents(
-		TEMP.'/.htaccess',
-		/** @lang ApacheConfig */
-		<<<HTACCESS
-Allow From All
-
-HTACCESS
-	);
+	mkdir(LOGS, 0770);
 }
 /**
  * Including of custom files

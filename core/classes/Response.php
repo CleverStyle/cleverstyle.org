@@ -6,21 +6,13 @@
  * @license   MIT License, see license.txt
  */
 namespace cs;
-use
-	cs\Response\Psr7;
 use function
+	cli\err,
 	cli\out;
 
 class Response {
 	use
-		Singleton,
-		Psr7;
-	/**
-	 * Protocol, for instance: `HTTP/1.0`, `HTTP/1.1` (default), HTTP/2.0
-	 *
-	 * @var string
-	 */
-	public $protocol;
+		Singleton;
 	/**
 	 * HTTP status code
 	 *
@@ -58,23 +50,21 @@ class Response {
 	 *                                          `content-type`, `accept-language`; Values might be strings in case of single value or array of strings in case
 	 *                                          of multiple values with the same field name
 	 * @param int                  $code        HTTP status code
-	 * @param string               $protocol    Protocol, for instance: `HTTP/1.0`, `HTTP/1.1` (default), HTTP/2.0
 	 *
 	 * @return Response
 	 */
-	function init ($body = '', $body_stream = null, $headers = [], $code = 200, $protocol = 'HTTP/1.1') {
-		$this->protocol = $protocol;
+	function init ($body = '', $body_stream = null, $headers = [], $code = 200) {
 		$this->code     = $code;
 		$this->headers  = _array($headers);
 		$this->body     = $body;
 		if ($this->body_stream) {
 			fclose($this->body_stream);
 		}
-		$this->data_stream = is_string($body_stream) ? fopen($body_stream, 'a+b') : $body_stream;
+		$this->body_stream = is_string($body_stream) ? fopen($body_stream, 'a+b') : $body_stream;
 		return $this;
 	}
 	/**
-	 * Initialize with typical default settings (headers `Content-Type`, `Vary` and `X-UA-Compatible`, protocol taken from `cs\Request::$protocol`)
+	 * Initialize with typical default settings (headers `Content-Type`, `Vary` and `X-UA-Compatible`
 	 *
 	 * @return Response
 	 */
@@ -83,12 +73,11 @@ class Response {
 			'',
 			null,
 			[
-				'Content-Type'    => 'text/html; charset=utf-8',
-				'Vary'            => 'Accept-Language,User-Agent,Cookie',
-				'X-UA-Compatible' => 'IE=edge' // TODO: I hope some day we'll get rid of this sh*t :(
+				'content-type'    => 'text/html; charset=utf-8',
+				'vary'            => 'Accept-Language,User-Agent,Cookie',
+				'x-ua-compatible' => 'IE=edge' // TODO: I hope some day we'll get rid of this sh*t :(
 			],
-			200,
-			Request::instance()->protocol
+			200
 		);
 	}
 	/**
@@ -134,7 +123,7 @@ class Response {
 	 *
 	 * @param string $name
 	 * @param string $value
-	 * @param int    $expire
+	 * @param int    $expire Unix timestamp in seconds
 	 * @param bool   $httponly
 	 *
 	 * @return Response
@@ -187,12 +176,12 @@ class Response {
 	}
 	protected function output_default_cli () {
 		if ($this->code >= 400 && $this->code <= 510) {
-			out($this->body);
+			err($this->body);
 			exit($this->code % 256);
 		}
 		if (is_resource($this->body_stream)) {
 			$position = ftell($this->body_stream);
-			stream_copy_to_stream($this->body_stream, STDIN);
+			stream_copy_to_stream($this->body_stream, fopen('php://stdout', 'wb'));
 			fseek($this->body_stream, $position);
 		} else {
 			out($this->body);
@@ -211,7 +200,7 @@ class Response {
 		}
 		if (is_resource($this->body_stream)) {
 			$position = ftell($this->body_stream);
-			stream_copy_to_stream($this->body_stream, fopen('php:://output', 'wb'));
+			stream_copy_to_stream($this->body_stream, fopen('php://output', 'wb'));
 			fseek($this->body_stream, $position);
 		} else {
 			echo $this->body;

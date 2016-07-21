@@ -25,9 +25,10 @@ class Permission {
 	protected $table      = '[prefix]permissions';
 	/**
 	 * Array of all permissions for quick selecting
-	 * @var array
+	 *
+	 * @var array|null
 	 */
-	protected $permissions_table = [];
+	protected $permissions_table;
 	/**
 	 * @var Cache\Prefix
 	 */
@@ -111,11 +112,8 @@ class Permission {
 	 * @return bool
 	 */
 	function del ($id) {
-		if (!$id) {
-			return false;
-		}
-		$id = implode(',', (array)_int($id));
-		if ($this->db_prime()->q(
+		$id     = implode(',', (array)_int($id));
+		$result = $this->db_prime()->q(
 			[
 				"DELETE FROM `[prefix]permissions`
 				WHERE `id` IN ($id)",
@@ -124,18 +122,16 @@ class Permission {
 				"DELETE FROM `[prefix]groups_permissions`
 				WHERE `permission` IN ($id)"
 			]
-		)
-		) {
+		);
+		if ($result) {
 			$Cache = $this->cache;
 			unset(
 				$Cache->users,
 				$Cache->groups
 			);
 			$this->del_all_cache();
-			return true;
-		} else {
-			return false;
 		}
+		return (bool)$result;
 	}
 	/**
 	 * Returns array of all permissions grouped by permissions groups
@@ -143,7 +139,7 @@ class Permission {
 	 * @return array Format of array: ['group']['label'] = <i>permission_id</i>
 	 */
 	function get_all () {
-		if (empty($this->permissions_table)) {
+		if ($this->permissions_table === null) {
 			$this->permissions_table = $this->cache->get(
 				'all',
 				function () {
@@ -164,7 +160,7 @@ class Permission {
 	 * Deletion of permission table (is used after adding, setting or deletion of permission)
 	 */
 	protected function del_all_cache () {
-		$this->permissions_table = [];
+		$this->permissions_table = null;
 		unset($this->cache->all);
 	}
 }
