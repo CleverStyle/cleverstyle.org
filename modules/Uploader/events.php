@@ -71,7 +71,7 @@ Event::instance()
 		}
 	)
 	->on(
-		'admin/System/components/modules/uninstall/before',
+		'admin/System/modules/uninstall/before',
 		function ($data) {
 			if ($data['name'] != 'Uploader') {
 				return;
@@ -140,7 +140,7 @@ Event::instance()
 		}
 	)
 	->on(
-		'admin/System/components/modules/install/after',
+		'admin/System/modules/install/after',
 		function ($data) {
 			if ($data['name'] == 'Uploader') {
 				$Config                                        = Config::instance();
