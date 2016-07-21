@@ -13,7 +13,7 @@ load_tinymce	= ->
 	load_promise := new Promise (resolve, reject) !->
 		script	= document.createElement("script")
 			..async		= true
-			..src		= '/components/modules/TinyMCE/includes/js/tinymce.min.js'
+			..src		= '/modules/TinyMCE/includes/js/tinymce.min.js'
 			..onload	= resolve
 			..onerror	= reject
 		document.head.appendChild(script)
@@ -59,7 +59,7 @@ load_tinymce	= ->
 		tinymce
 			..Env.experimentalShadowDom				= true
 			..ui.Control.prototype.getContainerElm	= -> document.children[0]
-			..baseURL								= '/components/modules/TinyMCE/includes/js'
+			..baseURL								= '/modules/TinyMCE/includes/js'
 			..editor_config_full					= {
 				toolbar1 : 'styleselect fontselect fontsizeselect | alignleft aligncenter alignright alignjustify | bold italic underline strikethrough superscript subscript | forecolor backcolor | fullscreen',
 				toolbar2 : 'undo redo | bullist numlist outdent indent blockquote codesample | link unlink anchor image media charmap hr nonbreaking pagebreak | visualchars visualblocks | searchreplace | preview code'

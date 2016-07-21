@@ -18,7 +18,7 @@
       var x$, script;
       x$ = script = document.createElement("script");
       x$.async = true;
-      x$.src = '/components/modules/TinyMCE/includes/js/tinymce.min.js';
+      x$.src = '/modules/TinyMCE/includes/js/tinymce.min.js';
       x$.onload = resolve;
       x$.onerror = reject;
       document.head.appendChild(script);
@@ -77,7 +77,7 @@
       x$.ui.Control.prototype.getContainerElm = function(){
         return document.children[0];
       };
-      x$.baseURL = '/components/modules/TinyMCE/includes/js';
+      x$.baseURL = '/modules/TinyMCE/includes/js';
       x$.editor_config_full = importAll$({
         toolbar1: 'styleselect fontselect fontsizeselect | alignleft aligncenter alignright alignjustify | bold italic underline strikethrough superscript subscript | forecolor backcolor | fullscreen',
         toolbar2: 'undo redo | bullist numlist outdent indent blockquote codesample | link unlink anchor image media charmap hr nonbreaking pagebreak | visualchars visualblocks | searchreplace | preview code'
