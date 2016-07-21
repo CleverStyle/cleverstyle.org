@@ -10,11 +10,17 @@ namespace cs;
 use
 	h;
 
+/**
+ * @var array $block
+ */
 $User = User::instance();
-echo h::cs_side_user_block(
-	[
-		'avatar'   => $User->avatar(),
-		'username' => $User->username(),
-		'guest'    => $User->guest()
-	]
+echo h::{'div.cs-side-block'}(
+	h::h3($block['title']).
+	h::{'div cs-side-user-block'}(
+		[
+			'avatar'   => $User->avatar(),
+			'username' => $User->username(),
+			'guest'    => $User->guest()
+		]
+	)
 );
