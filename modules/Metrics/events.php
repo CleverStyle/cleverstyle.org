@@ -13,7 +13,7 @@ Event::instance()->on(
 		if (
 			User::instance()->admin() ||
 			Request::instance()->header('dnt') == '1' ||
-			!in_array('Metrics', Config::instance()->components['plugins'])
+			!Config::instance()->module('Metrics')->enabled()
 		) {
 			return;
 		}
