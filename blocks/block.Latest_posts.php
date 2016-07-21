@@ -18,8 +18,8 @@ $posts = $Posts->get(
  * @var array $block
  */
 echo h::{'div.cs-side-block'}(
-	h::{'h3 a'}(
-		$block['title'],
+	h::a(
+		h::h3($block['title']),
 		[
 			'href' => 'Blogs'
 		]
@@ -28,8 +28,8 @@ echo h::{'div.cs-side-block'}(
 		array_map(
 			function ($post) {
 				return
-					h::{'h3 a'}(
-						$post['title'],
+					h::a(
+						h::h3($post['title']),
 						[
 							'href' => "Blogs/$post[path]:$post[id]"
 						]
