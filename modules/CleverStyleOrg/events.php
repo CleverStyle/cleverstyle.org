@@ -9,7 +9,7 @@
 namespace cs;
 
 Event::instance()->on(
-	'System/Request/routing_replace',
+	'System/Request/routing_replace/before',
 	function ($data) {
 		if (in_array(strtolower($data['rc']), ['cms', 'framework'])) {
 			Response::instance()->redirect('https://github.com/nazar-pc/CleverStyle-Framework', 302);
